@@ -56,7 +56,7 @@ Params.J=ceil((79-Params.agejshifter)/p5); % =60/p5, Number of period in life-cy
 
 % Grid sizes to use
 n_d=[2,5]; % Decisions: installpv, buyhouse (note, SemiExoStateFn hardcodes that buyhouse is 5 points)
-n_a=[21,3,10]; % Endogenous asset, housing, and solarpv holdings (0-45kW generation)
+n_a=[21,3,5]; % Endogenous asset, housing, and solarpv holdings (0-40kW generation)
 n_semiz=[5,5,ceil(30/p5),3]; % Semi-exog: house prices before/after purchase, years since purchase (one minus this is the 30y duration of mortgages in model periods), and downpayment
 n_z=7; % Exogenous labor productivity units shock (maybe later also solarpv productivity shock?)
 % n_u=p5; % Between period i.i.d. shock (is this really p5 or is it 5 to match with SemiExoStateFn buyhouse?)
@@ -184,8 +184,8 @@ house_grid=(0:1:n_a(2)-1)';
 % [We can think about the values of the house_grid as being relative the average income (or specifically average at a given age)]
 Params.minhouse=house_grid(2); % first is zero (no house)
 
-% kWh of solar generation installed, 5kW per grid element
-solarpv_grid=5*(0:1:n_a(3)-1)';
+% kWh of solar generation installed, 10kW per grid element
+solarpv_grid=10*(0:1:n_a(3)-1)';
 
 % First, the AR(1) process z
 [z_grid,pi_z]=discretizeAR1_FarmerToda(0,Params.rho_z,Params.sigma_epsilon_z,n_z);
@@ -238,6 +238,7 @@ Params.pafter1=2; % second element is 1, which is where we want to start
 
 %% Solar PV is an experienceasset
 vfoptions.experienceasset=1;
+simoptions.experienceasset=1;
 
 %% Define aprime function used for the riskyasset (value of next period assets, determined by this period decision, and u shock)
 % This must all be adjusted if/when we add riskyassets back in
@@ -246,23 +247,22 @@ vfoptions.experienceasset=1;
 
 % Experience assets must be listed first in aprime
 a2primeFn=@(installpv, solarpv, energy_pct_cost) ElectrifyHousing_a2primeFn(installpv, solarpv, energy_pct_cost); % Will return the value of aprime
-vfoptions.aprimeFn=a2primeFn;
 % Note that u is risky asset excess return and effectively includes both the (excess) mean and standard deviation of risky assets
 
-%% Put the risky asset into vfoptions and simoptions
-% vfoptions.aprimeFn=aprimeFn;
+%% Put the risky asset/experienceasset into vfoptions and simoptions
+vfoptions.aprimeFn=a2primeFn;
 % vfoptions.n_u=n_u;
 % vfoptions.u_grid=u_grid;
 % vfoptions.pi_u=pi_u;
-% simoptions.aprimeFn=aprimeFn;
+simoptions.aprimeFn=a2primeFn;
 % simoptions.n_u=n_u;
 % simoptions.u_grid=u_grid;
 % simoptions.pi_u=pi_u;
-% Because a_grid and d_grid are involved in risky assets, but are not
+% Because a_grid and d_grid are involved in risky assets and experienceassets, but are not
 % normally needed for agent distriubiton simulation, we have to also
 % include these in simoptions
-% simoptions.a_grid=a_grid;
-% simoptions.d_grid=d_grid;
+simoptions.a_grid=a_grid;
+simoptions.d_grid=d_grid;
 
 %% Setup for how the semi-exogneous states evolve
 
@@ -280,8 +280,6 @@ vfoptions.SemiExoStateFn=@(pbefore,pafter,yearsowned,downpayment,pbeforeprime,pa
 simoptions.SemiExoStateFn=vfoptions.SemiExoStateFn;
 simoptions.n_semiz=vfoptions.n_semiz;
 simoptions.semiz_grid=vfoptions.semiz_grid;
-% and simoptions will need the d_grid
-simoptions.d_grid=d_grid;
 
 %% Now, create the return function 
 % % There is not much agreement on how to handle mortality risk with Epstein-Zin preferences
