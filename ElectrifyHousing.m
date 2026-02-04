@@ -55,8 +55,8 @@ Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age eas
 Params.J=ceil((79-Params.agejshifter)/p5); % =60/p5, Number of period in life-cycle
 
 % Grid sizes to use
-n_d=[2,5]; % Decisions: installpv, buyhouse (note, SemiExoStateFn hardcodes that buyhouse is 5 points)
-n_a=[21,3,5]; % Endogenous asset, housing, and solarpv holdings (0-40kW generation)
+n_d=[5,2]; % Decisions: buyhouse (note, SemiExoStateFn hardcodes that buyhouse is 5 points), installpv
+n_a=[21,3,5]; % Endogenous asset, housing, and solarpv (0-40kW generation) 
 n_semiz=[5,5,ceil(30/p5),3]; % Semi-exog: house prices before/after purchase, years since purchase (one minus this is the 30y duration of mortgages in model periods), and downpayment
 n_z=7; % Exogenous labor productivity units shock (maybe later also solarpv productivity shock?)
 % n_u=p5; % Between period i.i.d. shock (is this really p5 or is it 5 to match with SemiExoStateFn buyhouse?)
@@ -174,7 +174,7 @@ Params.probhousepricefall=0.2; % decrease one grid point
 % and putting more points near curvature (where the derivative changes the most) increases accuracy of results.
 asset_grid=10*(linspace(0,1,n_a(1)))'; % Note, I use equal spacing (normally would put most points near zero)
 % note: will go from 0 to 10
-% assetprime_grid=10*(linspace(0,1,n_d(2)))'; % Want to let n_d(2) have different number of grid points from n_a(1).
+% assetprime_grid=10*(linspace(0,1,n_d(1)))'; % Want to let n_d(1) have different number of grid points from n_a(1).
 
 % age20avgincome=Params.w*Params.kappa_j(1);
 % house_grid=[0; logspace(2*age20avgincome, 12*age20avgincome, 5)'];
@@ -197,13 +197,13 @@ z_grid=z_grid./mean_z; % Normalise the grid on z (so that the mean of z is exact
 % riskyshare_grid=linspace(0,1,n_d(x))'; % Share of assets, from 0 to 1
 
 % buyhouse
-buyhouse_grid=(0:1:n_d(2)-1)';
+buyhouse_grid=(0:1:n_d(1)-1)';
 
 % installpv is a binary choice
 installpv_grid=[0; 1];
 
 % Set up d for VFI Toolkit (is the two decision variables)
-d_grid=[installpv_grid; buyhouse_grid];
+d_grid=[buyhouse_grid; installpv_grid];
 
 a_grid=[asset_grid; house_grid; solarpv_grid];
 
@@ -246,7 +246,7 @@ simoptions.experienceasset=1;
 % vfoptions.refine_d: the decision variables input to aprimeFn are d2,d3
 
 % Experience assets must be listed first in aprime
-a2primeFn=@(installpv, solarpv, energy_pct_cost) ElectrifyHousing_a2primeFn(installpv, solarpv, energy_pct_cost); % Will return the value of aprime
+a2primeFn=@(installpv, solarpv) ElectrifyHousing_a2primeFn(installpv, solarpv); % Will return the value of aprime
 % Note that u is risky asset excess return and effectively includes both the (excess) mean and standard deviation of risky assets
 
 %% Put the risky asset/experienceasset into vfoptions and simoptions
@@ -290,13 +290,11 @@ simoptions.semiz_grid=vfoptions.semiz_grid;
 DiscountFactorParamNames={'beta','sj'};
 
 % Use 'ElectrifyHousing_ReturnFn'
-ReturnFn=@(installpv,buyhouse,hprime,a,h,solarpv, ...
-        pbefore,pafter,yearsowned,olddownpayment, ...
-        z, ...
+ReturnFn=@(buyhouse,installpv,hprime,aprime,a,h,solarpv, ...
+        pbefore,pafter,yearsowned,olddownpayment, z, ...
         w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost) ...
-    ElectrifyHousing_ReturnFn(installpv,buyhouse,hprime,a,h,solarpv, ...
-        pbefore,pafter,yearsowned,olddownpayment, ...
-        z, ...
+    ElectrifyHousing_ReturnFn(buyhouse,installpv,hprime,aprime,a,h,solarpv, ...
+        pbefore,pafter,yearsowned,olddownpayment, z, ...
         w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost);
 % vfoptions.refine_d, with semiz: only (d1,d3,d4,..) are input to ReturnFn [this model has no d1, so here just d3,d4]
 
@@ -350,18 +348,18 @@ StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightsParamNames,Pol
 %% FnsToEvaluate are how we say what we want to graph the life-cycles of
 % Takes all the d, then relevant aprime, then a, then semiz, then z
 % FnsToEvaluate.riskyshare=@(savings,riskyshare,buyhouse,hprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) riskyshare; % riskyshare, is the fraction of savings invested in the risky asset
-FnsToEvaluate.earnings=@(installpv,buyhouse,hprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z,w,kappa_j) w*kappa_j*z + solarpv; % labor earnings + PV generation
-FnsToEvaluate.assets=@(installpv,buyhouse,hprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) a; % a is the current asset holdings
-FnsToEvaluate.housing=@(installpv,buyhouse,hprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) h; % h is housing holdings
-FnsToEvaluate.solarpv=@(installpv,buyhouse,hprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) solarpv; % solarpv is the current PV capacity
+FnsToEvaluate.earnings=@(buyhouse,installpv,hprime,aprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z,w,kappa_j) w*kappa_j*z + solarpv; % labor earnings + PV generation
+FnsToEvaluate.assets=@(buyhouse,installpv,hprime,aprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) a; % a is the current asset holdings
+FnsToEvaluate.housing=@(buyhouse,installpv,hprime,aprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) h; % h is housing holdings
+FnsToEvaluate.solarpv=@(buyhouse,installpv,hprime,aprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) solarpv; % solarpv is the current PV capacity
 
 
-FnsToEvaluate.buyhouse=@(installpv,buyhouse,hprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) buyhouse; % h is housing holdings
-FnsToEvaluate.pbefore=@(installpv,buyhouse,hprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) pbefore; % h is housing holdings
-FnsToEvaluate.pafter=@(installpv,buyhouse,hprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) pafter; % h is housing holdings
-FnsToEvaluate.olddownpayment=@(installpv,buyhouse,hprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) olddownpayment; % h is housing holdings
-FnsToEvaluate.yearsowned=@(installpv,buyhouse,hprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) yearsowned; % yearsowned, note, goes a bit silly due to the 100 being 5+ 
-% FnsToEvaluate.yearsowned=@(installpv,buyhouse,hprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) yearsowned*(yearsowned~=100); % yearsowned, note, goes a bit silly due to the 100 being 5+ 
+FnsToEvaluate.buyhouse=@(buyhouse,installpv,hprime,aprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) buyhouse; % h is housing holdings
+FnsToEvaluate.pbefore=@(buyhouse,installpv,hprime,aprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) pbefore; % h is housing holdings
+FnsToEvaluate.pafter=@(buyhouse,installpv,hprime,aprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) pafter; % h is housing holdings
+FnsToEvaluate.olddownpayment=@(buyhouse,installpv,hprime,aprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) olddownpayment; % h is housing holdings
+FnsToEvaluate.yearsowned=@(buyhouse,installpv,hprime,aprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) yearsowned; % yearsowned, note, goes a bit silly due to the 100 being 5+ 
+% FnsToEvaluate.yearsowned=@(buyhouse,installpv,hprime,aprime,a,h,solarpv,pbefore,pafter,yearsowned,olddownpayment,z) yearsowned*(yearsowned~=100); % yearsowned, note, goes a bit silly due to the 100 being 5+ 
 
 % notice that we have called these earnings and assets
 

@@ -1,7 +1,7 @@
-function F=ElectrifyHousing_ReturnFn(installpv,buyhouse,hprime,h,a,solarpv, ...
+function F=ElectrifyHousing_ReturnFn(buyhouse,installpv,hprime,aprime,h,a,solarpv, ...
     pbefore,pafter,yearsowned,olddownpayment, ...
     z, ...
-    w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_cost)
+    w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost)
 % Note: riskyasset, so first inputs are (d,a,z,...)
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn (and this model has no d1)
 
@@ -71,7 +71,7 @@ end
 pvinstallcost=0;
 if installpv
     % PV costs approximately 5% of house ($30K system for $600K house)
-    pvinstallcost=pbefore*pv_pct_cost;
+    pvinstallcost=pbefore*pv_pct_cost*10000;
 end
 
 % Housing services (based on house size, not house price)
@@ -88,12 +88,13 @@ end
 
 F=-Inf;
 if agej<Jr % If working age
-    c=w*kappa_j*z+a-costofnewhouse-htc-rentalcosts-mortgagepayment-pvinstallcost; 
+    c=w*kappa_j*z+a-costofnewhouse-htc-rentalcosts-mortgagepayment-pvinstallcost-(energy_pct_cost*(1-solarpv/300)); 
     % Note: costofnewhouse is just the amount we pay this period (rest becomes mortgage obligation)
     % Note: to calculate wealth you would need the value of house, subtract
     % the outstanding mortgage debt, then add a
 else % Retirement
-    c=pension+a-costofnewhouse-htc-rentalcosts-mortgagepayment-pvinstallcost; % give a rent subsidy to elderly for no good reason-rentalcosts;
+    % give a rent subsidy to elderly for no good reason-rentalcosts;
+    c=pension+a-costofnewhouse-htc-rentalcosts-mortgagepayment-pvinstallcost-(energy_pct_cost*(1-solarpv/300));
 end
 
 if c>0
@@ -102,9 +103,9 @@ end
 
 
 %% Ban pensioners from negative assets
-% if agej>=Jr && savings<0
-%     F=-Inf;
-% end
+if agej>=Jr && a<0
+    F=-Inf;
+end
 
 %% buyhouse must match hprime and h
 if hprime==0
@@ -121,5 +122,9 @@ else
     end
 end
 
+%% Ban people from overinstalling solar
+if installpv && solarpv==40
+    F=-Inf;
+end
 
 end
