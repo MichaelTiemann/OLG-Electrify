@@ -2,11 +2,11 @@ function F=ElectrifyHousing_ReturnFn(installpv,buyhouse,aprime,hprime,h,a,solarp
     pbefore,pafter,yearsowned,olddownpayment, ...
     z, ...
     w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost)
-% Note: riskyasset, so first inputs are (d,a,z,...)
+% Note: experience asset and semi-exo asset, so first inputs are (d,a,z,...)
 % vfoptions.refine_d: only decisions d1,d3,d4 are input to ReturnFn (and this model has no d1)
 
 %% First, deal with house and mortgage aspects
-if buyhouse==6
+if buyhouse==4
     relevantdownpayment=olddownpayment;
 else
     % buyhouse 1,2,3 => 0.2, 0.4, 0.6 downpayment values
@@ -17,7 +17,7 @@ end
 % Note: make first mortgage payment is same year you buy house (this could
 % be changed to be making a mortgage payment on the previous house)
 housevalueatpurchase=0; % if buyhouse==0, need to create or gpu objects
-if buyhouse==6
+if buyhouse==4
     housevalueatpurchase=h*pbefore;
 elseif buyhouse>0
     housevalueatpurchase=h*pbefore*pafter; 
@@ -72,7 +72,7 @@ end
 pvinstallcost=0;
 if installpv
     % PV costs approximately 5% of house ($30K system for $600K house)
-    pvinstallcost=1000;
+    pvinstallcost=0.05*h;
 end
 
 % Housing services (based on house size, not house price)
@@ -89,13 +89,13 @@ end
 
 F=-Inf;
 if agej<Jr % If working age
-    c=w*kappa_j*z+(1+r)*a-aprime-costofnewhouse-htc-rentalcosts-mortgagepayment-pvinstallcost; % -(energy_pct_cost*(1-solarpv/300)); 
+    c=w*kappa_j*z+(1+r)*a-aprime-costofnewhouse-htc-rentalcosts-mortgagepayment-pvinstallcost-(energy_pct_cost*(1-solarpv/30)); 
     % Note: costofnewhouse is just the amount we pay this period (rest becomes mortgage obligation)
     % Note: to calculate wealth you would need the value of house, subtract
     % the outstanding mortgage debt, then add a
 else % Retirement
     % give a rent subsidy to elderly for no good reason-rentalcosts;
-    c=pension+(1+r)*a-aprime-costofnewhouse-htc-rentalcosts-mortgagepayment-pvinstallcost; % -(energy_pct_cost*(1-solarpv/300));
+    c=pension+(1+r)*a-aprime-costofnewhouse-htc-rentalcosts-mortgagepayment-pvinstallcost-(energy_pct_cost*(1-solarpv/30));
 end
 
 if c>0

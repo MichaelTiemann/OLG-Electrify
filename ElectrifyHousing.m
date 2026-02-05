@@ -31,12 +31,11 @@
 % house this period, 4=own house. The three different values for buying a
 % house related to the downpayment size, which is 20, 40, 60% of
 % the price of the house.
-% It appears that buyhouse=6 means "refinance existing house"?
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that p5 must be at least 3 (for Farmer-Toda) so years-owned >= 2.
 % p5 must be at most 15 (for kappa_j labor productivity evolutions).
-p5=10; % model period, in years (just used this to modify some parameters from annual to model period)
+p5=8; % model period, in years (just used this to modify some parameters from annual to model period)
 
 %% How does VFI Toolkit think about this?
 %
@@ -79,7 +78,7 @@ N_j=Params.J; % Number of periods in finite horizon
 vfoptions.refine_d=[0,0,1,1]; % tell the code how many d1, d2, d3 and d4 there are
 % Idea is to distinguish three categories of decision variable:
 %  d1: decision is in the ReturnFn but not in aprimeFn
-%  d2: decision is in the aprimeFn but not in ReturnFn (no riskyshare for now)
+%  d2: decision is in the aprimeFn but not in ReturnFn
 %  d3: decision is in both ReturnFn and in aprimeFn (installpv, an experienceasset)
 %  d4: decision is in the ReturnFn but not in aprimeFn, and is in semiz (buyhouse)
 % Note: ReturnFn must use inputs (d1,d3,d4,..) 
@@ -148,7 +147,7 @@ dj=[0.006879, 0.000463, 0.000307, 0.000220, 0.000184, 0.000172, 0.000160, 0.0001
 dj=resize(dj,101+p5,FillValue=1);
 % dj covers Ages 0-100, plus extras at end to make it period-friendly
 Params.sj=prod(1-reshape(dj(1:p5*ceil(101/p5)),[p5,ceil(101/p5)]),1); % p5-year survival rates
-Params.sj=Params.sj(1+ceil(20/p5):floor(20/p5)+N_j); % Just the ages we are using (20yo and up)
+Params.sj=Params.sj(1+ceil(20/p5):ceil(20/p5)+N_j); % Just the ages we are using (20yo and up)
 Params.sj(end)=0; % In the present model the last period (j=J) value of sj is actually irrelevant
 
 %% Mortgages
