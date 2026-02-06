@@ -35,7 +35,7 @@
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that p5 must be at least 3 (for Farmer-Toda) so years-owned >= 2.
 % p5 must be at most 15 (for kappa_j labor productivity evolutions).
-p5=8; % model period, in years (just used this to modify some parameters from annual to model period)
+p5=6; % model period, in years (just used this to modify some parameters from annual to model period)
 
 %% How does VFI Toolkit think about this?
 %
@@ -55,7 +55,7 @@ Params.J=ceil((79-Params.agejshifter)/p5); % =60/p5, Number of period in life-cy
 
 % Grid sizes to use
 n_d=[2,5]; % Decisions: installpv, buyhouse (note, SemiExoStateFn hardcodes that buyhouse is 5 points, and it must be last)
-n_a=[21,3,5]; % Endogenous asset, housing, and solarpv (0-40kW generation) 
+n_a=[13,3,5]; % Endogenous asset, housing, and solarpv (0-40kW generation) 
 n_semiz=[5,5,ceil(30/p5),3]; % Semi-exog: house prices before/after purchase, years since purchase (one minus this is the 30y duration of mortgages in model periods), and downpayment
 n_z=7; % Exogenous labor productivity units shock (maybe later also solarpv productivity shock?)
 % n_u=p5; % Between period i.i.d. shock (is this really p5 or is it 5 to match with SemiExoStateFn buyhouse?)
@@ -88,6 +88,10 @@ vfoptions.refine_d=[0,0,1,1]; % tell the code how many d1, d2, d3 and d4 there a
 % It is possible to solve models without any d1, as is the case here.
 simoptions.refine_d=vfoptions.refine_d;
 
+vfoptions.gridinterplayer=0;
+vfoptions.ngridinterp=5;
+simoptions.gridinterplayer=vfoptions.gridinterplayer;
+simoptions.ngridinterp=vfoptions.ngridinterp;
 %% Parameters
 
 % Housing
@@ -109,7 +113,7 @@ Params.sigma_h=0.5; % Relative importance of housing services (vs consumption) i
 Params.w=1; % Wage
 
 % Asset returns
-Params.r=(1.05^p5)-1; % Rate of return on risk free asset
+Params.r=(1.25^p5)-1; % Rate of return on risk free asset
 % u is the stochastic component of the excess returns to the risky asset
 % Params.rp=(1.03^p5)-1; % Mean excess returns to the risky asset (so the mean return of the risky asset will be r+rp)
 % Params.sigma_u=0.025; % Standard deviation of innovations to the risky asset
@@ -326,7 +330,7 @@ size(Policy)
 % at age j=1. We will give them all zero assets.
 jequaloneDist=zeros([n_a,n_semiz,n_z],'gpuArray'); % Put no households anywhere on grid
 jequaloneDist(1,1,1,Params.pbefore1,Params.pafter1,1,1,ceil(n_z/2))=1; 
-% All agents start with no house, zero assets, zero solar
+% All agents start with zero assets, no house, zero solarpv
 % note: yearsowned=0 and downpayment=0.2 initial values are anyway irrelevant
 % and the median z shock
 

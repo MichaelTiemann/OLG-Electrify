@@ -5,6 +5,12 @@ function F=ElectrifyHousing_ReturnFn(installpv,buyhouse,aprime,hprime,h,a,solarp
 % Note: experience asset and semi-exo asset, so first inputs are (d,a,z,...)
 % vfoptions.refine_d: only decisions d1,d3,d4 are input to ReturnFn (and this model has no d1)
 
+%% Ban people from overinstalling solar
+if installpv && solarpv>0
+    F=-Inf;
+    return;
+end
+
 %% First, deal with house and mortgage aspects
 if buyhouse==4
     relevantdownpayment=olddownpayment;
@@ -71,8 +77,16 @@ end
 
 pvinstallcost=0;
 if installpv
-    % PV costs approximately 5% of house ($30K system for $600K house)
-    pvinstallcost=0.05*h;
+    if buyhouse==0
+        pvinstallcost=Inf
+    elseif buyhouse<4
+        % PV costs approximately 5% of house ($30K system for $600K house)
+        pvinstallcost=pv_pct_cost*h*pbefore;
+    else
+        % Humans will justify investment retrospectively and prospectively
+        % And pay the retrofit penalty
+        pvinstallcost=1.1*pv_pct_cost*h*max(pbefore,pafter);
+    end
 end
 
 % Housing services (based on house size, not house price)
@@ -123,9 +137,5 @@ else
     end
 end
 
-%% Ban people from overinstalling solar
-if solarpv<0
-    F=-Inf;
-end
 
 end
