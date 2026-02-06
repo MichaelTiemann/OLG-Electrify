@@ -6,7 +6,7 @@ solarpv_prime=-Inf;
 
 if installpv
     % If we have never installed solar, do so now
-    if solarpv==0
+    if solarpv<=0
         solarpv_prime = 10 * randi([1,4]);
     end
     % Else -Inf return value will cause the ReturnFn to return -Inf

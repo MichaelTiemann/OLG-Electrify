@@ -44,7 +44,7 @@ else % Retirement
     c=pension+(1+r)*a-savings+(h-hprime)-htc-rentalcosts-pvinstallcost-(energy_pct_cost*(1-solarpv/30));
 end
 
-if c>0 && s>0
+if c>0
     F=(((c^(1-sigma_h))*(s^sigma_h))^(1-sigma))/(1-sigma); % The utility function
 end
 
