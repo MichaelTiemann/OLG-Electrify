@@ -34,7 +34,7 @@ if h==0
     s=0.5*houseservices*minhouse;
     rentalcosts=rentprice;
 else
-    s=houseservices*h;
+    s=houseservices*sqrt(h);
     rentalcosts=0;
 end
 
@@ -53,7 +53,7 @@ if agej<Jr % If working age
 else % Retirement
     c=(1+r_rate)*a+pension+h-hprime;
 end
-c=c-htc-rentalcosts-pvinstallcost-(energy_pct_cost*min(h,1)^2*(1-solarpv/30))-aprime;
+c=c-htc-rentalcosts-pvinstallcost-(energy_pct_cost*min(h,1)^3*(1-solarpv/30))-aprime;
 
 if c>0
     F=(((c^(1-sigma_h))*(s^sigma_h))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
