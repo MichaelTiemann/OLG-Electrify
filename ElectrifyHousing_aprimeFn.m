@@ -5,9 +5,9 @@ function solarpv_prime=ElectrifyHousing_aprimeFn(installpv,solarpv)
 solarpv_prime=-Inf;
 
 if installpv
-    % If we have never installed solar, do so now
-    if solarpv<=0
-        solarpv_prime = 10 * randi([1,4]);
+    % If we can install more solar, do so now
+    if solarpv<=30
+        solarpv_prime = 10 * randi([1,floor((40-solarpv)/10)]);
     end
     % Else -Inf return value will cause the ReturnFn to return -Inf
 else
