@@ -17,11 +17,12 @@ DiscountFactorParamNames={'beta','sj'};
 
 %% How does VFI Toolkit think about this?
 %
-% Two decision variables: labor and solarpv
+% Two decision variables: labor and buyhouse
 % Three endogenous state variables: a, h, and solarpv (assets, housing, and solarpv)
 % One stochastic exogenous state variable: z, an AR(1) process (in logs), idiosyncratic shock to labor productivity units
 % One between-period i.i.d. variable: u, the return to the risky asset
 % Age: j
+% Return function has supply-chain shocks that are universal, not idiosyncratic, creating an experiential discounting factor
 
 %% Begin setting up to use VFI Toolkit to solve
 % Lets model agents from age 20 to age 100, so 81 periods
@@ -30,8 +31,8 @@ Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age eas
 Params.J=100-Params.agejshifter; % =81, Number of period in life-cycle
 
 % Grid sizes to use
-n_d=[51,2]; % Decisions: labor, install solarpv
-n_a=[31,5,6]; % Endogenous asset, housing, and solarpv assets (0-40kW generation)
+n_d=[51,5]; % Decisions: labor, buyhouse
+n_a=[31,5,6]; % Endogenous asset, housing, and solarpv assets (0-50 kW generation)
 n_z=7; % Exogenous labor productivity units shock
 % n_u=5; % Between period i.i.d. shock
 N_j=Params.J; % Number of periods in finite horizon
@@ -55,7 +56,6 @@ vfoptions.refine_d=[1,0,1]; % tell the code how many d1, d2, and d3 there are
 %       aprimeFn must use inputs (d2,d3,..)
 % n_d must be set up as n_d=[n_d1, n_d2, n_d3]
 % d_grid must be set up as d_grid=[d1_grid; d2_grid; d3_grid];
-% It is possible to solve models without any d2, as is the case here.
 simoptions.refine_d=vfoptions.refine_d;
 
 vfoptions.gridinterplayer=0;
@@ -109,6 +109,13 @@ Params.kappa_j=[linspace(0.5,2,Params.Jr-15),linspace(2,1,14),zeros(1,Params.J-P
 Params.rho_z=0.9;
 Params.sigma_epsilon_z=0.03;
 
+% Age-dependent universal, permanent supply-side shocks to housing, energy, and pv installation costs
+shock_period=10;
+shock_years=(1+shock_period:shock_period:80);
+% Exponentially increasing from from 2% to 7% after an initial shock-free period
+shock_pct=exp(shock_years/60)/50;
+Params.agej_pct_cost=[zeros(1,1+shock_period), repelem(shock_pct,shock_period)];
+
 % Conditional survival probabilities: sj is the probability of surviving to be age j+1, given alive at age j
 % Most countries have calculations of these (as they are used by the government departments that oversee pensions)
 % In fact I will here get data on the conditional death probabilities, and then survival is just 1-death.
@@ -146,8 +153,8 @@ house_grid=(0:1:n_a(2)-1)';
 % [We can think about the values of the house_grid as being relative the average income (or specifically average at a given age)]
 Params.minhouse=house_grid(2); % first is zero (no house)
 
-% kW of solar generation installed, 10kW per grid element
-solarpv_grid=10*(0:1:n_a(3)-1)';
+% kW of solar generation installed, 10 kW per grid element
+solarpv_grid=(0:1:n_a(3)-1)';
 
 % First, the AR(1) process z
 [z_grid,pi_z]=discretizeAR1_FarmerToda(0,Params.rho_z,Params.sigma_epsilon_z,n_z);
@@ -158,11 +165,17 @@ z_grid=z_grid./mean_z; % Normalise the grid on z (so that the mean of z is exact
 % Share of assets invested in the risky asset
 % riskyshare_grid=linspace(0,1,n_d(1))'; % Share of assets, from 0 to 1
 
-% installpv is a binary choice
-installpv_grid=[0; 1];
+% buyhouse decisions
+%  0=no house
+%  1=buy house w/o pv this period
+%  2=buy house w/ pv this period
+%  3=keep house; no pv upgrade
+%  4=keep house; pv upgrade (if possible)
+
+buyhouse_grid=[0:1:n_d(2)-1]';
 
 % Set up d for VFI Toolkit (is the two decision variables)
-d_grid=[labor_grid; installpv_grid];
+d_grid=[labor_grid; buyhouse_grid];
 
 a_grid=[asset_grid; house_grid; solarpv_grid];
 
@@ -174,8 +187,8 @@ simoptions.experienceasset=1;
 %% Define aprime function used for the experience asset
 
 % experienceasset: aprime_val=aprimeFn(d,a)
-% vfoptions.refine_d: the decision variables input to aprimeFn are d1,d3
-aprimeFn=@(installpv, solarpv) ElectrifyHousing_aprimeFn(installpv, solarpv); % Will return the value of aprime (solarpv)
+% vfoptions.refine_d: the decision variables input to aprimeFn are d3
+aprimeFn=@(buyhouse, solarpv) ElectrifyHousing_aprimeFn(buyhouse, solarpv); % Will return the value of aprime (solarpv)
 
 %% Put the experience asset into vfoptions and simoptions
 vfoptions.aprimeFn=aprimeFn;
@@ -196,10 +209,10 @@ simoptions.d_grid=d_grid;
 % DiscountFactorParamNames={'beta','sj'};
 
 % Use 'ElectrifyHousing_ReturnFn'
-ReturnFn=@(labor,installpv,aprime,hprime,a,h,solarpv,z, ...
-        r,r_wedge,w,sigma,agej,Jr,pension,kappa_j,psi,eta,sigma_h,f_htc,minhouse,rentprice,f_coll,houseservices,pv_pct_cost,energy_pct_cost) ...
-    ElectrifyHousing_ReturnFn(labor,installpv,aprime,hprime,a,h,solarpv,z, ...
-        r,r_wedge,w,sigma,agej,Jr,pension,kappa_j,psi,eta,sigma_h,f_htc,minhouse,rentprice,f_coll,houseservices,pv_pct_cost,energy_pct_cost)
+ReturnFn=@(labor,buyhouse,aprime,hprime,a,h,solarpv,z, ...
+        r,r_wedge,w,sigma,agej,Jr,pension,kappa_j,psi,eta,sigma_h,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost) ...
+    ElectrifyHousing_ReturnFn(labor,buyhouse,aprime,hprime,a,h,solarpv,z, ...
+        r,r_wedge,w,sigma,agej,Jr,pension,kappa_j,psi,eta,sigma_h,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost)
 % vfoptions.refine_d: only (d1,d3,..) are input to ReturnFn
 
 %% Now solve the value function iteration problem, just to check that things are working before we go to General Equilbrium
@@ -243,11 +256,11 @@ zind=floor(n_z+1)/2; % This will be the median
 figure(1)
 subplot(2,1,1); surf(asset_grid*ones(1,Params.J),ones(n_a(1),1)*(1:1:Params.J),exp(reshape(V(:,h_ii,pv_ii,zind,:),[n_a(1),Params.J])))
 title('Value function: median value of exp(z)')
-xlabel(sprintf('Assets (a), h=%d, solarpv=%d', house_grid(h_ii), solarpv_grid(pv_ii)))
+xlabel(sprintf('Assets (a), h=%d, solarpv=%d x10kW', house_grid(h_ii), solarpv_grid(pv_ii)))
 ylabel('Age j')
 subplot(2,1,2); surf(asset_grid*ones(1,Params.J),ones(n_a(1),1)*(Params.agejshifter+(1:1:Params.J)),exp(reshape(V(:,h_ii,pv_ii,zind,:),[n_a(1),Params.J])))
 title('Value function: median value of exp(z)')
-xlabel(sprintf('Assets (a), h=%d, solarpv=%d', house_grid(h_ii), solarpv_grid(pv_ii)))
+xlabel(sprintf('Assets (a), h=%d, solarpv=%d x10kW', house_grid(h_ii), solarpv_grid(pv_ii)))
 ylabel('Age in Years')
 
 % Do another plot of V, this time as a function (of assets) for a given age (I do a few for different ages)
@@ -266,7 +279,7 @@ for jj=1:5
         end
     end
 end
-xlabel(sprintf('Assets (a), h=%d, solarpv=%d kW', house_grid(h_ii), solarpv_grid(pv_ii)))
+xlabel(sprintf('Assets (a), h=%d, solarpv=%d x10kW', house_grid(h_ii), solarpv_grid(pv_ii)))
 
 for jj=1:5
     subplot(5,3,jj*3-1);
@@ -282,7 +295,7 @@ for jj=1:5
         end
     end
 end
-xlabel(sprintf('Housing (h), a=%.2f, solarpv=%d kW', asset_grid(a_ii), solarpv_grid(pv_ii)))
+xlabel(sprintf('Housing (h), a=%.2f, solarpv=%d x10kW', asset_grid(a_ii), solarpv_grid(pv_ii)))
 
 for jj=1:5
     subplot(5,3,jj*3);
@@ -301,26 +314,26 @@ end
 xlabel(sprintf('Solar PV (solarpv), a=%.2f, h=%d', asset_grid(a_ii), house_grid(h_ii)))
 
 % Convert the policy function to values (rather than indexes).
-% Policy(1,:,:,:) is labor, Policy(2,:,:,:) is installpv [as function of (a,z,j)]
+% Policy(1,:,:,:) is labor, Policy(2,:,:,:) is buyhouse [as function of (a,z,j)]
 % Policy(3,:,:,:) is aprime (assets), Policy(4,:,:,:) is hprime (housing)
 % Plot both as a 3d plot, again I arbitrarily choose the median value of z
 figure(3)
 PolicyVals=PolicyInd2Val_Case1_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions);
 subplot(3,1,1); surf(asset_grid*ones(1,Params.J),ones(n_a(1),1)*(1:1:Params.J),reshape(PolicyVals(1,:,h_ii,pv_ii,zind,:),[n_a(1),Params.J]))
-title(sprintf('Policy function: labor, median z, h=%d, solarpv=%d kW', house_grid(h_ii), solarpv_grid(pv_ii)))
+title(sprintf('Policy function: labor, median z, h=%d, solarpv=%d x10kW', house_grid(h_ii), solarpv_grid(pv_ii)))
 xlabel('Assets (a)')
 ylabel('Age j')
 zlabel('Labor')
 subplot(3,1,2); surf(house_grid*ones(1,Params.J),ones(n_a(2),1)*(1:1:Params.J),reshape(PolicyVals(4,a_ii,:,pv_ii,zind,:),[n_a(2),Params.J]))
-title(sprintf('Policy function: hprime, median z, a=%.2f, solarpv=10kW', asset_grid(a_ii), solarpv_grid(pv_ii)))
+title(sprintf('Policy function: hprime, median z, a=%.2f, solarpv=%d x10kW', asset_grid(a_ii), solarpv_grid(pv_ii)))
 xlabel('Housing (h)')
 ylabel('Age j')
-zlabel('Housing')
+zlabel('hprime')
 subplot(3,1,3); surf(solarpv_grid*ones(1,Params.J),ones(n_a(3),1)*(1:1:Params.J),reshape(PolicyVals(2,a_ii,h_ii,:,zind,:),[n_a(3),Params.J]))
-title(sprintf('Policy function: solarpv, median z, a=%.2f, h=%d', asset_grid(a_ii), house_grid(h_ii)))
+title(sprintf('Policy function: buyhouse, median z, a=%.2f, h=%d', asset_grid(a_ii), house_grid(h_ii)))
 xlabel('Solar PV (solarpv)')
 ylabel('Age j')
-zlabel('Solar PV Installed')
+zlabel('Install PV')
 
 for ii=1:5
     % % Again, plot both policies (h and aprime), this time as a function (of assets) for a given age  (I do a few for different ages)
@@ -340,7 +353,7 @@ for ii=1:5
             title(sprintf('Policy for labor at age j=%d', agej_to_plot(jj)))
         end
     end
-    xlabel(sprintf('Assets (a), h=%d, solarpv=%d kW', house_grid(h_ii), solarpv_grid(pv_ii)))
+    xlabel(sprintf('Assets (a), h=%d, solarpv=%d x10kW', house_grid(h_ii), solarpv_grid(pv_ii)))
 
     for jj=1:5
         subplot(5,2,jj*2);
@@ -348,12 +361,12 @@ for ii=1:5
             solarpv_grid,squeeze(PolicyVals(2,a_ii,h_ii,:,zind,agej_to_plot(jj))), ...
             solarpv_grid,squeeze(PolicyVals(2,a_ii,h_ii,:,end,agej_to_plot(jj))))
         if agej_to_plot(jj)==Params.Jr
-            title('Policy for labor at age j=46 (first year of retirement)')
+            title('Policy for buyhouse at age j=46 (first year of retirement)')
         else
             if jj==1
                 legend('min z','median z','max z') % Just include the legend once in the top-right subplot
             end
-            title(sprintf('Policy for labor at age j=%d', agej_to_plot(jj)))
+            title(sprintf('Policy for buyhouse at age j=%d', agej_to_plot(jj)))
         end
     end
     xlabel(sprintf('Solar PV (solarpv), a=%.2f, h=%d', asset_grid(a_ii), house_grid(h_ii)))
@@ -382,13 +395,13 @@ StationaryDist=StationaryDist_FHorz_Case1(jequaloneDist,AgeWeightsParamNames,Pol
 
 
 %% FnsToEvaluate are how we say what we want to graph the life-cycles of
-% Like with return function, we have to include (h,aprime,a,z) as first
+% Like with return function, we have to include (labor,buyhouse,aprime,hprime,a,h,z) as first
 % inputs, then just any relevant parameters.
-% FnsToEvaluate.riskyshare=@(savings,riskyshare,hprime,h,a,z) riskyshare; % riskyshare, is the fraction of savings invested in the risky asset
-FnsToEvaluate.earnings=@(labor,installpv,aprime,hprime,a,h,solarpv,z,w,kappa_j) labor*w*kappa_j*z; % labor earnings
-FnsToEvaluate.assets=@(labor,installpv,aprime,hprime,a,h,solarpv,z) a; % a is the current asset holdings
-FnsToEvaluate.housing=@(labor,installpv,aprime,hprime,a,h,solarpv,z) h; % h is the current house holdings
-FnsToEvaluate.solarpv=@(labor,installpv,aprime,hprime,a,h,solarpv,z) solarpv; % solarpv is the current solarpv holdings
+% The VFI Toolkit gives us kappa_j from the vector and agej
+FnsToEvaluate.earnings=@(labor,buyhouse,aprime,hprime,a,h,solarpv,z,w,kappa_j) labor*w*kappa_j*z; % labor earnings
+FnsToEvaluate.assets=@(labor,buyhouse,aprime,hprime,a,h,solarpv,z) a; % a is the current asset holdings
+FnsToEvaluate.housing=@(labor,buyhouse,aprime,hprime,a,h,solarpv,z) h; % h is the current house holdings
+FnsToEvaluate.solarpv=@(labor,buyhouse,aprime,hprime,a,h,solarpv,z) solarpv; % solarpv is the current solarpv holdings
 
 % notice that we have called these riskyshare, earnings and assets
 
