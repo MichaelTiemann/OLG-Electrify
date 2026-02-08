@@ -324,7 +324,7 @@ title(sprintf('Policy function: labor, median z, h=%d, solarpv=%d x10kW', house_
 xlabel('Assets (a)')
 ylabel('Age j')
 zlabel('Labor')
-subplot(3,1,2); surf(house_grid*ones(1,Params.J),ones(n_a(2),1)*(1:1:Params.J),reshape(PolicyVals(4,a_ii,:,pv_ii,zind,:),[n_a(2),Params.J]))
+subplot(3,1,2); waterfall(house_grid*ones(1,Params.J),ones(n_a(2),1)*(1:1:Params.J),reshape(PolicyVals(4,a_ii,:,pv_ii,zind,:),[n_a(2),Params.J]))
 title(sprintf('Policy function: hprime, median z, a=%.2f, solarpv=%d x10kW', asset_grid(a_ii), solarpv_grid(pv_ii)))
 xlabel('Housing (h)')
 ylabel('Age j')
