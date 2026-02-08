@@ -1,7 +1,12 @@
-function c=Electrify_HouseholdConsumptionFn(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e,agej,Jr,pension,r,w,P0,D,kappa_j,AccidentBeq,tau_l,tau_d,tau_cg,Lhscale)
+function c=Electrify_HouseholdConsumptionFn( ...
+    labor,buyhouse,aprime,hprime,a,h,solarpv,z,e, ...
+    r,pension,AccidentBeq,w,P0,D,Lhscale, ...
+    kappa_j,tau_l,tau_d,tau_cg,agej,Jr,...
+    r_wedge,f_htc,rentprice,agej_pct_cost,pv_pct_cost,energy_pct_cost)
 % Replace assets with 'share holdings'
 % Get rid of progressive taxes
 % Add Lhnormalize
+% Sort out asset return vs credit wedge
 
 % Make buying/selling a house costly/illiquid
 htc=0; % house transaction cost
@@ -26,10 +31,8 @@ end
 
 % Housing services (based on housing stock)
 if h==0
-    s=0.5*houseservices*minhouse;
     rentalcosts=rentprice;
 else
-    s=houseservices*sqrt(h);
     rentalcosts=0;
 end
 
@@ -55,7 +58,7 @@ if agej<Jr % If working age
     % don't forget to add +e to z in exp(z)
     c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*Lhscale+((1-tau_d)*D+P0)*(a+AccidentBeq)+(1+agej_pct_cost)*(h-hprime); 
 else % Retirement
-    c=pension+((1-tau_d)*D+P0)*(s+AccidentBeq)+(1+agej_pct_cost)*(h-hprime);
+    c=pension+((1-tau_d)*D+P0)*(a+AccidentBeq)+(1+agej_pct_cost)*(h-hprime);
 end
 % ...subtract the rest of the things:
 % - house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share holdings
