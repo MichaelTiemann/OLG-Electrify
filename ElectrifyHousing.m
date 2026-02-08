@@ -172,7 +172,7 @@ z_grid=z_grid./mean_z; % Normalise the grid on z (so that the mean of z is exact
 %  3=keep house; no pv upgrade
 %  4=keep house; pv upgrade (if possible)
 
-buyhouse_grid=[0:1:n_d(2)-1]';
+buyhouse_grid=(0:1:n_d(2)-1)';
 
 % Set up d for VFI Toolkit (is the two decision variables)
 d_grid=[labor_grid; buyhouse_grid];
