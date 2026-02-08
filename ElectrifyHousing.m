@@ -153,6 +153,15 @@ house_grid=(0:1:n_a(2)-1)';
 % [We can think about the values of the house_grid as being relative the average income (or specifically average at a given age)]
 Params.minhouse=house_grid(2); % first is zero (no house)
 
+% buyhouse decisions
+%  0=no house
+%  1=buy house w/o pv this period
+%  2=buy house w/ pv this period
+%  3=keep house; no pv upgrade
+%  4=keep house; pv upgrade (if possible)
+
+buyhouse_grid=(0:1:n_d(2)-1)';
+
 % kW of solar generation installed, 10 kW per grid element
 solarpv_grid=(0:1:n_a(3)-1)';
 
@@ -164,15 +173,6 @@ z_grid=z_grid./mean_z; % Normalise the grid on z (so that the mean of z is exact
 
 % Share of assets invested in the risky asset
 % riskyshare_grid=linspace(0,1,n_d(1))'; % Share of assets, from 0 to 1
-
-% buyhouse decisions
-%  0=no house
-%  1=buy house w/o pv this period
-%  2=buy house w/ pv this period
-%  3=keep house; no pv upgrade
-%  4=keep house; pv upgrade (if possible)
-
-buyhouse_grid=(0:1:n_d(2)-1)';
 
 % Set up d for VFI Toolkit (is the two decision variables)
 d_grid=[labor_grid; buyhouse_grid];
