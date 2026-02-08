@@ -10,7 +10,7 @@ switch buyhouse
         return
     case 1
         % We start from scratch with a new house
-        solarpv=0;
+        solarpv_prime=0;
     case 2
         % We get a random amount of solar
         solarpv_prime = randi([1,5]);

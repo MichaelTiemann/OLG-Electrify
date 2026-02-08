@@ -66,7 +66,7 @@ simoptions.ngridinterp=vfoptions.ngridinterp;
 %% Parameters
 
 % Housing
-Params.f_htc=0.05; % transaction cost of buying/selling house (is a percent of h+hprime)
+Params.f_htc=0.03; % transaction cost of buying/selling house (is a percent of h+hprime)
 % Params.minhouse % set below, is the minimum value of house that can be purchased
 Params.rentprice=0.3; % I figured setting rent a decent fraction of income is sensible
 Params.f_coll=0.5; % collateral contraint (fraction of house value that can be borrowed)
@@ -79,7 +79,7 @@ Params.beta = 0.96;
 % Preferences
 Params.sigma=2; % Coeff of relative risk aversion (curvature of consumption)
 % Params.phi=10; % Additional risk aversion (from Epstein-Zin preferences)
-Params.sigma_h=0.25; % Relative importance of housing services (vs consumption) in utility
+Params.sigma_h=0.5; % Relative importance of housing services (vs consumption) in utility
 Params.eta = 1.5; % Curvature of leisure (This will end up being 1/Frisch elasty)
 Params.psi = 0.5; % Weight on leisure
 
@@ -112,7 +112,7 @@ Params.sigma_epsilon_z=0.03;
 % Age-dependent universal, permanent supply-side shocks to housing, energy, and pv installation costs
 shock_period=10;
 shock_years=(1+shock_period:shock_period:80);
-% Exponentially increasing from from 2% to 7% after an initial shock-free period
+% Exponentially increasing every shock_period years from from ~2% to ~7% after initial shock-free period
 shock_pct=exp(shock_years/60)/50;
 Params.agej_pct_cost=[zeros(1,1+shock_period), repelem(shock_pct,shock_period)];
 
@@ -139,7 +139,7 @@ labor_grid=linspace(0,1,n_d(1))'; % Notice that it is imposing the 0<=h<=1 condi
 % theory that the value function will be more 'curved' near zero assets,
 % and putting more points near curvature (where the derivative changes the most) increases accuracy of results.
 asset_grid=-3+13*(linspace(0,1,n_a(1)))'; % Note, I use equal spacing (normally would put most points near zero)
-% note: will go from -3 to 13-3
+% note: will go from -3 to 13-3=10
 % Make it so that there is a zero assets
 % Find closest to zero assets
 [~,zeroassetindex]=min(abs(asset_grid));
@@ -240,7 +240,7 @@ size(Policy)
 %% Let's take a quick look at what we have calculated, namely V and Policy
 
 % Default asset index value is at 33rd %-ile
-a_ii=floor(n_a(1)/3);
+a_ii=ceil(n_a(1)/3);
 % Default house index value is h=1
 h_ii=2;
 % Default SolarPV index value is at 10kW
@@ -314,8 +314,8 @@ end
 xlabel(sprintf('Solar PV (solarpv), a=%.2f, h=%d', asset_grid(a_ii), house_grid(h_ii)))
 
 % Convert the policy function to values (rather than indexes).
-% Policy(1,:,:,:) is labor, Policy(2,:,:,:) is buyhouse [as function of (a,z,j)]
-% Policy(3,:,:,:) is aprime (assets), Policy(4,:,:,:) is hprime (housing)
+% Policy(1,:,:,:,:,:) is labor, Policy(2,:,:,:,:,:) is buyhouse [as function of (a,z,j)]
+% Policy(3,:,:,:,:,:) is aprime (assets), Policy(4,:,:,:,:,:) is hprime (housing)
 % Plot both as a 3d plot, again I arbitrarily choose the median value of z
 figure(3)
 PolicyVals=PolicyInd2Val_Case1_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,simoptions);
@@ -329,11 +329,12 @@ title(sprintf('Policy function: hprime, median z, a=%.2f, solarpv=%d x10kW', ass
 xlabel('Housing (h)')
 ylabel('Age j')
 zlabel('hprime')
-subplot(3,1,3); surf(solarpv_grid*ones(1,Params.J),ones(n_a(3),1)*(1:1:Params.J),reshape(PolicyVals(2,a_ii,h_ii,:,zind,:),[n_a(3),Params.J]))
-title(sprintf('Policy function: buyhouse, median z, a=%.2f, h=%d', asset_grid(a_ii), house_grid(h_ii)))
+subplot(3,1,3); waterfall(solarpv_grid*ones(1,Params.J),ones(n_a(3),1)*(1:1:Params.J),reshape(PolicyVals(2,a_ii,h_ii,:,zind,:),[n_a(3),Params.J]))
+title(sprintf('Policy function: solarpv, median z, a=%.2f, h=%d', asset_grid(a_ii), house_grid(h_ii)))
 xlabel('Solar PV (solarpv)')
 ylabel('Age j')
-zlabel('Install PV')
+zticklabels({'no house', 'buy, no pv', 'buy w/pv', 'keep', 'keep + upgrade pv'})
+zlabel('buyhouse')
 
 for ii=1:5
     % % Again, plot both policies (h and aprime), this time as a function (of assets) for a given age  (I do a few for different ages)
@@ -403,8 +404,6 @@ FnsToEvaluate.assets=@(labor,buyhouse,aprime,hprime,a,h,solarpv,z) a; % a is the
 FnsToEvaluate.housing=@(labor,buyhouse,aprime,hprime,a,h,solarpv,z) h; % h is the current house holdings
 FnsToEvaluate.solarpv=@(labor,buyhouse,aprime,hprime,a,h,solarpv,z) solarpv; % solarpv is the current solarpv holdings
 
-% notice that we have called these riskyshare, earnings and assets
-
 %% Calculate the life-cycle profiles
 AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEvaluate,Params,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
 
@@ -416,8 +415,6 @@ AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEva
 %% Plot the life cycle profiles of fraction-of-time-worked, earnings, and assets
 
 figure(10)
-% subplot(4,1,1); plot(1:1:Params.J,AgeConditionalStats.riskyshare.Mean)
-% title('Life Cycle Profile: Share of savings invested in risky asset (riskyshare)')
 subplot(4,1,1); plot(1:1:Params.J,AgeConditionalStats.earnings.Mean)
 title('Life Cycle Profile: Labor Earnings (w kappa_j z)')
 subplot(4,1,2); plot(1:1:Params.J,AgeConditionalStats.assets.Mean)
