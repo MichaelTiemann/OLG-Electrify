@@ -62,7 +62,7 @@ if agej<Jr % If working age
     %(including dividend) + net house holdings...less a few things below
     c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*Lhscale+((1-tau_d)*D+P0)*(a+AccidentBeq)+(1+agej_pct_cost)*(h-hprime); 
 else % Retirement
-    c=pension+((1-tau_d)*D+P0)*(s+AccidentBeq)+(1+agej_pct_cost)*(h-hprime);
+    c=pension+((1-tau_d)*D+P0)*(a+AccidentBeq)+(1+agej_pct_cost)*(h-hprime);
 end
 % ...subtract the rest of the things:
 % - house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share holdings
