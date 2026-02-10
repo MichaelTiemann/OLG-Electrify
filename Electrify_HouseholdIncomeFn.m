@@ -2,7 +2,7 @@ function income=Electrify_HouseholdIncomeFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
     r,pension,AccidentBeqS,AccidentBeqAH,w,P0,D,Lhscale, ...
     kappa_j,tau_l,tau_d,tau_cg,agej,Jr, ...
-    agej_pct_cost)
+    r_wedge,agej_pct_cost)
 % Replace assets with 'share holdings'
 % Get rid of progressive taxes
 % Add Lhnormalize
@@ -25,7 +25,7 @@ else % Retirement
     income=pension;
 end
 % Other income: accidental share bequest + share holdings (including dividend) + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
-c=c+((1-tau_d)*D+P0)*(s+AccidentBeqS)+AccidentBeqAH+(1+agej_pct_cost)*(h-hprime)
+c=c+((1-tau_d)*D+P0)*(s+AccidentBeqS)+AccidentBeqAH+(1+agej_pct_cost)*(h-hprime);
 if a<0
     % Subtract loan interest by adding a negative number
     c=c+(1+r+r_wedge)*a;

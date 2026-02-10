@@ -19,8 +19,13 @@ F=-Inf;
 % And thus we have
 P=((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg);
 
-%% Disallow some trivial agent decisions
-if (P*sprime+aprime+(1+agej_pct_cost)*hprime < 0 ... % Don't allow net debt
+%% Allow/Disallow some trivial agent decisions
+if agej<6
+    if P*sprime+aprime+(1+agej_pct_cost)*hprime<-0.55*(6-agej)/5
+        % Starter loan needed to get people going
+        return
+    end
+elseif (P*sprime+aprime+(1+agej_pct_cost)*hprime < 0 ... % Don't allow net debt
     || aprime<-f_coll*(1+agej_pct_cost)*hprime ...   % Collateral constraint on borrowing
     || agej>=Jr && aprime<0)                         % Ban pensioners from negative assets (even if they own houses)
     return 
