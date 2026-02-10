@@ -31,7 +31,7 @@ simoptions.ngridinterp     = vfoptions.ngridinterp;
 Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 Params.J=100-Params.agejshifter; % Number of period in life-cycle
 n_d.household=[17,5]; % Decisions: labor, buyhouse
-n_a.household=[17,8,5,4]; % Endogenous shares, assets, housing, and solarpv assets (0-45 kW generation)
+n_a.household=[17,9,5,4]; % Endogenous shares, assets, housing, and solarpv assets (0-45 kW generation)
 % Exogenous labor productivity units shocks (next two lines)
 n_z.household=7; % AR(1) with age-dependent params
 vfoptions.n_e.household=3; % iid
@@ -72,7 +72,7 @@ Params.beta = 1.016; % Changed to get S to increase nearer to 1 given r=0.05 (ra
 Params.sigma = 2; % Coeff of relative risk aversion (curvature of consumption)
 Params.sigma_h=0.5; % Relative importance of housing services (vs consumption) in utility
 Params.eta = 1.5; % Curvature of leisure (This will end up being 1/Frisch elasty)
-Params.psi = 0.5; % Weight on leisure
+Params.psi = 0.25; % Weight on leisure
 
 % Asset returns
 Params.r_wedge=0.02; % Rate difference between deposits and loans
@@ -160,14 +160,15 @@ Params.TargetKdivL=2.03;
 % Some initial values/guesses for variables that will be determined in general eqm
 Params.pension=0.4; % Initial guess (this will be determined in general eqm)
 Params.r=0.05;
-Params.w=1;
+Params.w=2;
 Params.AccidentBeqS= 0.03; % Accidental bequests (this is the lump sum transfer of shares)
 Params.AccidentBeqAH= 0.03; % Accidental bequests (this is the lump sum transfer of assets+house value)
 Params.G=0.1; % Government expenditure
 Params.firmbeta=1/(1+Params.r/(1-Params.tau_cg)); % 1/(1+r) but returns net of capital gains tax
 Params.D=0.2; % Dividends
 Params.P0=1;
-Params.Lhscale=0.62; % Scaling the household labor supply
+Params.Lhscale=0.35; % Scaling the household labor supply
+Params.Fzscale=0.166; % Scaling the firm productivity (gives mean z productivity a 2x boost to balance Params.w=2)
 
 %% Grids for household
 
@@ -178,7 +179,7 @@ labor_grid=linspace(0,1,n_d.household(1))'; % Notice that it is imposing the 0<=
 share_grid=10*(linspace(0,1,n_a.household(1)).^3)';
 
 % Grid for bank account; a negative balance implies a mortgage
-asset_grid=(-1+3*(linspace(0,1,n_a.household(2))).^3)';
+asset_grid=(-1+2*(linspace(0,1,n_a.household(2)))).^3';
 
 % Make it so that there is a zero assets
 % Find closest to zero assets
@@ -261,7 +262,7 @@ simoptions.pi_e.household=pi_e_J;
 d_grid.firm=linspace(0,1,n_d.firm)'; % Notice that it is imposing the d>=0 condition implicitly
 a_grid.firm=10*(linspace(0,1,n_a.firm).^3)'; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
 
-[z_grid.firm,pi_z.firm] = discretizeAR1_FarmerToda(0,Params.rho_z_firm,Params.sigma_z_e_firm,n_z.firm);
+[z_grid.firm,pi_z.firm] = discretizeAR1_FarmerToda(Params.Fzscale,Params.rho_z_firm,Params.sigma_z_e_firm,n_z.firm);
 z_grid.firm=exp(z_grid.firm);
 
 
@@ -281,6 +282,27 @@ ReturnFn.household=@( ...
         sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,agej,Jr,J,...
         r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     );
+
+this_J=1;
+this_F=Electrify_HouseholdReturnFn( ...
+    1,0,0,asset_grid(zeroassetindex+1),0,0,0,0,0,z_grid_J(4,this_J),e_grid_J(2,this_J), ...
+    Params.r,Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.Lhscale, ...
+    Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.kappa_j(this_J),Params.tau_l,Params.tau_d,Params.tau_cg,Params.warmglow1,Params.warmglow2,this_J,Params.Jr,Params.J, ...
+    Params.r_wedge,Params.f_htc,Params.minhouse,Params.rentprice,Params.f_coll,Params.houseservices,Params.agej_pct_cost(this_J),Params.pv_pct_cost,Params.energy_pct_cost);
+
+fprintf("Electrify_HouseholdReturnFn(labor=1,buyhouse=0,sprime=0,aprime=1,hprime=0,s=a=h=solarpv=0,z(4 @ 1),e(2 @ 1),Params = %f \n", this_F);
+if isinf(this_F)
+    error("Infeasible Household initial condition")
+end
+
+this_F=Electrify_FirmReturnFn( ...
+    Params.D,0.5,0.5,z_grid.firm(round(n_z.firm/2)), ...
+    Params.w, ...
+    Params.delta,Params.alpha_k,Params.alpha_l,Params.capadjconstant,Params.tau_corp,Params.phi,Params.tau_d,Params.tau_cg)
+fprintf("Electrify_FirmReturnFn(dividend=0.2,kprime=1,k=1,z(4),e(2),Params = %f \n", this_F);
+if isinf(this_F)
+    error("Infeasible Firm initial condition")
+end
 
 % For firms
 DiscountFactorParamNames.firm={'firmbeta'};
@@ -445,11 +467,13 @@ FnsToEvaluate.Consumption.household=@( ...
 FnsToEvaluate.Income.household=@( ...
         labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
         r,pension,AccidentBeqS,AccidentBeqAH,w,P0,D,Lhscale, ...
-        kappa_j,tau_l,tau_d,tau_cg,agej,Jr ...
+        kappa_j,tau_l,tau_d,tau_cg,agej,Jr, ...
+        agej_pct_cost ...
     ) Electrify_HouseholdIncomeFn( ...
         labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
         r,pension,AccidentBeqS,AccidentBeqAH,w,P0,D,Lhscale, ...
-        kappa_j,tau_l,tau_d,tau_cg,agej,Jr);
+        kappa_j,tau_l,tau_d,tau_cg,agej,Jr, ...
+        agej_pct_cost);
 
 AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
 
