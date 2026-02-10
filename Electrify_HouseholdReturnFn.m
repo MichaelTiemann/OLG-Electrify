@@ -11,6 +11,12 @@ function F=Electrify_HouseholdReturnFn( ...
 % Note: experienceasset, so first inputs are (d,a,z,e,...)
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
+% Can't go into net debt
+if hprime+aprime < 0
+     F=-Inf;
+     return
+end
+
 % Make buying/selling a house costly/illiquid
 htc=0; % house transaction cost
 if hprime~=h
@@ -66,7 +72,7 @@ else % Retirement
 end
 % ...subtract the rest of the things:
 % - house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share holdings
-c=c-htc-rentalcosts-(1+agej_pct_cost)*(pvinstallcost+energy_pct_cost*min(h,1)^2*(1-solarpv/3))-tau_cg*(P0-Plag)*(a+AccidentBeq)-P*aprime;
+c=c-htc-rentalcosts-(1+agej_pct_cost)*(pvinstallcost+energy_pct_cost*min(h,1)^2*(1-solarpv/2))-tau_cg*(P0-Plag)*(a+AccidentBeq)-P*aprime;
 
 if c>0
     F=(((c^(1-sigma_h))*(s^sigma_h))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
@@ -88,7 +94,7 @@ if aprime<-f_coll*hprime
     F=-Inf; % Collateral constraint on borrowing
 end
 
-%% Ban pensioners from negative assets
+%% Ban pensioners from negative assets (even if they own houses)
 if agej>=Jr && aprime<0
     F=-Inf;
 end

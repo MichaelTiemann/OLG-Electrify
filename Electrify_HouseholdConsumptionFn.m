@@ -51,18 +51,16 @@ P=((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg);
 
 Plag=P; % As stationary general eqm
 
-F=-Inf;
 if agej<Jr % If working age
     %consumption = labor income + accidental bequest + share holdings
     %(including dividend) + net house holdings...less a few things below
-    % don't forget to add +e to z in exp(z)
     c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*Lhscale+((1-tau_d)*D+P0)*(a+AccidentBeq)+(1+agej_pct_cost)*(h-hprime); 
 else % Retirement
     c=pension+((1-tau_d)*D+P0)*(a+AccidentBeq)+(1+agej_pct_cost)*(h-hprime);
 end
 % ...subtract the rest of the things:
 % - house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share holdings
-c=c-htc-rentalcosts-(1+agej_pct_cost)*(pvinstallcost+energy_pct_cost*min(h,1)^2*(1-solarpv/3))-tau_cg*(P0-Plag)*(a+AccidentBeq)-P*aprime;
+c=c-htc-rentalcosts-(1+agej_pct_cost)*(pvinstallcost+energy_pct_cost*min(h,1)^2*(1-solarpv/2))-tau_cg*(P0-Plag)*(a+AccidentBeq)-P*aprime;
 
 
 end

@@ -31,7 +31,7 @@ simoptions.ngridinterp     = vfoptions.ngridinterp;
 Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 Params.J=100-Params.agejshifter; % Number of period in life-cycle
 n_d.household=[51,5]; % Decisions: labor, buyhouse
-n_a.household=[51,5,6]; % Endogenous asset, housing, and solarpv assets (0-50 kW generation)
+n_a.household=[71,5,4]; % Endogenous asset, housing, and solarpv assets (0-45 kW generation)
 % Exogenous labor productivity units shocks (next two lines)
 n_z.household=7; % AR(1) with age-dependent params
 vfoptions.n_e.household=3; % iid
@@ -166,15 +166,15 @@ Params.G=0.1; % Government expenditure
 Params.firmbeta=1/(1+Params.r/(1-Params.tau_cg)); % 1/(1+r) but returns net of capital gains tax
 Params.D=0.2; % Dividends
 Params.P0=1;
-Params.Lhscale=0.23; % Scaling the household labor supply
+Params.Lhscale=0.67; % Scaling the household labor supply
 
 %% Grids for household
 
 % Grid for labour choice
 labor_grid=linspace(0,1,n_d.household(1))'; % Notice that it is imposing the 0<=h<=1 condition implicitly
 
-% Grid for share holdings; Do we need the ^3 trick? If so, must avoid creating complex numbers
-asset_grid=-3+13*(linspace(0,1,n_a.household(1)))';
+% Grid for share holdings; Roughly -1 to 10 across n_a.household(1) gridpoints, with more gridpoints around zero
+asset_grid=(-1+3.2*(linspace(0,1,n_a.household(1))))'.^3;
 % Make it so that there is a zero assets
 % Find closest to zero assets
 [~,zeroassetindex]=min(abs(asset_grid));
@@ -299,7 +299,7 @@ toc
 
 %% Initial distribution of agents at birth (j=1)
 % Before we plot the life-cycle profiles we have to define how agents are
-% at age j=1. We will give them all zero assets.
+% at age j=1. We will give them all zero assets, no house, no solarpv.
 jequaloneDist.household=zeros([n_a.household,n_z.household,vfoptions.n_e.household],'gpuArray'); % Put no households anywhere on grid
 jequaloneDist.household(zeroassetindex,1,1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1; % All agents start with zero assets, and the median shock
 
@@ -339,6 +339,7 @@ GEPriceParamNames={'r','pension','AccidentBeq','G','w','firmbeta','D','P0','Lhsc
 FnsToEvaluate.L_h.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e,kappa_j,Lhscale) labor*kappa_j*exp(z+e)*Lhscale;  % Aggregate labour supply in efficiency units 
 FnsToEvaluate.S.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e) a; % Aggregate share holdings
 FnsToEvaluate.H.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e) h; % Aggregate house holdings
+FnsToEvaluate.PV.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e) solarpv; % Aggregate house holdings
 FnsToEvaluate.PensionSpending.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e,pension,agej,Jr) (agej>=Jr)*pension; % Total spending on pensions
 FnsToEvaluate.PayrollTaxRevenue.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e,agej,Jr,tau_l,w,kappa_j,Lhscale) (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*Lhscale; % Total spending on pensions
 FnsToEvaluate.AccidentalBeqLeft.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e,sj) (aprime+hprime)*(1-sj); % Accidental bequests left by people who die
@@ -373,8 +374,8 @@ fprintf('Check: L_h, L_f, K \n')
 [AggVars.L_h.Mean,AggVars.L_f.Mean,AggVars.K.Mean]
 fprintf('Check: K/L_f (should be about 2.03) \n')
 AggVars.K.Mean/AggVars.L_f.Mean
-fprintf('Check: S \n')
-AggVars.S.Mean
+fprintf('Check: S, H, PV \n')
+[AggVars.S.Mean,AggVars.H.Mean,AggVars.PV.Mean]
 fprintf('Check: ShareIssuance GE condition \n')
 Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D)/(1+Params.r-Params.tau_cg))-AggVars.S.Mean)
 

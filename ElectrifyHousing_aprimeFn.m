@@ -7,7 +7,7 @@ solarpv_prime=-Inf;
 switch buyhouse
     case 0
         % Cannot install in house we don't own
-        return
+        solarpv_prime=0;
     case 1
         % We start from scratch with a new house
         solarpv_prime=0;
