@@ -20,14 +20,19 @@ F=-Inf;
 P=((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg);
 
 %% Allow/Disallow some trivial agent decisions
+if sprime>0 && aprime+(1+agej_pct_cost)*hprime<0
+    % Cannot buy shares with negative net worth
+    return
+end
+net_worth_prime=P*sprime+aprime+(1+agej_pct_cost)*hprime;
 if agej<6
-    if P*sprime+aprime+(1+agej_pct_cost)*hprime<-0.55*(6-agej)/5
+    if net_worth_prime<-0.55*(6-agej)/5
         % Starter loan needed to get people going
         return
     end
-elseif (P*sprime+aprime+(1+agej_pct_cost)*hprime < 0 ... % Don't allow net debt
-    || aprime<-f_coll*(1+agej_pct_cost)*hprime ...   % Collateral constraint on borrowing
-    || agej>=Jr && aprime<0)                         % Ban pensioners from negative assets (even if they own houses)
+elseif (net_worth_prime < 0 ...                          % Don't allow net debt
+        || aprime<-f_coll*(1+agej_pct_cost)*hprime ...   % Collateral constraint on borrowing
+        || agej>=Jr && aprime<0)                         % Ban pensioners from negative assets (even if they own houses)
     return 
 end
 
@@ -88,13 +93,12 @@ end
 
 % Warm-glow bequest; must handle aprime<0
 if agej==J % Final period
-    estate=P*sprime+aprime+(1+agej_pct_cost)*hprime;
-    if estate<0
+    if net_worth_prime<0
         % Died too far in debt...shouldn't happen
         F=-Inf;
     else
         % Our warmglow includes selling our next period house assets
-        warmglow=warmglow1*(estate^(1-warmglow2))/(1-warmglow2);
+        warmglow=warmglow1*(net_worth_prime^(1-warmglow2))/(1-warmglow2);
         F=F+warmglow;
     end
 end

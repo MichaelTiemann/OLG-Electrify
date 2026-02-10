@@ -1,0 +1,12 @@
+Following are some aggregates of the model economy: 
+Output: Y=    0.26 
+Aggregate TFP: Y=    1.17 
+Capital-Output ratio (firm side): K/Y=    1.32 
+Total share value (HH side): P*S=    1.00 
+Total asset value (HH side): A=   -0.38 
+Total house value (HH side): H=    0.00 
+Total net worth (HH side): P*S=    0.62 
+Total firm value (firm side): Value of firm=    0.57 
+Consumption-Output ratio: C/Y=   -0.01 
+Government-to-Output ratio: G/Y=    0.38 
+Wage: w=    1.03 

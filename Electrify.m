@@ -167,7 +167,7 @@ Params.G=0.1; % Government expenditure
 Params.firmbeta=1/(1+Params.r/(1-Params.tau_cg)); % 1/(1+r) but returns net of capital gains tax
 Params.D=0.2; % Dividends
 Params.P0=1;
-Params.Lhscale=0.58; % Scaling the household labor supply
+Params.Lhscale=0.54; % Scaling the household labor supply
 
 %% Grids for household
 
@@ -373,7 +373,7 @@ FnsToEvaluate.PV.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv
 FnsToEvaluate.PensionSpending.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,pension,agej,Jr) (agej>=Jr)*pension; % Total spending on pensions
 FnsToEvaluate.PayrollTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,agej,Jr,tau_l,w,kappa_j,Lhscale) (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*Lhscale; % Total spending on pensions
 FnsToEvaluate.AccidentalBeqSLeft.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj) sprime*(1-sj); % Accidental share bequests left by people who die
-FnsToEvaluate.AccidentalBeqAHLeft.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj) (aprime+hprime)*(1-sj); % Accidental asset+house bequests left by people who die
+FnsToEvaluate.AccidentalBeqAHLeft.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj,agej_pct_cost) min((aprime+(1+agej_pct_cost)*hprime)*(1-sj),0); % Accidental asset+house bequests left by people who die
 FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,tau_cg,P0,D,tau_d,r) tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg)))*(s+min(a,0)); % tau_cg*(P0-Plag)*(s,min(a,0)), but substitute P=Plag, and then substitute for P
 % From firms
 FnsToEvaluate.Output.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
@@ -442,16 +442,18 @@ AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,Fn
 
 %% Plot the life cycle profiles of capital and labour for the inital and final eqm.
 
-figure(1)
-subplot(4,1,1); plot(1:1:Params.J,AgeConditionalStats.L_h.Mean)
+figure_c=figure(1);
+subplot(3,2,1); plot(1:1:Params.J,AgeConditionalStats.L_h.Mean)
 title('Life Cycle Profile: Effective Labour Supply')
-subplot(4,1,2); plot(1:1:Params.J,AgeConditionalStats.S.Mean)
+subplot(3,2,3); plot(1:1:Params.J,AgeConditionalStats.S.Mean)
 title('Life Cycle Profile: Share holdings')
-subplot(4,1,3); plot(1:1:Params.J,AgeConditionalStats.A.Mean)
+subplot(3,2,2); plot(1:1:Params.J,AgeConditionalStats.A.Mean)
 title('Life Cycle Profile: Asset holdings')
-subplot(4,1,4); plot(1:1:Params.J,AgeConditionalStats.H.Mean)
+subplot(3,2,4); plot(1:1:Params.J,AgeConditionalStats.H.Mean)
 title('Life Cycle Profile: House holdings')
-% saveas(figure_c,'./SavedOutput/Graphs/OLGModel6_LifeCycleProfiles','pdf')
+subplot(3,2,6); plot(1:1:Params.J,AgeConditionalStats.PV.Mean)
+title('Life Cycle Profile: Solar PV installed')
+saveas(figure_c,'./SavedOutput/Graphs/Electrify_LifeCycleProfiles','pdf')
 
 %% Calculate some aggregates and print findings about them
 
@@ -491,25 +493,19 @@ temp=V.firm.*StationaryDist.firm;
 temp(StationaryDist.firm==0)=0; % Get rid of points that have V=-inf but zero mass which would give nan
 TotalValueOfFirms=sum(temp(isfinite(temp)));
 
-fprintf('Following are some aggregates of the model economy: \n')
-fprintf('Output: Y=%8.2f \n',AggVars.Output.Mean)
-fprintf('Aggregate TFP: Y=%8.2f \n',AggregateTFP)
-fprintf('Capital-Output ratio (firm side): K/Y=%8.2f \n',AggVars.K.Mean/Y)
-fprintf('Total share value (HH side): P*S=%8.2f \n',P*AggVars.S.Mean)
-fprintf('Total asset value (HH side): A=%8.2f \n',AggVars.A.Mean)
-fprintf('Total house value (HH side): H=%8.2f \n',AggVars.H.Mean)
-fprintf('Total net worth (HH side): P*S=%8.2f \n',P*AggVars.S.Mean+AggVars.A.Mean+AggVars.H.Mean)
-fprintf('Total firm value (firm side): Value of firm=%8.2f \n',TotalValueOfFirms)
-fprintf('Consumption-Output ratio: C/Y=%8.2f \n',AggVars.Consumption.Mean/Y)
-fprintf('Government-to-Output ratio: G/Y=%8.2f \n', Params.G/Y)
-fprintf('Wage: w=%8.2f \n',Params.w)
+fileID = fopen('SavedOutput\aggs.txt','w');
+fprintf(fileID,'Following are some aggregates of the model economy: \n');
+fprintf(fileID,'Output: Y=%8.2f \n',AggVars.Output.Mean);
+fprintf(fileID,'Aggregate TFP: Y=%8.2f \n',AggregateTFP);
+fprintf(fileID,'Capital-Output ratio (firm side): K/Y=%8.2f \n',AggVars.K.Mean/Y);
+fprintf(fileID,'Total share value (HH side): P*S=%8.2f \n',P*AggVars.S.Mean);
+fprintf(fileID,'Total asset value (HH side): A=%8.2f \n',AggVars.A.Mean);
+fprintf(fileID,'Total house value (HH side): H=%8.2f \n',AggVars.H.Mean);
+fprintf(fileID,'Total net worth (HH side): P*S=%8.2f \n',P*AggVars.S.Mean+AggVars.A.Mean+AggVars.H.Mean);
+fprintf(fileID,'Total firm value (firm side): Value of firm=%8.2f \n',TotalValueOfFirms);
+fprintf(fileID,'Consumption-Output ratio: C/Y=%8.2f \n',AggVars.Consumption.Mean/Y);
+fprintf(fileID,'Government-to-Output ratio: G/Y=%8.2f \n', Params.G/Y);
+fprintf(fileID,'Wage: w=%8.2f \n',Params.w);
+fclose(fileID);
 
-
-
-
-
-
-
-
-
-
+type 'SavedOutput\aggs.txt'
