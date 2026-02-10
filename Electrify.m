@@ -167,7 +167,7 @@ Params.G=0.1; % Government expenditure
 Params.firmbeta=1/(1+Params.r/(1-Params.tau_cg)); % 1/(1+r) but returns net of capital gains tax
 Params.D=0.2; % Dividends
 Params.P0=1;
-Params.Lhscale=0.63; % Scaling the household labor supply
+Params.Lhscale=0.58; % Scaling the household labor supply
 
 %% Grids for household
 
@@ -295,7 +295,7 @@ if isinf(this_F)
     error("Infeasible Household initial condition")
 end
 
-this_K=0.3;
+this_K=0.35;
 this_F=Electrify_FirmReturnFn( ...
     Params.D,this_K,this_K,z_grid.firm(round(n_z.firm/2)), ...
     Params.w, ...

@@ -24,14 +24,14 @@ if agej<Jr % If working age
 else % Retirement
     income=pension;
 end
-% Other income: accidental share bequest + share holdings (including dividend) + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
-c=c+((1-tau_d)*D+P0)*(s+AccidentBeqS)+AccidentBeqAH+(1+agej_pct_cost)*(h-hprime);
+% Other income: accidental share bequest + share holdings (including dividend) - capital gains + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
+income=income+((1-tau_d)*D+P0)*(s+AccidentBeqS)-tau_cg*(P0-Plag)*(s+AccidentBeqS)+AccidentBeqAH+(1+agej_pct_cost)*(h-hprime);
 if a<0
     % Subtract loan interest by adding a negative number
-    c=c+(1+r+r_wedge)*a;
+    income=income+(1+r+r_wedge)*a;
 else
     % Add deposit interest
-    c=c+(1+r)*a;
+    income=income+(1+r)*a;
 end
 
 end
