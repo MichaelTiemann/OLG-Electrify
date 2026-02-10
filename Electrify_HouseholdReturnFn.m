@@ -1,21 +1,32 @@
 function F=Electrify_HouseholdReturnFn( ...
-    labor,buyhouse,aprime,hprime,a,h,solarpv,z,e, ...
-    r,pension,AccidentBeq,w,P0,D,Lhscale, ...
+    labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+    r,pension,AccidentBeqS,AccidentBeqAH,w,P0,D,Lhscale, ...
     sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,agej,Jr,J,...
     r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     )
-% Replace assets with 'share holdings'
 % Get rid of progressive taxes
 % Add Lhnormalize
 
 % Note: experienceasset, so first inputs are (d,a,z,e,...)
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
-% Can't go into net debt
-if hprime+aprime < 0
-     F=-Inf;
-     return
+F=-Inf;
+
+% We can get P (share price) from the equation that defines r as the return to the mutual fund
+% 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
+% We are looking at stationary general eqm, so
+% Plag=P;
+% And thus we have
+P=((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg);
+
+%% Disallow some trivial agent decisions
+if (P*sprime+aprime+(1+agej_pct_cost)*hprime < 0 ... % Don't allow net debt
+    || aprime<-f_coll*(1+agej_pct_cost)*hprime ...   % Collateral constraint on borrowing
+    || agej>=Jr && aprime<0)                         % Ban pensioners from negative assets (even if they own houses)
+    return 
 end
+
+Plag=P; % As stationary general eqm
 
 % Make buying/selling a house costly/illiquid
 htc=0; % house transaction cost
@@ -31,72 +42,56 @@ if buyhouse==2 || buyhouse==4
         pvinstallcost=Inf;
     elseif h==hprime
         % Pay the retrofit penalty
-        pvinstallcost=1.1*pv_pct_cost*h;
+        pvinstallcost=1.1*pv_pct_cost*(1+agej_pct_cost)*h;
     else % Changing house
         % PV costs approximately 5% of new house ($30K system for $600K house)
-        pvinstallcost=pv_pct_cost*hprime;
+        pvinstallcost=pv_pct_cost*(1+agej_pct_cost)*hprime;
     end
 end
 
 % Housing services (based on housing stock)
 if h==0
-    s=0.5*houseservices*minhouse;
+    hs=0.5*houseservices*minhouse;
     rentalcosts=rentprice;
 else
-    s=houseservices*sqrt(h);
+    hs=houseservices*sqrt(h);
     rentalcosts=0;
 end
 
-% Interest rate (loans vs. deposits)
-r_rate=r;
-if a<0
-    r_rate=r+r_wedge;
-end
-
-% We can get P from the equation that defines r as the return to the mutual fund
-% 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
-% We are looking at stationary general eqm, so
-% Plag=P;
-% And thus we have
-P=((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg);
-
-Plag=P; % As stationary general eqm
-
-F=-Inf;
 if agej<Jr % If working age
-    %consumption = labor income + accidental bequest + share holdings
-    %(including dividend) + net house holdings...less a few things below
-    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*Lhscale+((1-tau_d)*D+P0)*(a+AccidentBeq)+(1+agej_pct_cost)*(h-hprime); 
+    %consumption = labor income plus other "other income" below
+    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*Lhscale; 
 else % Retirement
-    c=pension+((1-tau_d)*D+P0)*(a+AccidentBeq)+(1+agej_pct_cost)*(h-hprime);
+    c=pension;
+end
+% Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
+c=c+((1-tau_d)*D+P0)*(s+AccidentBeqS)+AccidentBeqAH+(1+agej_pct_cost)*(h-hprime);
+if a<0
+    % Subtract loan interest by adding a negative number
+    c=c+(1+r+r_wedge)*a;
+else
+    % Add deposit interest
+    c=c+(1+r)*a;
 end
 % ...subtract the rest of the things:
-% - house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share holdings
-c=c-htc-rentalcosts-(1+agej_pct_cost)*(pvinstallcost+energy_pct_cost*min(h,1)^2*(1-solarpv/2))-tau_cg*(P0-Plag)*(a+AccidentBeq)-P*aprime;
+% house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share, asset, and house holdings
+c=c-htc-rentalcosts-pvinstallcost-(1+agej_pct_cost)*(energy_pct_cost*min(h,1)^2*(1-solarpv/2))-tau_cg*(P0-Plag)*(s+AccidentBeqS)-P*sprime-aprime-(1+agej_pct_cost)*hprime;
 
 if c>0
-    F=(((c^(1-sigma_h))*(s^sigma_h))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
+    F=(((c^(1-sigma_h))*(hs^sigma_h))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
 end
 
 % Warm-glow bequest; must handle aprime<0
 if agej==J % Final period
-    if aprime+hprime<0
+    estate=P*sprime+aprime+(1+agej_pct_cost)*hprime;
+    if estate<0
         % Died too far in debt...shouldn't happen
         F=-Inf;
     else
         % Our warmglow includes selling our next period house assets
-        warmglow=warmglow1*((aprime+hprime)^(1-warmglow2))/(1-warmglow2);
+        warmglow=warmglow1*(estate^(1-warmglow2))/(1-warmglow2);
         F=F+warmglow;
     end
-end
-
-if aprime<-f_coll*hprime
-    F=-Inf; % Collateral constraint on borrowing
-end
-
-%% Ban pensioners from negative assets (even if they own houses)
-if agej>=Jr && aprime<0
-    F=-Inf;
 end
 
 

@@ -10,7 +10,7 @@ Params.ptypemass=[1,1]; % Mass of households and firms are each equal to one
 addpath(genpath('./MatlabToolkits/'))
 
 %% Begin setting up to use VFI Toolkit to solve
-vfoptions.lowmemory.household=1;
+vfoptions.lowmemory.household=2;
 vfoptions.lowmemory.firm=0;
 vfoptions.tolerance=10^(-1);
 simoptions.tolerance=vfoptions.tolerance;
@@ -30,8 +30,8 @@ simoptions.ngridinterp     = vfoptions.ngridinterp;
 % Lets model agents from age 20 to age 100, so 81 periods
 Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 Params.J=100-Params.agejshifter; % Number of period in life-cycle
-n_d.household=[51,5]; % Decisions: labor, buyhouse
-n_a.household=[71,5,4]; % Endogenous asset, housing, and solarpv assets (0-45 kW generation)
+n_d.household=[17,5]; % Decisions: labor, buyhouse
+n_a.household=[17,8,5,4]; % Endogenous shares, assets, housing, and solarpv assets (0-45 kW generation)
 % Exogenous labor productivity units shocks (next two lines)
 n_z.household=7; % AR(1) with age-dependent params
 vfoptions.n_e.household=3; % iid
@@ -161,20 +161,25 @@ Params.TargetKdivL=2.03;
 Params.pension=0.4; % Initial guess (this will be determined in general eqm)
 Params.r=0.05;
 Params.w=1;
-Params.AccidentBeq= 0.03; % Accidental bequests (this is the lump sum transfer)
+Params.AccidentBeqS= 0.03; % Accidental bequests (this is the lump sum transfer of shares)
+Params.AccidentBeqAH= 0.03; % Accidental bequests (this is the lump sum transfer of assets+house value)
 Params.G=0.1; % Government expenditure
 Params.firmbeta=1/(1+Params.r/(1-Params.tau_cg)); % 1/(1+r) but returns net of capital gains tax
 Params.D=0.2; % Dividends
 Params.P0=1;
-Params.Lhscale=0.67; % Scaling the household labor supply
+Params.Lhscale=0.62; % Scaling the household labor supply
 
 %% Grids for household
 
 % Grid for labour choice
 labor_grid=linspace(0,1,n_d.household(1))'; % Notice that it is imposing the 0<=h<=1 condition implicitly
 
-% Grid for share holdings; Roughly -1 to 10 across n_a.household(1) gridpoints, with more gridpoints around zero
-asset_grid=(-1+3.2*(linspace(0,1,n_a.household(1))))'.^3;
+% Grid for share holdings, always > 0
+share_grid=10*(linspace(0,1,n_a.household(1)).^3)';
+
+% Grid for bank account; a negative balance implies a mortgage
+asset_grid=(-1+3*(linspace(0,1,n_a.household(2))).^3)';
+
 % Make it so that there is a zero assets
 % Find closest to zero assets
 [~,zeroassetindex]=min(abs(asset_grid));
@@ -182,7 +187,7 @@ asset_grid(zeroassetindex)=0;
 
 % age20avgincome=Params.w*Params.kappa_j(1);
 % house_grid=[0; logspace(2*age20avgincome, 12*age20avgincome, 5)'];
-house_grid=(0:1:n_a.household(2)-1)';
+house_grid=(0:1:n_a.household(3)-1)';
 % Note, we can see from w*kappa_j*z and the values of these, that average
 % income is going to be around one, so will just use this simpler house grid
 % [We can think about the values of the house_grid as being relative the average income (or specifically average at a given age)]
@@ -198,12 +203,12 @@ Params.minhouse=house_grid(2); % first is zero (no house)
 buyhouse_grid=(0:1:n_d.household(2)-1)';
 
 % kW of solar generation installed, 10 kW per grid element
-solarpv_grid=(0:1:n_a.household(3)-1)';
+solarpv_grid=(0:1:n_a.household(4)-1)';
 
 % Set up d for VFI Toolkit (is the two decision variables)
 d_grid.household=[labor_grid; buyhouse_grid];
 
-a_grid.household=[asset_grid; house_grid; solarpv_grid];
+a_grid.household=[share_grid; asset_grid; house_grid; solarpv_grid];
 
 %% Solar PV is an experience asset
 vfoptions.experienceasset.household=1;
@@ -266,13 +271,13 @@ z_grid.firm=exp(z_grid.firm);
 DiscountFactorParamNames.household={'beta','sj'};
 % Notice we use 'Electrify_HouseholdReturnFn'
 ReturnFn.household=@( ...
-        labor,buyhouse,aprime,hprime,a,h,solarpv,z,e, ...
-        r,pension,AccidentBeq,w,P0,D,Lhscale, ...
+        labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+        r,pension,AccidentBeqS,AccidentBeqAH,w,P0,D,Lhscale, ...
         sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,agej,Jr,J,...
         r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     ) Electrify_HouseholdReturnFn( ...
-        labor,buyhouse,aprime,hprime,a,h,solarpv,z,e, ...
-        r,pension,AccidentBeq,w,P0,D,Lhscale, ...
+        labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+        r,pension,AccidentBeqS,AccidentBeqAH,w,P0,D,Lhscale, ...
         sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,agej,Jr,J,...
         r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     );
@@ -301,7 +306,7 @@ toc
 % Before we plot the life-cycle profiles we have to define how agents are
 % at age j=1. We will give them all zero assets, no house, no solarpv.
 jequaloneDist.household=zeros([n_a.household,n_z.household,vfoptions.n_e.household],'gpuArray'); % Put no households anywhere on grid
-jequaloneDist.household(zeroassetindex,1,1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1; % All agents start with zero assets, and the median shock
+jequaloneDist.household(1,zeroassetindex,1,1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1; % All agents start with zero shares, assets, houses, solarpv, and the median shock
 
 % Note that because the firms are infinite horizon they do not have an age=1 distribution
 
@@ -321,7 +326,7 @@ disp('Test StationaryDist')
 StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
 
 %% General eqm variables
-GEPriceParamNames={'r','pension','AccidentBeq','G','w','firmbeta','D','P0','Lhscale'}; 
+GEPriceParamNames={'r','pension','AccidentBeqS','AccidentBeqAH','G','w','firmbeta','D','P0','Lhscale'}; 
 % We don't need P
 % We can get P from the equation that defines r as the return to the mutual fund
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
@@ -336,14 +341,16 @@ GEPriceParamNames={'r','pension','AccidentBeq','G','w','firmbeta','D','P0','Lhsc
 % both z).
 
 % Stationary Distribution Aggregates from households (important that ordering of Names and Functions is the same)
-FnsToEvaluate.L_h.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e,kappa_j,Lhscale) labor*kappa_j*exp(z+e)*Lhscale;  % Aggregate labour supply in efficiency units 
-FnsToEvaluate.S.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e) a; % Aggregate share holdings
-FnsToEvaluate.H.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e) h; % Aggregate house holdings
-FnsToEvaluate.PV.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e) solarpv; % Aggregate house holdings
-FnsToEvaluate.PensionSpending.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e,pension,agej,Jr) (agej>=Jr)*pension; % Total spending on pensions
-FnsToEvaluate.PayrollTaxRevenue.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e,agej,Jr,tau_l,w,kappa_j,Lhscale) (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*Lhscale; % Total spending on pensions
-FnsToEvaluate.AccidentalBeqLeft.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e,sj) (aprime+hprime)*(1-sj); % Accidental bequests left by people who die
-FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e,tau_cg,P0,D,tau_d,r) tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg)))*a; % tau_cg*(P0-Plag)*s, but substitute P=Plag, and then substitute for P
+FnsToEvaluate.L_h.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,kappa_j,Lhscale) labor*kappa_j*exp(z+e)*Lhscale;  % Aggregate labour supply in efficiency units 
+FnsToEvaluate.S.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) s; % Aggregate share holdings
+FnsToEvaluate.A.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) a; % Aggregate asset/mortgage holdings
+FnsToEvaluate.H.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) h; % Aggregate house holdings
+FnsToEvaluate.PV.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings
+FnsToEvaluate.PensionSpending.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,pension,agej,Jr) (agej>=Jr)*pension; % Total spending on pensions
+FnsToEvaluate.PayrollTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,agej,Jr,tau_l,w,kappa_j,Lhscale) (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*Lhscale; % Total spending on pensions
+FnsToEvaluate.AccidentalBeqSLeft.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj) sprime*(1-sj); % Accidental share bequests left by people who die
+FnsToEvaluate.AccidentalBeqAHLeft.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj) (aprime+hprime)*(1-sj); % Accidental asset+house bequests left by people who die
+FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,tau_cg,P0,D,tau_d,r) tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg)))*(s+min(a,0)); % tau_cg*(P0-Plag)*(s,min(a,0)), but substitute P=Plag, and then substitute for P
 % From firms
 FnsToEvaluate.Output.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
 FnsToEvaluate.L_f.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm
@@ -356,7 +363,8 @@ FnsToEvaluate.CorpTaxRevenue.firm = @(d,kprime,k,z,w,delta,alpha_k,alpha_l,capad
 GeneralEqmEqns.sharemarket = @(S) S-1; % mass of all shares equals one
 GeneralEqmEqns.labormarket = @(L_h,L_f) L_h-L_f; % labor supply of households equals labor demand of firms
 GeneralEqmEqns.pensions = @(PensionSpending,PayrollTaxRevenue) PensionSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue: pension*fractionretired-tau*w*H
-GeneralEqmEqns.bequests = @(AccidentalBeqLeft,AccidentBeq,n) AccidentalBeqLeft/(1+n)-AccidentBeq; % Accidental bequests received equal accidental bequests left
+GeneralEqmEqns.bequestsS = @(AccidentalBeqSLeft,AccidentBeqS,n) AccidentalBeqSLeft/(1+n)-AccidentBeqS; % Accidental share bequests received equal accidental share bequests left
+GeneralEqmEqns.bequestsAH = @(AccidentalBeqAHLeft,AccidentBeqAH,n) AccidentalBeqAHLeft/(1+n)-AccidentBeqAH; % Accidental asset+house bequests received equal accidental asset+house bequests left
 GeneralEqmEqns.govbudget = @(G,tau_d,D,CapitalGainsTaxRevenue,CorpTaxRevenue) G-tau_d*D-CapitalGainsTaxRevenue-CorpTaxRevenue; % G is equal to the target, GdivYtarget*Y
 GeneralEqmEqns.firmdiscounting = @(firmbeta,r,tau_cg) firmbeta-1/(1+r/(1-tau_cg)); % Firms discount rate is related to market return rate
 GeneralEqmEqns.dividends = @(D,DividendPaid) D-DividendPaid; % That the dividend households receive equals that which firms give
@@ -374,8 +382,8 @@ fprintf('Check: L_h, L_f, K \n')
 [AggVars.L_h.Mean,AggVars.L_f.Mean,AggVars.K.Mean]
 fprintf('Check: K/L_f (should be about 2.03) \n')
 AggVars.K.Mean/AggVars.L_f.Mean
-fprintf('Check: S, H, PV \n')
-[AggVars.S.Mean,AggVars.H.Mean,AggVars.PV.Mean]
+fprintf('Check: S, A, H, PV \n')
+[AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV.Mean]
 fprintf('Check: ShareIssuance GE condition \n')
 Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D)/(1+Params.r-Params.tau_cg))-AggVars.S.Mean)
 
@@ -393,7 +401,8 @@ p_eqm=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j, Names_i, []
 % Put this into Params so we can calculate things about the initial equilibrium
 Params.r=p_eqm.r;
 Params.pension=p_eqm.pension;
-Params.AccidentBeq=p_eqm.AccidentBeq;
+Params.AccidentBeqS=p_eqm.AccidentBeqS;
+Params.AccidentBeqAH=p_eqm.AccidentBeqAH;
 Params.G=p_eqm.G;
 Params.w=p_eqm.w;
 Params.firmbeta=p_eqm.firmbeta;
@@ -410,26 +419,37 @@ AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,Fn
 %% Plot the life cycle profiles of capital and labour for the inital and final eqm.
 
 figure(1)
-subplot(2,1,1); plot(1:1:Params.J,AgeConditionalStats.L_h.Mean)
+subplot(4,1,1); plot(1:1:Params.J,AgeConditionalStats.L_h.Mean)
 title('Life Cycle Profile: Effective Labour Supply')
-subplot(2,1,2); plot(1:1:Params.J,AgeConditionalStats.S.Mean)
+subplot(4,1,2); plot(1:1:Params.J,AgeConditionalStats.S.Mean)
 title('Life Cycle Profile: Share holdings')
+subplot(4,1,3); plot(1:1:Params.J,AgeConditionalStats.A.Mean)
+title('Life Cycle Profile: Asset holdings')
+subplot(4,1,4); plot(1:1:Params.J,AgeConditionalStats.H.Mean)
+title('Life Cycle Profile: House holdings')
 % saveas(figure_c,'./SavedOutput/Graphs/OLGModel6_LifeCycleProfiles','pdf')
 
 %% Calculate some aggregates and print findings about them
 
 % Add consumption to the FnsToEvaluate
 FnsToEvaluate.Consumption.household=@( ...
-        labor,buyhouse,aprime,hprime,a,h,solarpv,z,e, ...
-        r,pension,AccidentBeq,w,P0,D,Lhscale, ...
+        labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+        r,pension,AccidentBeqS,AccidentBeqAH,w,P0,D,Lhscale, ...
         kappa_j,tau_l,tau_d,tau_cg,agej,Jr,...
         r_wedge,f_htc,rentprice,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     ) Electrify_HouseholdConsumptionFn( ...
-        labor,buyhouse,aprime,hprime,a,h,solarpv,z,e, ...
-        r,pension,AccidentBeq,w,P0,D,Lhscale, ...
+        labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+        r,pension,AccidentBeqS,AccidentBeqAH,w,P0,D,Lhscale, ...
         kappa_j,tau_l,tau_d,tau_cg,agej,Jr,...
         r_wedge,f_htc,rentprice,agej_pct_cost,pv_pct_cost,energy_pct_cost);
-FnsToEvaluate.Income.household=@(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e,agej,Jr,pension,r,w,P0,D,kappa_j,AccidentBeq,tau_l,tau_d,tau_cg,Lhscale) Electrify_HouseholdIncomeFn(labor,buyhouse,aprime,hprime,a,h,solarpv,z,e,agej,Jr,pension,r,w,P0,D,kappa_j,AccidentBeq,tau_l,tau_d,tau_cg,Lhscale);
+FnsToEvaluate.Income.household=@( ...
+        labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+        r,pension,AccidentBeqS,AccidentBeqAH,w,P0,D,Lhscale, ...
+        kappa_j,tau_l,tau_d,tau_cg,agej,Jr ...
+    ) Electrify_HouseholdIncomeFn( ...
+        labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+        r,pension,AccidentBeqS,AccidentBeqAH,w,P0,D,Lhscale, ...
+        kappa_j,tau_l,tau_d,tau_cg,agej,Jr);
 
 AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
 
@@ -449,7 +469,10 @@ fprintf('Following are some aggregates of the model economy: \n')
 fprintf('Output: Y=%8.2f \n',AggVars.Output.Mean)
 fprintf('Aggregate TFP: Y=%8.2f \n',AggregateTFP)
 fprintf('Capital-Output ratio (firm side): K/Y=%8.2f \n',AggVars.K.Mean/Y)
-fprintf('Total asset value (HH side): P*S=%8.2f \n',P*AggVars.S.Mean)
+fprintf('Total share value (HH side): P*S=%8.2f \n',P*AggVars.S.Mean)
+fprintf('Total asset value (HH side): A=%8.2f \n',AggVars.A.Mean)
+fprintf('Total house value (HH side): H=%8.2f \n',AggVars.H.Mean)
+fprintf('Total net worth (HH side): P*S=%8.2f \n',P*AggVars.S.Mean+AggVars.A.Mean+AggVars.H.Mean)
 fprintf('Total firm value (firm side): Value of firm=%8.2f \n',TotalValueOfFirms)
 fprintf('Consumption-Output ratio: C/Y=%8.2f \n',AggVars.Consumption.Mean/Y)
 fprintf('Government-to-Output ratio: G/Y=%8.2f \n', Params.G/Y)
