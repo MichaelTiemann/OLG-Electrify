@@ -67,7 +67,7 @@ Params.pv_pct_cost=0.05; % modeling a $30K install for a $600K house
 Params.energy_pct_cost=0.07; % Electricity: 3%; Gas: 2%; Petrol: 2%
 
 % Discount rate
-Params.beta = 0.99; % Changed to get S to increase nearer to 1 given r=0.05 (ran it with beta=0.99, got S=0.3, so increased this; note that it interacts with sj to give the actual discount factor)
+Params.beta = 0.96; % Changed to get S to increase nearer to 1 given r=0.05 (ran it with beta=0.99, got S=0.3, so increased this; note that it interacts with sj to give the actual discount factor)
 % Preferences
 Params.sigma = 2; % Coeff of relative risk aversion (curvature of consumption)
 Params.sigma_h=0.5; % Relative importance of housing services (vs consumption) in utility

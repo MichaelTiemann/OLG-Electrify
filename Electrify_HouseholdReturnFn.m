@@ -41,7 +41,7 @@ Plag=P; % As stationary general eqm
 % Make buying/selling a house costly/illiquid
 htc=0; % house transaction cost
 if hprime~=h
-    htc=f_htc*agej_pct_cost*(h+hprime);
+    htc=f_htc*(1+agej_pct_cost)*(h+hprime);
 end
 
 pvinstallcost=0;

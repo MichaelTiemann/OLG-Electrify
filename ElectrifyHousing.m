@@ -81,7 +81,7 @@ Params.sigma=2; % Coeff of relative risk aversion (curvature of consumption)
 % Params.phi=10; % Additional risk aversion (from Epstein-Zin preferences)
 Params.sigma_h=0.5; % Relative importance of housing services (vs consumption) in utility
 Params.eta = 1.5; % Curvature of leisure (This will end up being 1/Frisch elasty)
-Params.psi = 0.5; % Weight on leisure
+Params.psi = 0.25; % Weight on leisure
 
 % Prices
 Params.w=1; % Wage
