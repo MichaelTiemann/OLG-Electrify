@@ -60,6 +60,6 @@ else
 end
 % ...subtract the rest of the things:
 % house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share, asset, and house holdings
-c=c-htc-rentalcosts-pvinstallcost-(1+agej_pct_cost)*(energy_pct_cost*min(h,1)^2*(1-solarpv/2))-tau_cg*(P0-Plag)*(s+AccidentBeqS)-P*sprime-aprime-(1+agej_pct_cost)*hprime;
+c=c-htc-rentalcosts-pvinstallcost-(1+agej_pct_cost)*(energy_pct_cost*max(h,1)^2*(1-solarpv/2))-tau_cg*(P0-Plag)*(s+AccidentBeqS)-P*sprime-aprime;
 
 end

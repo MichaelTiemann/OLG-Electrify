@@ -167,7 +167,7 @@ Params.G=0.1; % Government expenditure
 Params.firmbeta=1/(1+Params.r/(1-Params.tau_cg)); % 1/(1+r) but returns net of capital gains tax
 Params.D=0.2; % Dividends
 Params.P0=1;
-Params.Lhscale=0.67; % Scaling the household labor supply
+Params.Lhscale=0.71; % Scaling the household labor supply
 
 %% Grids for household
 
@@ -501,10 +501,8 @@ fprintf(fileID,'Following are some aggregates of the model economy: \n');
 fprintf(fileID,'Output: Y=%8.2f \n',AggVars.Output.Mean);
 fprintf(fileID,'Aggregate TFP: Y=%8.2f \n',AggregateTFP);
 fprintf(fileID,'Capital-Output ratio (firm side): K/Y=%8.2f \n',AggVars.K.Mean/Y);
-fprintf(fileID,'Total share value (HH side): P*S=%8.2f \n',P*AggVars.S.Mean);
-fprintf(fileID,'Total asset value (HH side): A=%8.2f \n',AggVars.A.Mean);
+fprintf(fileID,'Total share+asset value (HH side): P*S (%.2f) + A (%.2f) = %8.2f\n',P*AggVars.S.Mean,AggVars.A.Mean,P*AggVars.S.Mean+AggVars.A.Mean);
 fprintf(fileID,'Total house value (HH side): H=%8.2f \n',AggVars.H.Mean);
-fprintf(fileID,'Total net worth (HH side): P*S=%8.2f \n',P*AggVars.S.Mean+AggVars.A.Mean+AggVars.H.Mean);
 fprintf(fileID,'Total bad debt (HH side): P*S=%8.2f \n',AggVars.BadDebt.Mean);
 fprintf(fileID,'Total firm value (firm side): Value of firm=%8.2f \n',TotalValueOfFirms);
 fprintf(fileID,'Consumption-Output ratio: C/Y=%8.2f \n',AggVars.Consumption.Mean/Y);

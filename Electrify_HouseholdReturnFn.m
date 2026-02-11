@@ -84,8 +84,8 @@ else
     c=c+(1+r)*a;
 end
 % ...subtract the rest of the things:
-% house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share, asset, and house holdings
-c=c-htc-rentalcosts-pvinstallcost-(1+agej_pct_cost)*(energy_pct_cost*min(h,1)^2*(1-solarpv/2))-tau_cg*(P0-Plag)*(s+AccidentBeqS)-P*sprime-aprime-(1+agej_pct_cost)*hprime;
+% house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share, asset holdings
+c=c-htc-rentalcosts-pvinstallcost-(1+agej_pct_cost)*(energy_pct_cost*max(h,1)^2*(1-solarpv/2))-tau_cg*(P0-Plag)*(s+AccidentBeqS)-P*sprime-aprime;
 
 if c>0
     F=(((c^(1-sigma_h))*(hs^sigma_h))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
