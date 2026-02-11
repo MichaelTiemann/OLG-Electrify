@@ -67,7 +67,7 @@ Params.pv_pct_cost=0.05; % modeling a $30K install for a $600K house
 Params.energy_pct_cost=0.07; % Electricity: 3%; Gas: 2%; Petrol: 2%
 
 % Discount rate
-Params.beta = 1.016; % Changed to get S to increase nearer to 1 given r=0.05 (ran it with beta=0.99, got S=0.3, so increased this; note that it interacts with sj to give the actual discount factor)
+Params.beta = 0.99; % Changed to get S to increase nearer to 1 given r=0.05 (ran it with beta=0.99, got S=0.3, so increased this; note that it interacts with sj to give the actual discount factor)
 % Preferences
 Params.sigma = 2; % Coeff of relative risk aversion (curvature of consumption)
 Params.sigma_h=0.5; % Relative importance of housing services (vs consumption) in utility
@@ -84,7 +84,7 @@ Params.Jr=65-Params.agejshifter; % Period number of retirement
 Params.n=0.02; % percentage rate (expressed as fraction) of population growth per period
 
 % Age-dependent labor productivity units
-Params.kappa_j=[linspace(0.5,2,Params.Jr-15),linspace(2,1,14),zeros(1,Params.J-Params.Jr+1)];
+Params.kappa_j=[linspace(0.75,2,Params.Jr-20),2*ones(1,5),linspace(2,1,14),zeros(1,Params.J-Params.Jr+1)];
 
 % Life-cycle AR(1) process z, on (log) labor productivity units
 % Chosen following Karahan & Ozkan (2013) [as used by Fella, Gallipoli & Pan (2019)]
@@ -161,13 +161,13 @@ Params.TargetKdivL=2.03;
 Params.pension=0.4; % Initial guess (this will be determined in general eqm)
 Params.r=0.05;
 Params.w=1;
-Params.AccidentBeqS= 0.03; % Accidental bequests (this is the lump sum transfer of shares)
-Params.AccidentBeqAH= 0.03; % Accidental bequests (this is the lump sum transfer of assets+house value)
+Params.AccidentBeqS= 0.02; % Accidental bequests (this is the lump sum transfer of shares)
+Params.AccidentBeqAH= 0.01; % Accidental bequests (this is the lump sum transfer of assets+house value)
 Params.G=0.1; % Government expenditure
 Params.firmbeta=1/(1+Params.r/(1-Params.tau_cg)); % 1/(1+r) but returns net of capital gains tax
 Params.D=0.2; % Dividends
 Params.P0=1;
-Params.Lhscale=0.54; % Scaling the household labor supply
+Params.Lhscale=0.67; % Scaling the household labor supply
 
 %% Grids for household
 
@@ -373,8 +373,11 @@ FnsToEvaluate.PV.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv
 FnsToEvaluate.PensionSpending.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,pension,agej,Jr) (agej>=Jr)*pension; % Total spending on pensions
 FnsToEvaluate.PayrollTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,agej,Jr,tau_l,w,kappa_j,Lhscale) (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*Lhscale; % Total spending on pensions
 FnsToEvaluate.AccidentalBeqSLeft.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj) sprime*(1-sj); % Accidental share bequests left by people who die
-FnsToEvaluate.AccidentalBeqAHLeft.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj,agej_pct_cost) max((aprime+(1+agej_pct_cost)*hprime)*(1-sj),0); % Accidental asset+house bequests left by people who die
-FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,tau_cg,P0,D,tau_d,r) tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg)))*(s+min(a,0)); % tau_cg*(P0-Plag)*(s,min(a,0)), but substitute P=Plag, and then substitute for P
+% AccidentalBeqAHLeft is zero (if in debt) or accidental asset+house bequests left by people who die
+FnsToEvaluate.AccidentalBeqAHLeft.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj,agej_pct_cost) max(0,(aprime+(1+agej_pct_cost)*hprime)*(1-sj));
+% BadDebt is the debt somebody accidentally leaves behind, or zero if net worth is positive
+FnsToEvaluate.BadDebt.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj,agej_pct_cost) min(0,(aprime+(1+agej_pct_cost)*hprime)*(1-sj));
+FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,tau_cg,P0,D,tau_d,r) tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg)))*s+(1-tau_d)*r*max(a,0); % tau_cg*(P0-Plag)*s + deposit interest, but substitute P=Plag, and then substitute for P
 % From firms
 FnsToEvaluate.Output.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
 FnsToEvaluate.L_f.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm
@@ -502,6 +505,7 @@ fprintf(fileID,'Total share value (HH side): P*S=%8.2f \n',P*AggVars.S.Mean);
 fprintf(fileID,'Total asset value (HH side): A=%8.2f \n',AggVars.A.Mean);
 fprintf(fileID,'Total house value (HH side): H=%8.2f \n',AggVars.H.Mean);
 fprintf(fileID,'Total net worth (HH side): P*S=%8.2f \n',P*AggVars.S.Mean+AggVars.A.Mean+AggVars.H.Mean);
+fprintf(fileID,'Total bad debt (HH side): P*S=%8.2f \n',AggVars.BadDebt.Mean);
 fprintf(fileID,'Total firm value (firm side): Value of firm=%8.2f \n',TotalValueOfFirms);
 fprintf(fileID,'Consumption-Output ratio: C/Y=%8.2f \n',AggVars.Consumption.Mean/Y);
 fprintf(fileID,'Government-to-Output ratio: G/Y=%8.2f \n', Params.G/Y);
