@@ -2,6 +2,8 @@
 % See https://www.vfitoolkit.com/updates-blog/2021/an-introduction-to-life-cycle-models/
 % and OLGModel14.m in the repo https://github.com/vfitoolkit/IntroToOLGModels
 
+solve_GE=true;
+
 Names_i={'household','firm'};
 PTypeDistParamNames={'ptypemass'};
 Params.ptypemass=[1,1]; % Mass of households and firms are each equal to one
@@ -30,16 +32,16 @@ simoptions.ngridinterp     = vfoptions.ngridinterp;
 % Lets model agents from age 20 to age 100, so 81 periods
 Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 Params.J=100-Params.agejshifter; % Number of period in life-cycle
-n_d.household=[15,5]; % Decisions: labor, buyhouse
-n_a.household=[11,11,5,4]; % Endogenous shares, assets, housing, and solarpv assets (0-45 kW generation)
+n_d.household=[17,5]; % Decisions: labor, buyhouse
+n_a.household=[19,17,5,4]; % Endogenous shares, assets, housing, and solarpv assets (0-45 kW generation)
 % Exogenous labor productivity units shocks (next two lines)
 n_z.household=7; % AR(1) with age-dependent params
 vfoptions.n_e.household=3; % iid
 N_j.household=Params.J; % Number of periods in finite horizon
 
 % Grids to use for firm
-n_d.firm=31; % Dividend payment
-n_a.firm=51; % Capital holdings
+n_d.firm=51; % Dividend payment
+n_a.firm=101; % Capital holdings
 n_z.firm=11; % Productivity shock
 N_j.firm=Inf; % Infinite horizon
 
@@ -178,7 +180,7 @@ labor_grid=linspace(0,1,n_d.household(1))'; % Notice that it is imposing the 0<=
 share_grid=4*(linspace(0,1,n_a.household(1)))';
 
 % Grid for bank account; a negative balance implies a mortgage
-asset_grid=(-0.75+1.25*(linspace(0,1,n_a.household(2))))';
+asset_grid=(-0.8+2.4*(linspace(0,1,n_a.household(2))))';
 
 % Make it so that there is a zero assets
 % Find closest to zero assets
@@ -283,14 +285,15 @@ ReturnFn.household=@( ...
     );
 
 this_J=1;
+this_asset_index=zeroassetindex-3;
 this_F=Electrify_HouseholdReturnFn( ...
-    1,0,0,asset_grid(zeroassetindex-3),0,0,0,0,0,z_grid_J(4,this_J),e_grid_J(2,this_J), ...
+    1,0,0,asset_grid(this_asset_index),0,0,0,0,0,z_grid_J(4,this_J),e_grid_J(2,this_J), ...
     Params.r,Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.Lhscale, ...
     Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.kappa_j(this_J),Params.tau_l,Params.tau_d,Params.tau_cg,Params.warmglow1,Params.warmglow2,this_J,Params.Jr,Params.J, ...
     Params.r_wedge,Params.f_htc,Params.minhouse,Params.rentprice,Params.f_coll,Params.houseservices,Params.agej_pct_cost(this_J),Params.pv_pct_cost,Params.energy_pct_cost);
 
 fprintf("Electrify_HouseholdReturnFn(labor=1,buyhouse=0,sprime=0,aprime=%.2f,hprime=0,s=a=h=solarpv=0,z(4 @ 1)=%.2f,e(2 @ 1)=%.2f,Params = %f \n", ...
-    asset_grid(zeroassetindex-3),z_grid_J(4,this_J),e_grid_J(2,this_J),this_F);
+    asset_grid(this_asset_index),z_grid_J(4,this_J),e_grid_J(2,this_J),this_F);
 if isinf(this_F)
     error("Infeasible Household initial condition")
 end
@@ -416,30 +419,33 @@ Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D)/(1+Params.
 
 
 %% Solve for the General Equilibrium
-% heteroagentoptions.fminalgo=4 % CMA-ES algorithm 
+if solve_GE
+    % heteroagentoptions.fminalgo=4 % CMA-ES algorithm 
+    
+    heteroagentoptions.verbose=1;
+    heteroagentoptions.toleranceGEprices=10^(-2);
+    heteroagentoptions.toleranceGEcondns=10^(-1); % This is the hard one
+    heteroagentoptions.maxiter=300;
+    
+    p_eqm=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j, Names_i, [], pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
+    % p_eqm contains the general equilibrium parameter values
+    % Put this into Params so we can calculate things about the initial equilibrium
+    Params.r=p_eqm.r;
+    Params.pension=p_eqm.pension;
+    Params.AccidentBeqS=p_eqm.AccidentBeqS;
+    Params.AccidentBeqAH=p_eqm.AccidentBeqAH;
+    Params.G=p_eqm.G;
+    Params.w=p_eqm.w;
+    Params.firmbeta=p_eqm.firmbeta;
+    Params.D=p_eqm.D;
+    Params.P0=p_eqm.P0;
+    Params.Lhscale=p_eqm.Lhscale;
 
-heteroagentoptions.verbose=1;
-heteroagentoptions.toleranceGEprices=10^(-2);
-heteroagentoptions.toleranceGEcondns=10^(-1); % This is the hard one
-heteroagentoptions.maxiter=300;
+    % Re-Calculate a few things related to the general equilibrium.
+    [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j, Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
+    StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
+end % Otherwise we can use initial guesses set for Params
 
-p_eqm=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j, Names_i, [], pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
-% p_eqm contains the general equilibrium parameter values
-% Put this into Params so we can calculate things about the initial equilibrium
-Params.r=p_eqm.r;
-Params.pension=p_eqm.pension;
-Params.AccidentBeqS=p_eqm.AccidentBeqS;
-Params.AccidentBeqAH=p_eqm.AccidentBeqAH;
-Params.G=p_eqm.G;
-Params.w=p_eqm.w;
-Params.firmbeta=p_eqm.firmbeta;
-Params.D=p_eqm.D;
-Params.P0=p_eqm.P0;
-Params.Lhscale=p_eqm.Lhscale;
-
-% Calculate a few things related to the general equilibrium.
-[V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j, Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
-StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
 % Can just use the same FnsToEvaluate as before.
 AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,FnsToEvaluate,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
 
