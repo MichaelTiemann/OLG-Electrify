@@ -2,7 +2,7 @@ function F=Electrify_HouseholdReturnFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
     r,pension,AccidentBeqS,AccidentBeqAH,w,P0,D,Lhscale, ...
     sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,agej,Jr,J,...
-    r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
+    scenario,ypp,r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     )
 % Get rid of progressive taxes
 % Add Lhnormalize
@@ -12,10 +12,9 @@ function F=Electrify_HouseholdReturnFn( ...
 
 F=-Inf;
 
-if hprime>0 || aprime~=0
+if scenario<2 && (hprime>0 || aprime~=0)
     % Not buying houses or assets right now
     return
-    % Later...if buyhouse=0, forbid hprime>h
 end
 
 if buyhouse==0
@@ -43,8 +42,8 @@ if sprime>0 && aprime+(1+agej_pct_cost)*hprime<0
     return
 end
 net_worth_prime=P*sprime+aprime+(1+agej_pct_cost)*hprime;
-if agej<6
-    if net_worth_prime<-0.55*(6-agej)/5
+if agej*ypp<6
+    if net_worth_prime<-0.55*(6-agej*ypp)/5
         % Starter loan needed to get people going
         return
     end
