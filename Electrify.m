@@ -1,6 +1,8 @@
-%% OLG Electrification (based on OLGModels14: Heterogenous households and heterogeneous firms)
+%% OLG Electrification (based on OLGModels14: Heterogenous households and heterogeneous firms
+%% and also Life-Cycle Model 35: Portfolio-Choice with Housing)
 % See https://www.vfitoolkit.com/updates-blog/2021/an-introduction-to-life-cycle-models/
-% and OLGModel14.m in the repo https://github.com/vfitoolkit/IntroToOLGModels
+% OLGModel14.m in the repo https://github.com/vfitoolkit/IntroToOLGModels
+% and LifeCycleModel35.m in the repo https://github.com/vfitoolkit/IntroToLifeCycleModels
 
 solve_GE=true;
 
@@ -11,8 +13,12 @@ Params.ptypemass=[1,1]; % Mass of households and firms are each equal to one
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
 
+% To be able to solve such a big problem, I switched to 5 year model period.
+% Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
+ypp=1; % model period, in years (just used this to modify some parameters from annual to model period)
+
 %% Begin setting up to use VFI Toolkit to solve
-vfoptions.lowmemory.household=2;
+vfoptions.lowmemory.household=0;
 vfoptions.lowmemory.firm=0;
 vfoptions.tolerance=10^(-1);
 simoptions.tolerance=vfoptions.tolerance;
@@ -31,17 +37,17 @@ simoptions.ngridinterp     = vfoptions.ngridinterp;
 
 % Lets model agents from age 20 to age 100, so 81 periods
 Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
-Params.J=100-Params.agejshifter; % Number of period in life-cycle
-n_d.household=[17,5]; % Decisions: labor, buyhouse
-n_a.household=[19,17,5,4]; % Endogenous shares, assets, housing, and solarpv assets (0-45 kW generation)
+Params.J=ceil((100-Params.agejshifter)/ypp); % =60/ypp, Number of period in life-cycle
+n_d.household=[31,2]; % Decisions: labor, buyhouse (5)
+n_a.household=[31,2,2,2]; % Endogenous shares, assets, housing (5), and solarpv (4) assets (0-45 kW generation)
 % Exogenous labor productivity units shocks (next two lines)
 n_z.household=7; % AR(1) with age-dependent params
 vfoptions.n_e.household=3; % iid
 N_j.household=Params.J; % Number of periods in finite horizon
 
 % Grids to use for firm
-n_d.firm=51; % Dividend payment
-n_a.firm=101; % Capital holdings
+n_d.firm=201; % Dividend payment
+n_a.firm=201; % Capital holdings
 n_z.firm=11; % Productivity shock
 N_j.firm=Inf; % Infinite horizon
 
@@ -66,10 +72,10 @@ Params.rentprice=0.3; % I figured setting rent a decent fraction of income is se
 Params.f_coll=0.5; % collateral contraint (fraction of house value that can be borrowed)
 Params.houseservices=0.5; % housing services as a fraction of house value
 Params.pv_pct_cost=0.05; % modeling a $30K install for a $600K house
-Params.energy_pct_cost=0.07; % Electricity: 3%; Gas: 2%; Petrol: 2%
+Params.energy_pct_cost=(1+0.06/ypp)^ypp-1; % Electricity: 3%; Gas: 1%; Petrol: 2%
 
 % Discount rate
-Params.beta = 0.96; % Changed to get S to increase nearer to 1 given r=0.05 (ran it with beta=0.99, got S=0.3, so increased this; note that it interacts with sj to give the actual discount factor)
+Params.beta = 0.96^ypp; % Changed to get S to increase nearer to 1 given r=0.05 (ran it with beta=0.99, got S=0.3, so increased this; note that it interacts with sj to give the actual discount factor)
 % Preferences
 Params.sigma = 2; % Coeff of relative risk aversion (curvature of consumption)
 Params.sigma_h=0.5; % Relative importance of housing services (vs consumption) in utility
@@ -77,40 +83,51 @@ Params.eta = 1.5; % Curvature of leisure (This will end up being 1/Frisch elasty
 Params.psi = 0.25; % Weight on leisure
 
 % Asset returns
-Params.r_wedge=0.02; % Rate difference between deposits and loans
+Params.r_wedge=(1+0.05)^ypp-1; % Rate difference between deposits and loans
 
 % Demographics
 Params.agej=1:1:Params.J; % Is a vector of all the periods: 1,2,3,...,J
-Params.Jr=65-Params.agejshifter; % Period number of retirement
+Params.Jr=round((65-Params.agejshifter)/ypp); % Age 65 (period 10 is ages 65-69 in the 5 year case)
 % Population growth rate
-Params.n=0.02; % percentage rate (expressed as fraction) of population growth per period
+Params.n=(1+0.02)^ypp-1; % percentage rate (expressed as fraction) of population growth per period
 
 % Age-dependent labor productivity units
-Params.kappa_j=[linspace(0.75,2,Params.Jr-20),2*ones(1,5),linspace(2,1,14),zeros(1,Params.J-Params.Jr+1)];
+if Params.Jr>5
+    kappa_j=[linspace(0.75,2,Params.Jr-round(20/ypp)),2*ones(1,ceil(5/ypp)),linspace(2,1,ceil(14/ypp)),zeros(1,Params.J-Params.Jr+1)];
+else
+    kappa_j=[linspace(0.75,2,Params.Jr-2),ones(1,1),zeros(1,Params.J-Params.Jr+1)];
+end
+% If Params.J is rounded up, don't add extra zeros
+Params.kappa_j=kappa_j(1:Params.J);
 
 % Life-cycle AR(1) process z, on (log) labor productivity units
 % Chosen following Karahan & Ozkan (2013) [as used by Fella, Gallipoli & Pan (2019)]
 % Note that 37 covers 24 to 60 inclusive (as in the original)
 % Now repeat the first and last values to fill in working age, and put zeros for retirement (where it is anyway irrelevant)
-rho_z=0.7596+0.2039*((1:1:37)/10)-0.0535*((1:1:37)/10).^2+0.0028*((1:1:37)/10).^3; % Chosen following Karahan & Ozkan (2013) [as used by Fella, Gallipoli & Pan (2019)]
-Params.rho_z=[rho_z(1)*ones(1,4),rho_z,rho_z(end)*ones(1,4),zeros(1,101-65)];
-sigma_epsilon_z=0.0518-0.0405*((1:1:37)/10)+0.0105*((1:1:37)/10).^2-0.0002*((1:1:37)/10).^3; % Chosen following Karahan & Ozkan (2013) [as used by Fella, Gallipoli & Pan (2019)]
-Params.sigma_epsilon_z=[sigma_epsilon_z(1)*ones(1,4),sigma_epsilon_z,sigma_epsilon_z(end)*ones(1,4),sigma_epsilon_z(end)*ones(1,101-65)];
+ones_pp4y=ones(1,ceil(4/ypp));
+rho_z=0.7596+0.2039*((1:ypp:37)/10)-0.0535*((1:ypp:37)/10).^2+0.0028*((1:ypp:37)/10).^3; % Chosen following Karahan & Ozkan (2013) [as used by Fella, Gallipoli & Pan (2019)]
+sigma_epsilon_z=0.0518-0.0405*((1:ypp:37)/10)+0.0105*((1:ypp:37)/10).^2-0.0002*((1:ypp:37)/10).^3; % Chosen following Karahan & Ozkan (2013) [as used by Fella, Gallipoli & Pan (2019)]
+
+% Here we allow one period each at the start and end of working age, followed by retirement
+Params.rho_z=[rho_z(1)*ones_pp4y,rho_z,rho_z(end)*ones_pp4y,zeros(1,ceil(101/ypp)-Params.Jr)];
+Params.sigma_epsilon_z=[sigma_epsilon_z(1)*ones_pp4y,sigma_epsilon_z,sigma_epsilon_z(end)*ones_pp4y,sigma_epsilon_z(end)*ones(1,ceil(101/ypp)-Params.Jr)];
 
 % Transitory iid shock
-sigma_e=0.0410+0.0221*((24:1:60)/10)-0.0069*((24:1:60)/10).^2+0.0008*((24:1:60)/10).^3;
-Params.sigma_e=[sigma_e(1)*ones(1,4),sigma_e,sigma_e(end)*ones(1,4),sigma_e(end)*ones(1,101-65)];
+sigma_e=0.0410+0.0221*((24:ypp:60)/10)-0.0069*((24:ypp:60)/10).^2+0.0008*((24:ypp:60)/10).^3;
+Params.sigma_e=[sigma_e(1)*ones_pp4y,sigma_e,sigma_e(end)*ones_pp4y,sigma_e(end)*ones(1,ceil(101/ypp)-Params.Jr)];
 
 % Note: These iid shocks will interact with the endogenous labor so the final labor
 % earnings process will not equal that of Karahan & Ozkan (2013)
 % Note: Karahan & Ozkan (2013) also have a fixed effect (which they call alpha) and which I ignore here.
 
 % Age-dependent universal, permanent supply-side shocks to housing, energy, and pv installation costs
-shock_period=10;
-shock_years=(1+shock_period:shock_period:80);
+shock_period=ceil(10/ypp);
+shock_years=(1+shock_period:shock_period:ceil(101/ypp));
 % Exponentially increasing every shock_period years from from ~2% to ~7% after initial shock-free period
-shock_pct=exp(shock_years/60)/50;
+shock_pct=exp(shock_years/(Params.Jr-1))/50;
 Params.agej_pct_cost=[zeros(1,1+shock_period), repelem(shock_pct,shock_period)];
+% Only worry about the shocks within the model horizon
+Params.agej_pct_cost=Params.agej_pct_cost(1:Params.J);
 
 % Conditional survival probabilities: sj is the probability of surviving to be age j+1, given alive at age j
 % Most countries have calculations of these (as they are used by the government departments that oversee pensions)
@@ -122,8 +139,10 @@ dj=[0.006879, 0.000463, 0.000307, 0.000220, 0.000184, 0.000172, 0.000160, 0.0001
     0.000894, 0.000962, 0.001005, 0.001016, 0.001003, 0.000983, 0.000967, 0.000960, 0.000970, 0.000994, 0.001027, 0.001065, 0.001115, 0.001154, 0.001209, 0.001271, 0.001351, 0.001460, 0.001603, 0.001769, 0.001943, 0.002120, 0.002311, 0.002520, 0.002747, 0.002989, 0.003242, 0.003512, 0.003803, 0.004118, 0.004464, 0.004837, 0.005217, 0.005591, 0.005963, 0.006346, 0.006768, 0.007261, 0.007866, 0.008596, 0.009473, 0.010450, 0.011456, 0.012407, 0.013320, 0.014299, 0.015323,...
     0.016558, 0.018029, 0.019723, 0.021607, 0.023723, 0.026143, 0.028892, 0.031988, 0.035476, 0.039238, 0.043382, 0.047941, 0.052953, 0.058457, 0.064494,...
     0.071107, 0.078342, 0.086244, 0.094861, 0.104242, 0.114432, 0.125479, 0.137427, 0.150317, 0.164187, 0.179066, 0.194979, 0.211941, 0.229957, 0.249020, 0.269112, 0.290198, 0.312231, 1.000000]; 
-% dj covers Ages 0 to 100
-Params.sj=1-dj(21:101); % Conditional survival probabilities
+dj=resize(dj,101+ypp,FillValue=1);
+% dj covers Ages 0-100, plus extras at end to make it period-friendly
+Params.sj=prod(1-reshape(dj(1:ypp*ceil(101/ypp)),[ypp,ceil(101/ypp)]),1); % p5-year survival rates
+Params.sj=Params.sj(1+ceil(20/ypp):ceil(20/ypp)+N_j.household); % Just the ages we are using (20yo and up)
 Params.sj(end)=0; % In the present model the last period (j=J) value of sj is actually irrelevant
 
 % Warm glow of bequest
@@ -138,7 +157,7 @@ Params.tau_l = 0.2; % Tax rate on labour income
 % Production
 Params.alpha_k=0.311; % diminishing returns to capital input
 Params.alpha_l=0.650; % diminishing returns to labor input
-Params.delta=0.05; % Depreciation of physical capital
+Params.delta=(1+0.05)^ypp-1; % Depreciation of physical capital
 % Capital adjustment costs
 Params.capadjconstant=1.21; % term in the capital adjustment cost
 % Tax
@@ -161,15 +180,15 @@ Params.TargetKdivL=2.03;
 
 % Some initial values/guesses for variables that will be determined in general eqm
 Params.pension=0.4; % Initial guess (this will be determined in general eqm)
-Params.r=0.05;
+Params.r=(1+0.05)^ypp-1;
 Params.w=1;
 Params.AccidentBeqS= 0.02; % Accidental bequests (this is the lump sum transfer of shares)
 Params.AccidentBeqAH= 0.01; % Accidental bequests (this is the lump sum transfer of assets+house value)
 Params.G=0.1; % Government expenditure
 Params.firmbeta=1/(1+Params.r/(1-Params.tau_cg)); % 1/(1+r) but returns net of capital gains tax
-Params.D=0.2; % Dividends
+Params.D=(1+0.2)^ypp-1; % Dividends
 Params.P0=1;
-Params.Lhscale=0.71; % Scaling the household labor supply
+Params.Lhscale=0.56; % Scaling the household labor supply
 
 %% Grids for household
 
@@ -177,10 +196,10 @@ Params.Lhscale=0.71; % Scaling the household labor supply
 labor_grid=linspace(0,1,n_d.household(1))'; % Notice that it is imposing the 0<=h<=1 condition implicitly
 
 % Grid for share holdings, always > 0
-share_grid=4*(linspace(0,1,n_a.household(1)))';
+share_grid=5*(linspace(0,1,n_a.household(1)))';
 
 % Grid for bank account; a negative balance implies a mortgage
-asset_grid=(-0.8+2.4*(linspace(0,1,n_a.household(2))))';
+asset_grid=(-0.5+4*(linspace(0,1,n_a.household(2))))';
 
 % Make it so that there is a zero assets
 % Find closest to zero assets
@@ -261,7 +280,7 @@ simoptions.pi_e.household=pi_e_J;
 
 %% Grids for firm
 d_grid.firm=linspace(0,1,n_d.firm)'; % Notice that it is imposing the d>=0 condition implicitly
-a_grid.firm=10*(linspace(0,1,n_a.firm).^3)'; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
+a_grid.firm=2*(linspace(1/n_a.firm,1,n_a.firm))'; % K>0: puts the capital in capitalism; K>4=infeasible, in these conditions
 
 [z_grid.firm,pi_z.firm] = discretizeAR1_FarmerToda(0,Params.rho_z_firm,Params.sigma_z_e_firm,n_z.firm);
 z_grid.firm=exp(z_grid.firm);
@@ -285,7 +304,11 @@ ReturnFn.household=@( ...
     );
 
 this_J=1;
-this_asset_index=zeroassetindex-3;
+this_asset_index=1;
+while asset_grid(this_asset_index)<-0.5
+    % Find the first index where loan value <= 0.5
+    this_asset_index=this_asset_index+1;
+end
 this_F=Electrify_HouseholdReturnFn( ...
     1,0,0,asset_grid(this_asset_index),0,0,0,0,0,z_grid_J(4,this_J),e_grid_J(2,this_J), ...
     Params.r,Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.Lhscale, ...
@@ -298,15 +321,17 @@ if isinf(this_F)
     error("Infeasible Household initial condition")
 end
 
-this_K=0.35;
-this_F=Electrify_FirmReturnFn( ...
-    Params.D,this_K,this_K,z_grid.firm(round(n_z.firm/2)), ...
-    Params.w, ...
-    Params.delta,Params.alpha_k,Params.alpha_l,Params.capadjconstant,Params.tau_corp,Params.phi,Params.tau_d,Params.tau_cg);
-fprintf("Electrify_FirmReturnFn(dividend=%.2f,kprime=%.2f,k=%.2f,z(%d)=%.2f,Params = %f \n", ...
-    Params.D, this_K, this_K, round(n_z.firm/2), z_grid.firm(round(n_z.firm/2)), this_F);
-if isinf(this_F)
-    error("Infeasible Firm initial condition")
+for KK=4:9:n_a.firm-9
+    this_F=Electrify_FirmReturnFn( ...
+        Params.D,a_grid.firm(KK+9),a_grid.firm(KK),z_grid.firm(round(n_z.firm/2)), ...
+        Params.w, ...
+        Params.delta,Params.alpha_k,Params.alpha_l,Params.capadjconstant,Params.tau_corp,Params.phi,Params.tau_d,Params.tau_cg);
+    if isinf(this_F)
+        warning("k=%.2f: Infeasible Firm initial condition", a_grid.firm(KK))
+    else
+        fprintf("Electrify_FirmReturnFn(dividend=%.2f,kprime=%.2f,k=%.2f,z(%d)=%.2f,Params.w=%.2f => %f \n", ...
+            Params.D, a_grid.firm(KK+9), a_grid.firm(KK), round(n_z.firm/2), z_grid.firm(round(n_z.firm/2)), Params.w, this_F);
+    end
 end
 
 % For firms
@@ -353,7 +378,7 @@ disp('Test StationaryDist')
 StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
 
 %% General eqm variables
-GEPriceParamNames={'r','pension','AccidentBeqS','AccidentBeqAH','G','w','firmbeta','D','P0','Lhscale'}; 
+GEPriceParamNames={'r','pension','AccidentBeqS','AccidentBeqAH','G','w','firmbeta','D','P0'}; % ,'Lhscale'}; 
 % We don't need P
 % We can get P from the equation that defines r as the return to the mutual fund
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
@@ -423,9 +448,9 @@ if solve_GE
     % heteroagentoptions.fminalgo=4 % CMA-ES algorithm 
     
     heteroagentoptions.verbose=1;
-    heteroagentoptions.toleranceGEprices=10^(-2);
-    heteroagentoptions.toleranceGEcondns=10^(-1); % This is the hard one
-    heteroagentoptions.maxiter=300;
+    heteroagentoptions.toleranceGEprices=5*10^(-3);
+    heteroagentoptions.toleranceGEcondns=5*10^(-2); % This is the hard one
+    heteroagentoptions.maxiter=400;
     
     p_eqm=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j, Names_i, [], pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
     % p_eqm contains the general equilibrium parameter values
@@ -439,7 +464,7 @@ if solve_GE
     Params.firmbeta=p_eqm.firmbeta;
     Params.D=p_eqm.D;
     Params.P0=p_eqm.P0;
-    Params.Lhscale=p_eqm.Lhscale;
+    % Params.Lhscale=p_eqm.Lhscale;
 
     % Re-Calculate a few things related to the general equilibrium.
     [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j, Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);

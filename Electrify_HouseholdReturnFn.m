@@ -12,6 +12,24 @@ function F=Electrify_HouseholdReturnFn( ...
 
 F=-Inf;
 
+if hprime>0 || aprime~=0
+    % Not buying houses or assets right now
+    return
+    % Later...if buyhouse=0, forbid hprime>h
+end
+
+if buyhouse==0
+    if hprime~=0
+        % Forbid owning house when buyhouse=0
+        return
+    end
+elseif hprime==0 || hprime~=h
+    if buyhouse>=3
+        % Forbid selling/changing house we say we are keeping
+        return
+    end
+end
+
 % We can get P (share price) from the equation that defines r as the return to the mutual fund
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
 % We are looking at stationary general eqm, so

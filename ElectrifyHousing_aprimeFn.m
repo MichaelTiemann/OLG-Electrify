@@ -4,6 +4,8 @@ function solarpv_prime=ElectrifyHousing_aprimeFn(buyhouse,solarpv)
 
 solarpv_prime=-Inf;
 
+% Must ensure that hprime>h when buyhouse>0...
+
 switch buyhouse
     case 0
         % Cannot install in house we don't own
@@ -12,13 +14,13 @@ switch buyhouse
         % We start from scratch with a new house
         solarpv_prime=0;
     case 2
-        % We get a random amount of solar
+        % Buy new house, get a random amount of solar
         solarpv_prime = randi([1,5]);
     case 3
-        % The slow degradation of installed solar capacity
+        % Keep house, experience the slow degradation of solarpv capacity
         solarpv_prime=solarpv * 0.99;
     case 4
-        % If we can install more solar, do so now
+        % Keep house, install more solarpv if we can
         if solarpv<=4
             solarpv_prime = solarpv+randi([1,floor(5-solarpv)]);
         % Else -Inf return value will cause the ReturnFn to return -Inf
