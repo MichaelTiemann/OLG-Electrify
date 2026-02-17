@@ -12,7 +12,7 @@ function F=Electrify_HouseholdReturnFn( ...
 
 F=-Inf;
 
-if scenario<2 && (hprime>0 || aprime~=0)
+if scenario<3 && (hprime>0 || aprime~=0)
     % Not buying houses or assets right now
     return
 end

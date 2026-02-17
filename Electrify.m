@@ -48,7 +48,7 @@ simoptions.ngridinterp     = vfoptions.ngridinterp;
 % Lets model agents from age 20 to age 100, so 81 periods
 Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 Params.J=ceil((100-Params.agejshifter)/Params.ypp); % =60/ypp, Number of period in life-cycle
-if Params.scenario<2
+if Params.scenario<3
     n_d.household=51;
     n_a.household=51;
 else
@@ -228,7 +228,7 @@ labor_grid=linspace(0,1,n_d.household(1))'; % Notice that it is imposing the 0<=
 share_grid=5*(linspace(0,1,n_a.household(1)))';
 
 % Set up d for VFI Toolkit (is the two decision variables)
-if Params.scenario<2
+if Params.scenario<3
     d_grid.household=labor_grid;
     a_grid.household=share_grid;
     Params.minhouse=1;
@@ -349,7 +349,7 @@ ReturnFn.household=@( ...
         scenario,ypp,r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     );
 
-if Params.scenario<2
+if Params.scenario<3
     ReturnFn.household=@( ...
         labor,sprime,s,z,e, ...
         r,pension,AccidentBeqS,AccidentBeqAH,w,P0,D,Lhscale, ...
@@ -431,7 +431,7 @@ toc
 % Before we plot the life-cycle profiles we have to define how agents are
 % at age j=1. We will give them all zero shares (and possibly zero assets, no house, no solarpv).
 jequaloneDist.household=zeros([n_a.household,n_z.household,vfoptions.n_e.household],'gpuArray'); % Put no households anywhere on grid
-if Params.scenario<2
+if Params.scenario<3
     % All agents start with zero shares, and the median shocks
     jequaloneDist.household(1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;
 else
@@ -457,7 +457,7 @@ disp('Test StationaryDist')
 StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
 
 %% General eqm variables
-if Params.scenario<2
+if Params.scenario<3
     GEPriceParamNames={'r','pension','AccidentBeqS','G','w','firmbeta','D','P0','Lhscale'};
 else
     GEPriceParamNames={'r','pension','AccidentBeqS','AccidentBeqAH','G','w','firmbeta','D','P0','Lhscale'};
@@ -477,7 +477,7 @@ end
 % both z).
 
 % Stationary Distribution Aggregates from households (important that ordering of Names and Functions is the same)
-if Params.scenario<2
+if Params.scenario<3
     FnsToEvaluate.L_h.household = @(labor,sprime,s,z,e,kappa_j,Lhscale) ...
         labor*kappa_j*exp(z+e)*Lhscale;  % Aggregate labour supply in efficiency units 
     FnsToEvaluate.S.household = @(labor,sprime,s,z,e) s; % Aggregate share holdings
@@ -529,7 +529,7 @@ GeneralEqmEqns.sharemarket = @(S) S-1; % mass of all shares equals one
 GeneralEqmEqns.labormarket = @(L_h,L_f) L_h-L_f; % labor supply of households equals labor demand of firms
 GeneralEqmEqns.pensions = @(PensionSpending,PayrollTaxRevenue) PensionSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue: pension*fractionretired-tau*w*H
 GeneralEqmEqns.bequestsS = @(AccidentalBeqSLeft,AccidentBeqS,n,scenario) AccidentalBeqSLeft/(1+n)-AccidentBeqS; % Accidental share bequests received equal accidental share bequests left
-if Params.scenario==2
+if Params.scenario==3
     GeneralEqmEqns.bequestsAH = @(AccidentalBeqAHLeft,AccidentBeqAH,n,scenario) AccidentalBeqAHLeft/(1+n)-AccidentBeqAH; % Accidental asset+house bequests received equal accidental asset+house bequests left
 end
 GeneralEqmEqns.govbudget = @(G,tau_d,D,CapitalGainsTaxRevenue,CorpTaxRevenue) G-tau_d*D-CapitalGainsTaxRevenue-CorpTaxRevenue; % G is equal to the target, GdivYtarget*Y
@@ -550,7 +550,7 @@ fprintf('Check: L_h, L_f, K \n')
 [AggVars.L_h.Mean,AggVars.L_f.Mean,AggVars.K.Mean]
 fprintf('Check: K/L_f (should be about 2.03) \n')
 AggVars.K.Mean/AggVars.L_f.Mean
-if Params.scenario<2
+if Params.scenario<3
     fprintf('Check: S \n')
     [AggVars.S.Mean]
 else
@@ -566,7 +566,7 @@ if solve_GE
     % heteroagentoptions.fminalgo=4 % CMA-ES algorithm 
     
     heteroagentoptions.verbose=1;
-    if Params.scenario<2
+    if Params.scenario<3
         heteroagentoptions.toleranceGEprices=10^(-4);
         heteroagentoptions.toleranceGEcondns=10^(-4); % This is the hard one
         heteroagentoptions.maxiter=900;
@@ -582,7 +582,7 @@ if solve_GE
     Params.r=p_eqm.r;
     Params.pension=p_eqm.pension;
     Params.AccidentBeqS=p_eqm.AccidentBeqS;
-    if Params.scenario==2
+    if Params.scenario==3
         Params.AccidentBeqAH=p_eqm.AccidentBeqAH;
     end
     Params.G=p_eqm.G;
@@ -607,7 +607,7 @@ subplot(3,2,1); plot(1:1:Params.J,AgeConditionalStats.L_h.Mean)
 title('Life Cycle Profile: Effective Labour Supply')
 subplot(3,2,3); plot(1:1:Params.J,AgeConditionalStats.S.Mean)
 title('Life Cycle Profile: Share holdings')
-if Params.scenario==2
+if Params.scenario==3
     subplot(3,2,2); plot(1:1:Params.J,AgeConditionalStats.A.Mean)
     title('Life Cycle Profile: Asset holdings')
     subplot(3,2,4); plot(1:1:Params.J,AgeConditionalStats.H.Mean)
@@ -620,7 +620,7 @@ saveas(figure_c,'./SavedOutput/Graphs/Electrify_LifeCycleProfiles','pdf')
 %% Calculate some aggregates and print findings about them
 
 % Add consumption to the FnsToEvaluate
-if Params.scenario<2
+if Params.scenario<3
     FnsToEvaluate.Consumption.household=@( ...
             labor,sprime,s,z,e, ...
             r,pension,AccidentBeqS,w,P0,D,Lhscale, ...
