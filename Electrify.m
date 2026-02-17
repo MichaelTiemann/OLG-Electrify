@@ -24,10 +24,14 @@ Params.scenario=1;
 Params.ypp=1; % model period, in years (just used this to modify some parameters from annual to model period)
 
 %% Begin setting up to use VFI Toolkit to solve
+vfoptions.howardsgreedy=0;
+vfoptions.howards=80;
+vfoptions.maxhowards=200;
 vfoptions.lowmemory.household=0;
 vfoptions.lowmemory.firm=0;
 if Params.scenario<3
-    vfoptions.tolerance=10^(-4);
+    vfoptions.maxiter=900;
+    vfoptions.tolerance=10^(-3);
 else
     vfoptions.tolerance=10^(-1);
 end
@@ -49,8 +53,8 @@ simoptions.ngridinterp     = vfoptions.ngridinterp;
 Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 Params.J=ceil((100-Params.agejshifter)/Params.ypp); % =60/ypp, Number of period in life-cycle
 if Params.scenario<3
-    n_d.household=91;
-    n_a.household=91;
+    n_d.household=51;
+    n_a.household=51;
 else
     n_d.household=[51,2]; % Decisions: labor, buyhouse (5)
     n_a.household=[51,2,2,2]; % Endogenous shares, assets, housing (5), and solarpv (4) assets (0-45 kW generation)
@@ -61,8 +65,8 @@ vfoptions.n_e.household=3; % iid
 N_j.household=Params.J; % Number of periods in finite horizon
 
 % Grids to use for firm
-n_d.firm=91; % Dividend payment
-n_a.firm=101; % Capital holdings
+n_d.firm=51; % Dividend payment
+n_a.firm=51; % Capital holdings
 n_z.firm=11; % Productivity shock
 N_j.firm=Inf; % Infinite horizon
 
@@ -567,9 +571,9 @@ if solve_GE
     
     heteroagentoptions.verbose=1;
     if Params.scenario<3
-        heteroagentoptions.toleranceGEprices=10^(-4);
-        heteroagentoptions.toleranceGEcondns=10^(-4); % This is the hard one
-        heteroagentoptions.maxiter=900;
+        heteroagentoptions.toleranceGEprices=10^(-3);
+        heteroagentoptions.toleranceGEcondns=10^(-3); % This is the hard one
+        heteroagentoptions.maxiter=1800;
     else
         heteroagentoptions.toleranceGEprices=5*10^(-3);
         heteroagentoptions.toleranceGEcondns=5*10^(-2); % This is the hard one
