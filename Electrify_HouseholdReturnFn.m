@@ -77,7 +77,10 @@ if buyhouse==2 || buyhouse==4
 end
 
 % Housing services (based on housing stock)
-if h==0
+if scenario<3
+    hs=1;
+    rentalcosts=0;
+elseif h==0
     hs=0.5*houseservices*minhouse;
     rentalcosts=rentprice;
 else
