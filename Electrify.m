@@ -26,7 +26,7 @@ Params.ypp=1; % model period, in years (just used this to modify some parameters
 %% Begin setting up to use VFI Toolkit to solve
 vfoptions.lowmemory.household=0;
 vfoptions.lowmemory.firm=0;
-if Params.scenario<2
+if Params.scenario<3
     vfoptions.tolerance=10^(-4);
 else
     vfoptions.tolerance=10^(-1);
@@ -49,8 +49,8 @@ simoptions.ngridinterp     = vfoptions.ngridinterp;
 Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 Params.J=ceil((100-Params.agejshifter)/Params.ypp); % =60/ypp, Number of period in life-cycle
 if Params.scenario<3
-    n_d.household=51;
-    n_a.household=51;
+    n_d.household=91;
+    n_a.household=91;
 else
     n_d.household=[51,2]; % Decisions: labor, buyhouse (5)
     n_a.household=[51,2,2,2]; % Endogenous shares, assets, housing (5), and solarpv (4) assets (0-45 kW generation)
@@ -61,7 +61,7 @@ vfoptions.n_e.household=3; % iid
 N_j.household=Params.J; % Number of periods in finite horizon
 
 % Grids to use for firm
-n_d.firm=51; % Dividend payment
+n_d.firm=91; % Dividend payment
 n_a.firm=101; % Capital holdings
 n_z.firm=11; % Productivity shock
 N_j.firm=Inf; % Infinite horizon
@@ -216,7 +216,7 @@ Params.G=0.1; % Government expenditure
 Params.firmbeta=1/(1+Params.r/(1-Params.tau_cg)); % 1/(1+r) but returns net of capital gains tax
 Params.D=(1+0.2)^Params.ypp-1; % Dividends
 Params.P0=1;
-Lhscale=[0.33,0.5,0.5]; % Scaling the household labor supply
+Lhscale=[0.42,0.5,0.5]; % Scaling the household labor supply
 Params.Lhscale=Lhscale(Params.scenario);
 
 %% Grids for household
