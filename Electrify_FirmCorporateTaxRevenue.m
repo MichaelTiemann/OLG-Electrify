@@ -1,4 +1,4 @@
-function revenue=Electrify_FirmCorporateTaxRevenue(dividend,kprime,k,z,w,D,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi)
+function revenue=Electrify_FirmCorporateTaxRevenue(dividend,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi)
 % Whether we set it up so that dividends or equity issuance is the decision
 % variable is unimportant, here I use dividends as the decision variable.
 
@@ -8,19 +8,20 @@ function revenue=Electrify_FirmCorporateTaxRevenue(dividend,kprime,k,z,w,D,delta
 l=(w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % This is just w=Marg. Prod. Labor, but rearranged
 
 % Output
-y=z*(k^alpha_k)*(l^alpha_l);
+y=z*(k^alpha_k)*(l^alpha_l)*ypp;
 
 % Profit
-profit=y-w*l;
+profit=y-w*l*ypp;
 
 % Investment
-invest=kprime-(1-delta)*k;
+delta_pp=(1+delta)^ypp-1;
+invest=kprime-(1-delta)^ypp*k;
 
 % Capital-adjustment costs
-capitaladjcost=(capadjconstant/2)*((invest/k-delta)^2) *k; 
+capitaladjcost=(capadjconstant/2)*((invest/k-delta_pp)^2) *k; 
 
 % Taxable corporate income
-T=profit-delta*k-phi*capitaladjcost;
+T=profit-delta_pp*k-phi*capitaladjcost;
 % -delta*k: investment expensing
 % phi is the fraction of capitaladjcost that can be deducted from corporate taxes
 

@@ -1,8 +1,8 @@
 function F=Electrify_HouseholdReturnFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
-    pension,AccidentBeqS,AccidentBeqAH,w,P0,D, ...
-    sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,agej,Jr,J,Lhscale,...
-    scenario,ypp,r,r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
+    pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D, ...
+    sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,Lhscale,...
+    scenario,r,r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     )
 % Get rid of progressive taxes
 % Add Lhnormalize
@@ -29,12 +29,15 @@ elseif hprime==0 || hprime~=h
     end
 end
 
+r_pp=((1+r)^ypp-1);
+D_pp=((1+D)^ypp-1);
+
 % We can get P (share price) from the equation that defines r as the return to the mutual fund
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
 % We are looking at stationary general eqm, so
 % Plag=P;
 % And thus we have
-P=((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg);
+P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
 
 %% Allow/Disallow some trivial agent decisions
 if sprime>0 && aprime+(1+agej_pct_cost)*hprime<0
@@ -82,7 +85,7 @@ if scenario<3
     rentalcosts=0;
 elseif h==0
     hs=0.5*houseservices*minhouse;
-    rentalcosts=rentprice;
+    rentalcosts=rentprice*ypp;
 else
     hs=houseservices*sqrt(h);
     rentalcosts=0;
@@ -90,22 +93,22 @@ end
 
 if agej<Jr % If working age
     %consumption = labor income plus other "other income" below
-    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*Lhscale; 
+    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*Lhscale*ypp; 
 else % Retirement
-    c=pension;
+    c=pension*ypp;
 end
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
-c=c+((1-tau_d)*D+P0)*(s+AccidentBeqS)+AccidentBeqAH+(1+agej_pct_cost)*(h-hprime);
+c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqAH_pp+(1+agej_pct_cost)*(h-hprime);
 if a<0
     % Subtract loan interest by adding a negative number
-    c=c+(1+r+r_wedge)*a;
+    c=c+((1+r+r_wedge)^ypp-1)*a;
 else
     % Add deposit interest
-    c=c+(1+r)*a;
+    c=c+r_pp*a;
 end
 % ...subtract the rest of the things:
 % house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share, asset holdings
-c=c-htc-rentalcosts-pvinstallcost-(1+agej_pct_cost)*(energy_pct_cost*max(h,1)^2*(1-solarpv/2))-tau_cg*(P0-Plag)*(s+AccidentBeqS)-P*sprime-aprime;
+c=c-htc-rentalcosts-pvinstallcost-(1+agej_pct_cost)*(energy_pct_cost*max(h,1)^2*(1-solarpv/2))*ypp-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
 
 if c>0
     F=(((c^(1-sigma_h))*(hs^sigma_h))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
