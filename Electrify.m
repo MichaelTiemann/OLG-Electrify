@@ -22,7 +22,7 @@ Params.scenario=1;
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
 % Discounting parameters (beta_pp and sj) defined in terms of ypp
-Params.ypp=1; % model period, in years (just used this to modify some parameters from annual to model period)
+Params.ypp=5; % model period, in years (just used this to modify some parameters from annual to model period)
 
 %% Begin setting up to use VFI Toolkit to solve
 % vfoptions.howardsgreedy=0;
@@ -230,12 +230,12 @@ AccidentBeqS= [0.01,0.01,0.01]; % Accidental bequests (this is the lump sum tran
 AccidentBeqAH= [0,0,0.01]; % Accidental bequests (this is the lump sum transfer of assets+house value)
 Params.AccidentBeqS_pp=AccidentBeqS(Params.scenario)*Params.ypp;
 Params.AccidentBeqAH_pp=AccidentBeqAH(Params.scenario)*Params.ypp;
-Params.G=0.1; % Government expenditure
+Params.G_pp=0.1*Params.ypp; % Government expenditure
 Params.firmbeta=1/(1+Params.r_pp/(1-Params.tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
 Params.D_pp=(1+0.2)^Params.ypp-1; % Per-period dividends rate expected/received by households
 Params.P0=1;
 Lhscale=[0.25,0.25,0.5]; % Scaling the household labor supply
-Params.Lhscale=Lhscale(Params.scenario);
+Params.Lhscale=Lhscale(Params.scenario)*Params.ypp;
 
 %% Grids for household
 
@@ -388,13 +388,13 @@ if Params.scenario<3
     this_J=1;
     Params.a=[];
     this_F=Electrify_HouseholdReturnFn( ...
-        1,0,0,0,0,0,0,0,0,z_grid_J(4,this_J),e_grid_J(2,this_J), ...
+        1,0,0,0,0,0,0,0,0,z_grid_J(floor(n_z.household/2)+1,this_J),e_grid_J(2,this_J), ...
         Params.pension,Params.AccidentBeqS_pp,Params.AccidentBeqAH_pp,Params.w,Params.P0,Params.D_pp, ...
         Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.kappa_j(this_J),Params.tau_l,Params.tau_d,Params.tau_cg,Params.warmglow1,Params.warmglow2,Params.ypp,this_J,Params.Jr,Params.J,Params.Lhscale, ...
         Params.scenario,Params.r,Params.r_wedge,Params.f_htc,1,Params.rentprice,Params.f_coll,Params.houseservices,Params.agej_pct_cost(this_J),Params.pv_pct_cost,Params.energy_pct_cost);
     
     fprintf("Electrify_HouseholdReturnFn(labor=1,sprime=0,s=0,z(4 @ 1)=%.2f,e(2 @ 1)=%.2f,Params = %f \n", ...
-        z_grid_J(4,this_J),e_grid_J(2,this_J),this_F);
+        z_grid_J(floor(n_z.household/2)+1,this_J),e_grid_J(2,this_J),this_F);
     if isinf(this_F)
         error("Infeasible Household initial condition")
     end
@@ -406,13 +406,13 @@ else
         this_asset_index=this_asset_index+1;
     end
     this_F=Electrify_HouseholdReturnFn( ...
-        1,0,0,asset_grid(this_asset_index),0,0,0,0,0,z_grid_J(4,this_J),e_grid_J(2,this_J), ...
+        1,0,0,asset_grid(this_asset_index),0,0,0,0,0,z_grid_J(floor(n_z.household/2)+1,this_J),e_grid_J(2,this_J), ...
         Params.pension,Params.AccidentBeqS_pp,Params.AccidentBeqAH_pp,Params.w,Params.P0,Params.D_pp, ...
         Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.kappa_j(this_J),Params.tau_l,Params.tau_d,Params.tau_cg,Params.warmglow1,Params.warmglow2,Params.ypp,this_J,Params.Jr,Params.J,Params.Lhscale, ...
         Params.scenario,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,Params.rentprice,Params.f_coll,Params.houseservices,Params.agej_pct_cost(this_J),Params.pv_pct_cost,Params.energy_pct_cost);
     
     fprintf("Electrify_HouseholdReturnFn(labor=1,buyhouse=0,sprime=0,aprime=%.2f,hprime=0,s=a=h=solarpv=0,z(4 @ 1)=%.2f,e(2 @ 1)=%.2f,Params = %f \n", ...
-        asset_grid(this_asset_index),z_grid_J(4,this_J),e_grid_J(2,this_J),this_F);
+        asset_grid(this_asset_index),z_grid_J(floor(n_z.household/2)+1,this_J),e_grid_J(2,this_J),this_F);
     if isinf(this_F)
         error("Infeasible Household initial condition")
     end
@@ -483,9 +483,9 @@ StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNam
 
 %% General eqm variables
 if Params.scenario<3
-    GEPriceParamNames={'pension','AccidentBeqS_pp','G','w','firmbeta','D_pp','P0'};
+    GEPriceParamNames={'pension','AccidentBeqS_pp','G_pp','w','firmbeta','D_pp','P0'};
 else
-    GEPriceParamNames={'pension','AccidentBeqS_pp','AccidentBeqAH_pp','G','w','firmbeta','D_pp','P0'};
+    GEPriceParamNames={'pension','AccidentBeqS_pp','AccidentBeqAH_pp','G_pp','w','firmbeta','D_pp','P0'};
 end
 heteroagentoptions.constrainpositive={'w','D_pp','P0'};
 
@@ -534,17 +534,17 @@ else
     % BadDebt is the debt somebody accidentally leaves behind, or zero if net worth is positive
     FnsToEvaluate.BadDebt_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,agej_pct_cost) ...
         min(0,(aprime+(1+agej_pct_cost)*hprime)*(1-sj));
-    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,tau_cg,P0,D_pp,tau_d,r) ...
+    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
         tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg)))*s+(1-tau_d)*r_pp*max(a,0); % tau_cg*(P0-Plag)*s + deposit interest, but substitute P=Plag, and then substitute for P
 end
 
 % From firms
 FnsToEvaluate.Output.firm = @(d,kprime,k,z,w,ypp,alpha_k,alpha_l) ...
     z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
-FnsToEvaluate.L_f.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) ...
+FnsToEvaluate.L_f.firm = @(d,kprime,k,z,w,ypp,alpha_k,alpha_l) ...
     (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm
 FnsToEvaluate.K.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) k; % physical capital
-FnsToEvaluate.DividendPaid_pp.firm = @(d,kprime,k,z) d; % dividend paid by firm
+FnsToEvaluate.DividendPaid_pp.firm = @(d,kprime,k,z,ypp) (1+d)^ypp-1; % dividend paid by firm
 FnsToEvaluate.Sissued.firm = @(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
     Electrify_FirmShareIssuance(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % Share issuance
 FnsToEvaluate.CorpTaxRevenue.firm = @(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
@@ -552,13 +552,13 @@ FnsToEvaluate.CorpTaxRevenue.firm = @(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,c
 
 % General Equilibrium conditions (these should evaluate to zero in general equilbrium)
 GeneralEqmEqns.sharemarket = @(S) S-1; % mass of all shares equals one
-GeneralEqmEqns.labormarket = @(L_h,L_f) (Params.scenario+1)*(L_h-L_f); % labor supply of households equals labor demand of firms
+GeneralEqmEqns.labormarket = @(L_h,L_f) (Params.scenario+1)*(L_h-L_f)*Params.ypp; % labor supply of households equals labor demand of firms
 GeneralEqmEqns.pensions = @(PensionSpending,PayrollTaxRevenue) PensionSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue: pension*fractionretired-tau*w*H
 GeneralEqmEqns.bequestsS_pp = @(AccidentalBeqSLeft_pp,AccidentBeqS_pp,n_pp) AccidentalBeqSLeft_pp/(1+n_pp)-AccidentBeqS_pp; % Accidental share bequests received equal accidental share bequests left
 if Params.scenario==3
     GeneralEqmEqns.bequestsAH_pp = @(AccidentalBeqAHLeft_pp,AccidentBeqAH_pp,n_pp) AccidentalBeqAHLeft_pp/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
 end
-GeneralEqmEqns.govbudget = @(G,tau_d,D_pp,CapitalGainsTaxRevenue,CorpTaxRevenue) G-tau_d*D_pp-CapitalGainsTaxRevenue-CorpTaxRevenue; % G is equal to the target, GdivYtarget*Y
+GeneralEqmEqns.govbudget = @(G_pp,tau_d,D_pp,CapitalGainsTaxRevenue,CorpTaxRevenue) G_pp-tau_d*D_pp-CapitalGainsTaxRevenue-CorpTaxRevenue; % G is equal to the target, GdivYtarget*Y
 GeneralEqmEqns.firmdiscounting = @(firmbeta,r_pp,tau_cg) firmbeta-1/(1+r_pp/(1-tau_cg)); % Firms discount rate is related to market return rate
 GeneralEqmEqns.dividends = @(D_pp,DividendPaid_pp) D_pp-DividendPaid_pp; % That the dividend households receive equals that which firms give
 GeneralEqmEqns.ShareIssuance = @(Sissued,P0,D_pp,tau_cg,tau_d,r_pp) ...
@@ -609,7 +609,7 @@ if solve_GE
     if Params.scenario==3
         Params.AccidentBeqAH_pp=p_eqm.AccidentBeqAH_pp;
     end
-    Params.G=p_eqm.G;
+    Params.G_pp=p_eqm.G_pp;
     Params.w=p_eqm.w;
     Params.firmbeta=p_eqm.firmbeta;
     Params.D_pp=p_eqm.D_pp;
@@ -722,7 +722,7 @@ else
 end
 fprintf(fileID,'Total firm value (firm side): Value of firm=%8.2f \n',TotalValueOfFirms);
 fprintf(fileID,'Consumption-Output ratio: C/Y=%8.2f \n',AggVars.Consumption.Mean/Y);
-fprintf(fileID,'Government-to-Output ratio: G/Y=%8.2f \n', Params.G/Y);
+fprintf(fileID,'Government-to-Output ratio: G/Y=%8.2f \n', Params.G_pp/Y);
 fprintf(fileID,'Wage: w=%8.2f \n',Params.w);
 fclose(fileID);
 
