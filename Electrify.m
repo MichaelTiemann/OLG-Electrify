@@ -93,13 +93,13 @@ beta=[1.01,0.96,0.96];
 Params.beta = beta(Params.scenario)^Params.ypp; % Changed to get S to increase nearer to 1 given r=0.05 (ran it with beta=0.99, got S=0.3, so increased this; note that it interacts with sj to give the actual discount factor)
 % Preferences
 Params.sigma = 2; % Coeff of relative risk aversion (curvature of consumption)
-sigma_h=[0,0.5,0.5];
+sigma_h=[0,0,0.5];
 Params.sigma_h=sigma_h(Params.scenario); % Relative importance of housing services (vs consumption) in utility
 Params.eta = 1.5; % Curvature of leisure (This will end up being 1/Frisch elasty)
-psi = [10, 5, 2]; % Weight on leisure
+psi = [10, 10, 2]; % Weight on leisure
 Params.psi=psi(Params.scenario);
 % Labor productivity at start, peak, and end of working life
-k_j1 = [0.5, 0.75, 0.5];
+k_j1 = [0.5, 0.5, 0.5];
 k_j2 = [2, 2, 2];
 k_j2_length = [0,0,5];
 k_j3 = [1, 1, 1];
@@ -231,7 +231,7 @@ Params.G=0.1; % Government expenditure
 Params.firmbeta=1/(1+Params.r/(1-Params.tau_cg)); % 1/(1+r) but returns net of capital gains tax
 Params.D=(1+0.2)^Params.ypp-1; % Dividends rate expected/received by households
 Params.P0=1;
-Lhscale=[0.22,0.5,0.5]; % Scaling the household labor supply
+Lhscale=[0.22,0.22,0.5]; % Scaling the household labor supply
 Params.Lhscale=Lhscale(Params.scenario);
 
 %% Grids for household
@@ -483,6 +483,7 @@ if Params.scenario<3
 else
     GEPriceParamNames={'pension','AccidentBeqS','AccidentBeqAH','G','w','firmbeta','D','P0'};
 end
+heteroagentoptions.constrainpositive={'w','P0'};
 
 % We don't need P
 % We can get P from the equation that defines r as the return to the mutual fund
@@ -547,8 +548,7 @@ FnsToEvaluate.CorpTaxRevenue.firm = @(d,kprime,k,z,w,D,delta,alpha_k,alpha_l,cap
 
 % General Equilibrium conditions (these should evaluate to zero in general equilbrium)
 GeneralEqmEqns.sharemarket = @(S) S-1; % mass of all shares equals one
-GeneralEqmEqns.labormarket = @(L_h,L_f) L_h-L_f; % labor supply of households equals labor demand of firms
-GeneralEqmEqns.wages = @(L_h,L_f,w) Electrify_GE_wages(L_h,L_f,w); % Push GE toward wage-balanced agreement
+GeneralEqmEqns.labormarket = @(L_h,L_f) Params.scenario*(L_h-L_f); % labor supply of households equals labor demand of firms
 GeneralEqmEqns.pensions = @(PensionSpending,PayrollTaxRevenue) PensionSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue: pension*fractionretired-tau*w*H
 GeneralEqmEqns.bequestsS = @(AccidentalBeqSLeft,AccidentBeqS,n,scenario) AccidentalBeqSLeft/(1+n)-AccidentBeqS; % Accidental share bequests received equal accidental share bequests left
 if Params.scenario==3
@@ -709,7 +709,7 @@ fprintf(fileID,'Following are some aggregates of the model economy (Scenario %d)
 fprintf(fileID,'Output: Y=%8.2f \n',AggVars.Output.Mean);
 fprintf(fileID,'Aggregate TFP: Y=%8.2f \n',AggregateTFP);
 fprintf(fileID,'Capital-Output ratio (firm side): K/Y=%8.2f \n',AggVars.K.Mean/Y);
-if Params.scenario<2
+if Params.scenario<3
     fprintf(fileID,'Total share value (HH side): P*S (%.2f) = %8.2f\n',P*AggVars.S.Mean,P*AggVars.S.Mean);
 else
     fprintf(fileID,'Total share+asset value (HH side): P*S (%.2f) + A (%.2f) = %8.2f\n',P*AggVars.S.Mean,AggVars.A.Mean,P*AggVars.S.Mean+AggVars.A.Mean);
