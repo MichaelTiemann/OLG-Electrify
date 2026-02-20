@@ -26,6 +26,7 @@ T=profit-delta_pp*k-phi*capitaladjcost;
 % phi is the fraction of capitaladjcost that can be deducted from corporate taxes
 
 % Firms financing constraint gives the new equity issuance
-s=dividend+invest+capitaladjcost-(profit-tau_corp*T);
+dividend_pp=(1+dividend)^ypp-1;
+s=dividend_pp+invest+capitaladjcost-(profit-tau_corp*T);
 
 end

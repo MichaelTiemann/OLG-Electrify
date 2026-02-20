@@ -1,6 +1,6 @@
 function F=Electrify_FirmReturnFn( ...
     dividend,kprime,k,z, ...
-    w,D, ...
+    w,D_pp, ...
     ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg)
 % Whether we set it up so that dividends or equity issuance is the decision
 % variable is unimportant, here I use dividends as the decision variable.
@@ -31,14 +31,14 @@ T=profit-delta_pp*k-phi*capitaladjcost;
 % phi is the fraction of capitaladjcost that can be deducted from corporate taxes
 
 % Firms financing constraint gives the new equity issuance
-s=dividend+invest+capitaladjcost-(profit-tau_corp*T);
+dividend_pp=(1+dividend)^ypp-1;
+s=dividend_pp+invest+capitaladjcost-(profit-tau_corp*T);
 
 % Firms per-period objective
 if s>=0 % enforce that 'no share repurchases allowed'
-    F=((1-tau_d)/(1-tau_cg))*dividend-s;
+    F=((1-tau_d)/(1-tau_cg))*dividend_pp-s;
     % Disfavor discrepencies between dividends paid and expected (D)
-    D_pp=((1+D)^ypp-1);
-    F=F-(D_pp-dividend)^2;
+    F=F-(D_pp-dividend_pp)^2;
 end
 
 % Note: dividend payments cannot be negative is enforced by the grid on
