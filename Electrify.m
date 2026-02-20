@@ -234,7 +234,7 @@ Params.G=0.1; % Government expenditure
 Params.firmbeta=1/(1+Params.r_pp/(1-Params.tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
 Params.D_pp=(1+0.2)^Params.ypp-1; % Per-period dividends rate expected/received by households
 Params.P0=1;
-Lhscale=[0.22,0.22,0.5]; % Scaling the household labor supply
+Lhscale=[0.25,0.25,0.5]; % Scaling the household labor supply
 Params.Lhscale=Lhscale(Params.scenario);
 
 %% Grids for household
@@ -487,7 +487,7 @@ if Params.scenario<3
 else
     GEPriceParamNames={'pension','AccidentBeqS_pp','AccidentBeqAH_pp','G','w','firmbeta','D_pp','P0'};
 end
-heteroagentoptions.constrainpositive={'w','P0'};
+heteroagentoptions.constrainpositive={'w','D_pp','P0'};
 
 % We don't need P
 % We can get P from the equation that defines r as the return to the mutual fund
@@ -513,7 +513,7 @@ if Params.scenario<3
         (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*Lhscale*ypp; % Total spending on payroll taxes
     FnsToEvaluate.AccidentalBeqSLeft_pp.household = @(labor,sprime,s,z,e,sj) ...
         sprime*(1-sj); % Accidental share bequests left by people who die
-    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,sprime,s,z,e,ypp,tau_cg,P0,D_pp,tau_d,r_pp) ...
+    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,sprime,s,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
         tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg)))*s; % tau_cg*(P0-Plag)*s, but substitute P=Plag, and then substitute for P
 else
     FnsToEvaluate.L_h.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,kappa_j,Lhscale) ...
@@ -534,14 +534,14 @@ else
     % BadDebt is the debt somebody accidentally leaves behind, or zero if net worth is positive
     FnsToEvaluate.BadDebt_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,agej_pct_cost) ...
         min(0,(aprime+(1+agej_pct_cost)*hprime)*(1-sj));
-    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,ypp,tau_cg,P0,D_pp,tau_d,r) ...
+    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,tau_cg,P0,D_pp,tau_d,r) ...
         tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg)))*s+(1-tau_d)*r_pp*max(a,0); % tau_cg*(P0-Plag)*s + deposit interest, but substitute P=Plag, and then substitute for P
 end
 
 % From firms
 FnsToEvaluate.Output.firm = @(d,kprime,k,z,w,ypp,alpha_k,alpha_l) ...
     z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
-FnsToEvaluate.L_f.firm = @(d,kprime,k,z,w,ypp,alpha_k,alpha_l) ...
+FnsToEvaluate.L_f.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) ...
     (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm
 FnsToEvaluate.K.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) k; % physical capital
 FnsToEvaluate.DividendPaid_pp.firm = @(d,kprime,k,z) d; % dividend paid by firm
@@ -558,10 +558,10 @@ GeneralEqmEqns.bequestsS_pp = @(AccidentalBeqSLeft_pp,AccidentBeqS_pp,n_pp) Acci
 if Params.scenario==3
     GeneralEqmEqns.bequestsAH_pp = @(AccidentalBeqAHLeft_pp,AccidentBeqAH_pp,n_pp) AccidentalBeqAHLeft_pp/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
 end
-GeneralEqmEqns.govbudget = @(G,tau_d,D_pp,ypp,CapitalGainsTaxRevenue,CorpTaxRevenue) G-tau_d*D_pp-CapitalGainsTaxRevenue-CorpTaxRevenue; % G is equal to the target, GdivYtarget*Y
-GeneralEqmEqns.firmdiscounting = @(firmbeta,r_pp,tau_cg,ypp) firmbeta-1/(1+r_pp/(1-tau_cg)); % Firms discount rate is related to market return rate
-GeneralEqmEqns.dividends = @(D_pp,DividendPaid_pp,ypp) D_pp-DividendPaid_pp; % That the dividend households receive equals that which firms give
-GeneralEqmEqns.ShareIssuance = @(Sissued,P0,D_pp,tau_cg,tau_d,r_pp,ypp) ...
+GeneralEqmEqns.govbudget = @(G,tau_d,D_pp,CapitalGainsTaxRevenue,CorpTaxRevenue) G-tau_d*D_pp-CapitalGainsTaxRevenue-CorpTaxRevenue; % G is equal to the target, GdivYtarget*Y
+GeneralEqmEqns.firmdiscounting = @(firmbeta,r_pp,tau_cg) firmbeta-1/(1+r_pp/(1-tau_cg)); % Firms discount rate is related to market return rate
+GeneralEqmEqns.dividends = @(D_pp,DividendPaid_pp) D_pp-DividendPaid_pp; % That the dividend households receive equals that which firms give
+GeneralEqmEqns.ShareIssuance = @(Sissued,P0,D_pp,tau_cg,tau_d,r_pp) ...
     P0-((((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
 GeneralEqmEqns.CapitalOutputRatio =@(K,L_f,TargetKdivL) K/L_f-TargetKdivL;
 
@@ -612,7 +612,7 @@ if solve_GE
     Params.G=p_eqm.G;
     Params.w=p_eqm.w;
     Params.firmbeta=p_eqm.firmbeta;
-    Params.D=p_eqm.D;
+    Params.D_pp=p_eqm.D_pp;
     Params.P0=p_eqm.P0;
 
     % Re-Calculate a few things related to the general equilibrium.
@@ -663,7 +663,7 @@ if Params.scenario<3
             r_wedge,f_htc,rentprice,agej_pct_cost,pv_pct_cost,energy_pct_cost);
     FnsToEvaluate.Income.household=@( ...
             labor,sprime,s,z,e, ...
-            r,pension,AccidentBeqS_pp,AccidentBeqAH,w,P0,D_pp,Lhscale, ...
+            r,pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp,Lhscale, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
             r_wedge,agej_pct_cost ...
         ) Electrify_HouseholdIncomeFn( ...
