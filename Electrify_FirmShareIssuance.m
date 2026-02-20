@@ -1,4 +1,4 @@
-function s=Electrify_FirmShareIssuance(dividend,kprime,k,z,w,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi)
+function s=Electrify_FirmShareIssuance(dividend,kprime,k,z,w,D,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi)
 % Whether we set it up so that dividends or equity issuance is the decision
 % variable is unimportant, here I use dividends as the decision variable.
 
