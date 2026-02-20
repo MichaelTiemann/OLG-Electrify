@@ -7,21 +7,13 @@ F=0;
 if (L_h-L_f)^2 <= 10^(-6)
     return
 elseif L_f>L_h
-    if w>=1
-        % Small increase
-        F=(L_f/L_h)*w;
-    else
-        % Larger increase
-        F=(L_f/L_h)^2/w;
-    end
+    % If w>1, this attenuates overdemand by firms
+    % If w<1, this amplifies overdemand by firms
+    F=(L_f/L_h)/w;
 else
-    if w>=1
-        % Large decrease (negative)
-        F=-(L_h/L_f)^2*w;
-    else
-        % Smaller decrease (negative)
-        F=-(L_h/L_f)/w;
-    end
+    % If w>1, this reverses and amplifies oversupply by households
+    % If w<1, this reverses but attenuates oversupply by households
+    F=-(L_h/L_f)*w;
 end
 
 end
