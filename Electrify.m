@@ -17,7 +17,7 @@ addpath(genpath('./MatlabToolkits/'))
 % Scenario 1: no housing, assets, inflation
 % Scenario 2: add rental+energy costs, but no housing/assets/inflation
 % Scenario 3: add housing/assets/inflation
-Params.scenario=1;
+Params.scenario=3;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
@@ -28,8 +28,6 @@ Params.ypp=5; % model period, in years (just used this to modify some parameters
 % vfoptions.howardsgreedy=0;
 % vfoptions.howards=80;
 % vfoptions.maxhowards=200;
-vfoptions.lowmemory.household=0;
-vfoptions.lowmemory.firm=0;
 if Params.scenario<3
     vfoptions.tolerance=10^(-9);
 else
@@ -41,7 +39,7 @@ simoptions.tolerance=vfoptions.tolerance;
 % If gridinterplayer=1, then you must set vfoptions.divideandconquer=1 (required for transition).
 vfoptions.gridinterplayer  = 0;
 vfoptions.ngridinterp      = 10;
-vfoptions.divideandconquer.household = 1;
+vfoptions.divideandconquer.household = (Params.scenario<3);
 vfoptions.divideandconquer.firm = 0;
 vfoptions.level1n=11;
 simoptions.gridinterplayer = vfoptions.gridinterplayer;
@@ -56,10 +54,12 @@ if Params.scenario<3
     n_d.household=101;
     n_a.household=201;
     n_z.household=2*ceil(Params.J/11)-1; % AR(1) with age-dependent params = 15 with 60 periods
+    vfoptions.lowmemory.household=0;
 else
     n_d.household=[51,2]; % Decisions: labor, buyhouse (5)
-    n_a.household=[51,2,2,2]; % Endogenous shares, assets, housing (5), and solarpv (4) assets (0-45 kW generation)
-    n_z.household=2*ceil(Params.J/23)-1; % AR(1) with age-dependent params = 7 with 60 periods
+    n_a.household=[51,6,2,2]; % Endogenous shares, assets (>=6), housing (5), and solarpv (4) assets (0-45 kW generation)
+    n_z.household=2*ceil(sqrt(Params.J+1)/2)-1; % AR(1) with age-dependent params = 7 with 60 periods
+    vfoptions.lowmemory.household=1;
 end
 % Exogenous labor productivity units shocks (next two lines)
 vfoptions.n_e.household=3; % iid
@@ -70,6 +70,7 @@ n_d.firm=101; % Dividend payment
 n_a.firm=201; % Capital holdings
 n_z.firm=2*ceil(Params.J/15)-1; % Productivity shock; scaled to model, not firm horizon
 N_j.firm=Inf; % Infinite horizon
+vfoptions.lowmemory.firm=0;
 
 %% Global parameters (applies to household and firm)
 % Annual risk-free rate of return
@@ -102,7 +103,7 @@ Params.eta = 1.5; % Curvature of leisure (This will end up being 1/Frisch elasty
 psi = [10, 10, 2]; % Weight on leisure
 Params.psi=psi(Params.scenario);
 % Labor productivity at start, peak, and end of working life
-k_j1 = [0.5, 0.5, 0.5];
+k_j1 = [0.5, 0.75, 0.5];
 k_j2 = [2, 2, 2];
 k_j2_length = [0,0,5];
 k_j3 = [1, 1, 1];
@@ -346,8 +347,8 @@ simoptions.pi_e.household=pi_e_J;
 
 %% Grids for firm
 d_grid.firm=linspace(0,1,n_d.firm)'; % Notice that it is imposing the d>=0 condition implicitly
-% k_max=10 replicates OLGModel14; K>4=infeasible in these conditions, so don't waste grid space
-k_max=[10,4,4];
+% k_max=10 replicates OLGModel14; K>4=infeasible when ypp=1, but need more as ypp increases
+k_max=[10,6,6];
 k_grid_cubed=linspace(0,1,ceil(n_a.firm/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
 k_grid_linear=linspace(1,k_max(Params.scenario),floor(n_a.firm/2)+1);
 a_grid.firm=[k_grid_cubed, k_grid_linear(2:end)]';

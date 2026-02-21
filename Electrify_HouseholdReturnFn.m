@@ -45,7 +45,7 @@ if sprime>0 && aprime+(1+agej_pct_cost)*hprime<0
 end
 net_worth_prime=P*sprime+aprime+(1+agej_pct_cost)*hprime;
 if agej*ypp<6
-    if net_worth_prime<-0.55*(6-agej*ypp)/5
+    if net_worth_prime<-0.55*((5+ypp)-agej*ypp)/5
         % Starter loan needed to get people going
         return
     end
