@@ -2,7 +2,7 @@ function F=Electrify_HouseholdReturnFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,Lhscale,...
-    scenario,r,r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
+    scenario,r_pp,r_r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     )
 % Get rid of progressive taxes
 % Add Lhnormalize
@@ -11,6 +11,11 @@ function F=Electrify_HouseholdReturnFn( ...
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
 F=-Inf;
+
+if buyhouse==5
+    % This is just a test
+    return
+end
 
 if scenario<3 && (hprime>0 || aprime~=0)
     % Not buying houses or assets right now
@@ -22,14 +27,12 @@ if buyhouse==0
         % Forbid owning house when buyhouse=0
         return
     end
-elseif hprime==0 || hprime~=h
-    if buyhouse>=3
+elseif buyhouse>=3
+    if hprime==0 || hprime~=h
         % Forbid selling/changing house we say we are keeping
         return
     end
 end
-
-r_pp=((1+r)^ypp-1);
 
 % We can get P (share price) from the equation that defines r as the return to the mutual fund
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
@@ -44,12 +47,15 @@ if sprime>0 && aprime+(1+agej_pct_cost)*hprime<0
     return
 end
 net_worth_prime=P*sprime+aprime+(1+agej_pct_cost)*hprime;
-if agej*ypp<6
-    if net_worth_prime<-0.55*((5+ypp)-agej*ypp)/5
-        % Starter loan needed to get people going
-        return
+if agej*ypp<11
+    if net_worth_prime<-0.65*((10+ypp)-agej*ypp)/10
+        % Limit starter loan needed to get people going
+        net_worth_prime=-20;
+    else
+        net_worth_prime=0;
     end
 elseif (net_worth_prime < 0 ...                          % Don't allow net debt
+        || aprime<0 && hprime<=h ...                     % Loans must be for new housing only
         || aprime<-f_coll*(1+agej_pct_cost)*hprime ...   % Collateral constraint on borrowing
         || agej>=Jr && aprime<0)                         % Ban pensioners from negative assets (even if they own houses)
     return 
@@ -92,25 +98,25 @@ end
 
 if agej<Jr % If working age
     %consumption = labor income plus other "other income" below
-    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*Lhscale*ypp; 
+    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp*Lhscale; 
 else % Retirement
     c=pension*ypp;
 end
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
 c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqAH_pp+(1+agej_pct_cost)*(h-hprime);
-if a<0
-    % Subtract loan interest by adding a negative number
-    c=c+((1+r+r_wedge)^ypp-1)*a;
+if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
+    % Subtract loan interest by adding diminishing assets
+    c=c+(1+r_r_wedge_pp)*a;
 else
-    % Add deposit interest
-    c=c+r_pp*a;
+    % Deposit interest included in augmented assets
+    c=c+(1+r_pp)*a;
 end
 % ...subtract the rest of the things:
 % house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share, asset holdings
 c=c-htc-rentalcosts-pvinstallcost-(1+agej_pct_cost)*(energy_pct_cost*max(h,1)^2*(1-solarpv/2))*ypp-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
 
 if c>0
-    F=(((c^(1-sigma_h))*(hs^sigma_h))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
+    F=(((c^(1-sigma_h))*(hs^sigma_h))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta) +net_worth_prime; % The utility function
 end
 
 % Warm-glow bequest; must handle aprime<0

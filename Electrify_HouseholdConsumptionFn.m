@@ -1,8 +1,8 @@
 function c=Electrify_HouseholdConsumptionFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
-    kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr,Lhscale,...
-    r,r_wedge,f_htc,rentprice,agej_pct_cost,pv_pct_cost,energy_pct_cost)
+    kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr,Lhscale, ...
+    r_pp,r_r_wedge_pp,f_htc,rentprice,agej_pct_cost,pv_pct_cost,energy_pct_cost)
 % Get rid of progressive taxes
 % Add Lhnormalize
 
@@ -34,8 +34,6 @@ else
     rentalcosts=0;
 end
 
-r_pp=((1+r)^ypp-1);
-
 % We can get P from the equation that defines r as the return to the mutual fund
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
 % We are looking at stationary general eqm, so
@@ -47,7 +45,7 @@ Plag=P; % As stationary general eqm
 
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
-    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*Lhscale*ypp; 
+    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp*Lhscale; 
 else % Retirement
     c=pension*ypp;
 end
@@ -55,10 +53,10 @@ end
 c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqAH_pp+(1+agej_pct_cost)*(h-hprime);
 if a<0
     % Subtract loan interest by adding a negative number
-    c=c+((1+r+r_wedge)^ypp-1)*a;
+    c=c+(1+r_r_wedge_pp)*a;
 else
     % Add deposit interest
-    c=c+r_pp*a;
+    c=c+(1+r_pp)*a;
 end
 % ...subtract the rest of the things:
 % house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share, asset, and house holdings

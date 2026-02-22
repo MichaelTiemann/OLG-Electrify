@@ -24,7 +24,7 @@ switch buyhouse
         if solarpv<=4
             solarpv_prime = solarpv+randi([1,floor(5-solarpv)]);
         % Else -Inf return value will cause the ReturnFn to return -Inf
-        end        
+        end
 end
 
 
