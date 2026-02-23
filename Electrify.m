@@ -96,7 +96,7 @@ end
 
 % Discount rate; Changed to get S to increase nearer to 1 given r=0.05
 % (ran it with beta=0.99, got S=0.3, so increased this; note that it interacts with sj to give the actual discount factor)
-beta=[0.95,0.95,0.98];
+beta=[0.95,0.95,0.99];
 Params.beta_pp = beta(Params.scenario)^Params.ypp;
 % Preferences
 Params.sigma = 2; % Coeff of relative risk aversion (curvature of consumption)
