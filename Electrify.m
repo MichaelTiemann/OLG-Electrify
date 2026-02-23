@@ -4,7 +4,7 @@
 % OLGModel14.m in the repo https://github.com/vfitoolkit/IntroToOLGModels
 % and LifeCycleModel35.m in the repo https://github.com/vfitoolkit/IntroToLifeCycleModels
 
-solve_GE=false;
+solve_GE=true;
 
 Names_i={'household','firm'};
 PTypeDistParamNames={'ptypemass'};
@@ -17,12 +17,12 @@ addpath(genpath('./MatlabToolkits/'))
 % Scenario 1: no housing, no assets, no inflation
 % Scenario 2: add rental+energy costs, but no housing/assets/inflation
 % Scenario 3: add housing/assets/inflation
-Params.scenario=3;
+Params.scenario=1;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
 % Discounting parameters (beta_pp and sj) defined in terms of ypp
-Params.ypp=2; % model period, in years (just used this to modify some parameters from annual to model period)
+Params.ypp=1; % model period, in years (just used this to modify some parameters from annual to model period)
 
 %% Begin setting up to use VFI Toolkit to solve
 % vfoptions.howardsgreedy=0;
@@ -47,9 +47,10 @@ simoptions.ngridinterp     = vfoptions.ngridinterp;
 
 % Grid sizes to use for household
 
-% Lets model agents from age 20 to age 100, so 81 periods
+% Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
+max_J=[100,100,80];
 Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
-Params.J=ceil((79-Params.agejshifter)/Params.ypp); % =60/ypp, Number of period in life-cycle
+Params.J=ceil((max_J(Params.scenario)-Params.agejshifter)/Params.ypp); % =60/ypp, Number of period in life-cycle
 if Params.scenario<3
     n_d.household=101;
     n_a.household=201;
@@ -146,18 +147,18 @@ sigma_epsilon_z=0.0518-0.0405*((1:Params.ypp:37)/10)+0.0105*((1:Params.ypp:37)/1
 Params.rho_z=[rho_z(1)*ones_pp4y, ...
     rho_z, ...
     rho_z(end)*ones_pp4y, ...
-    zeros(1,ceil(81/Params.ypp)-Params.Jr+1)];
+    zeros(1,ceil(Params.J/Params.ypp)-Params.Jr+1)];
 Params.sigma_epsilon_z=[sigma_epsilon_z(1)*ones_pp4y, ...
     sigma_epsilon_z, ...
     sigma_epsilon_z(end)*ones_pp4y, ...
-    sigma_epsilon_z(end)*ones(1,ceil(81/Params.ypp)-Params.Jr+1)];
+    sigma_epsilon_z(end)*ones(1,ceil(Params.J/Params.ypp)-Params.Jr+1)];
 
 % Transitory iid shock
 sigma_e=0.0410+0.0221*((24:Params.ypp:60)/10)-0.0069*((24:Params.ypp:60)/10).^2+0.0008*((24:Params.ypp:60)/10).^3;
 Params.sigma_e=[sigma_e(1)*ones_pp4y, ...
     sigma_e, ...
     sigma_e(end)*ones_pp4y, ...
-    sigma_e(end)*ones(1,ceil(81/Params.ypp)-Params.Jr+1)];
+    sigma_e(end)*ones(1,ceil(Params.J/Params.ypp)-Params.Jr+1)];
 
 % Note: These iid shocks will interact with the endogenous labor so the final labor
 % earnings process will not equal that of Karahan & Ozkan (2013)
@@ -232,7 +233,7 @@ Params.G_pp=0.1*Params.ypp; % Government expenditure
 Params.firmbeta=1/(1+Params.r_pp/(1-Params.tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
 Params.D_pp=(1+0.2)^Params.ypp-1; % Per-period dividends rate expected/received by households
 Params.P0=1;
-Lhscale=[0.25,0.35,0.6]; % Scaling the household labor supply
+Lhscale=[0.22,0.35,0.6]; % Scaling the household labor supply
 Params.Lhscale=Lhscale(Params.scenario)*Params.ypp;
 
 %% Grids for household
@@ -362,18 +363,33 @@ z_grid.firm=exp(z_grid.firm);
 
 % For households
 DiscountFactorParamNames.household={'beta_pp','sj'};
-% Notice we use 'Electrify_HouseholdReturnFn'
-ReturnFn.household=@( ...
-        labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+
+if Params.scenario<3
+    ReturnFn.household=@( ...
+        labor,sprime,s,z,e, ...
         pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
         sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,Lhscale,...
         scenario,r_pp,r_r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     ) Electrify_HouseholdReturnFn( ...
-        labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+        labor,0,sprime,0,0,s,0,0,0,z,e, ...
         pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
         sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,Lhscale,...
         scenario,r_pp,r_r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     );
+else
+    % Notice we use 'Electrify_HouseholdReturnFn'
+    ReturnFn.household=@( ...
+            labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+            pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
+            sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,Lhscale,...
+            scenario,r_pp,r_r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
+        ) Electrify_HouseholdReturnFn( ...
+            labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+            pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
+            sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,Lhscale,...
+            scenario,r_pp,r_r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
+        );
+end
 
 % For firms
 DiscountFactorParamNames.firm={'firmbeta'};
@@ -395,7 +411,11 @@ tic;
 [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
 toc
 
-checkfeasible_household(V,Policy,asset_grid,zeroassetindex,n_d,n_a,n_z,N_j,d_grid,a_grid,Params,vfoptions);
+if Params.scenario<3
+    checkfeasible_household_case12(V,Policy,a_grid.household,1,n_d,n_a,n_z,N_j,d_grid,a_grid,Params,vfoptions);
+else
+    checkfeasible_household_case3(V,Policy,asset_grid,zeroassetindex,n_d,n_a,n_z,N_j,d_grid,a_grid,Params,vfoptions);
+end
 
 %% Initial distribution of agents at birth (j=1)
 % Before we plot the life-cycle profiles we have to define how agents are
@@ -673,7 +693,69 @@ fclose(fileID);
 
 type 'SavedOutput\aggs.txt'
 
-function feasible=checkfeasible_household(V,Policy,asset_grid,zeroassetindex,n_d,n_a,n_z,N_j,d_grid,a_grid,Params,vfoptions)
+function feasible=checkfeasible_household_case12(V,Policy,asset_grid,zeroassetindex,n_d,n_a,n_z,N_j,d_grid,a_grid,Params,vfoptions)
+
+feasible=true;
+fhh_options.tolerance=vfoptions.tolerance;
+fhh_options.lowmemory=vfoptions.lowmemory.household;
+fhh_options.n_e=vfoptions.n_e.household;
+fhh_options.e_grid=vfoptions.e_grid.household;
+fhh_options.pi_e=vfoptions.pi_e.household;
+fhh=PolicyInd2Val_FHorz(Policy.household,n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,fhh_options);
+
+z_idx=ceil(n_z.household/2);
+e_idx=ceil(fhh_options.n_e/2);
+aprime_index_last=1;
+for fhh_agej=1:5
+    fhh_next=squeeze(fhh(:,:,z_idx,e_idx,fhh_agej));
+    aprime_index_next=find(asset_grid==fhh_next(2,aprime_index_last));
+    if fhh_next(1,aprime_index_next)==0
+        feasible=false;
+        error("labor strike")
+    end
+
+    income = Electrify_HouseholdIncomeFn( ...
+        1,0,asset_grid(aprime_index_next),0,0,asset_grid(aprime_index_last),0,0,0,0,0, ...
+        Params.pension,Params.AccidentBeqS_pp,Params.AccidentBeqAH_pp,Params.w,Params.P0,Params.D_pp, ...
+        Params.kappa_j(fhh_agej),Params.tau_l,Params.tau_d,Params.tau_cg,Params.ypp,fhh_agej,Params.Jr,Params.Lhscale, ...
+        Params.r_pp,Params.r_r_wedge_pp,Params.agej_pct_cost(fhh_agej));
+    if income<0
+        feasible=false;
+        error("income negative")
+    end
+    consumption=Electrify_HouseholdConsumptionFn( ...
+        1,0,asset_grid(aprime_index_next),0,0,asset_grid(aprime_index_last),0,0,0,0,0, ...
+        Params.pension,Params.AccidentBeqS_pp,Params.AccidentBeqAH_pp,Params.w,Params.P0,Params.D_pp, ...
+        Params.kappa_j(fhh_agej),Params.tau_l,Params.tau_d,Params.tau_cg,Params.ypp,fhh_agej,Params.Jr,Params.Lhscale, ...
+        Params.r_pp,Params.r_r_wedge_pp,Params.f_htc,Params.rentprice,Params.agej_pct_cost(fhh_agej),Params.pv_pct_cost,Params.energy_pct_cost);
+    if consumption<0
+        feasible=false;
+        error("consumption negative")
+    end
+    if aprime_index_next==1
+        F=Electrify_HouseholdReturnFn( ...
+            1,0,asset_grid(aprime_index_next),0,0,asset_grid(aprime_index_last),0,0,0,0,0, ...
+            Params.pension,Params.AccidentBeqS_pp,Params.AccidentBeqAH_pp,Params.w,Params.P0,Params.D_pp, ...
+            Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.kappa_j(fhh_agej),Params.tau_l,Params.tau_d,Params.tau_cg,Params.warmglow1,Params.warmglow2,Params.ypp,fhh_agej,Params.Jr,Params.J,Params.Lhscale, ...
+            Params.scenario,Params.r_pp,Params.r_r_wedge_pp,Params.f_htc,Params.minhouse,Params.rentprice,Params.f_coll,Params.houseservices,Params.agej_pct_cost(fhh_agej),Params.pv_pct_cost,Params.energy_pct_cost);
+        if isfinite(F)
+            fprintf("F = %.2f \n", F);
+        else
+            feasible=false;
+            error("infeasible last->next")
+        end
+    end
+    aprime_index_last=aprime_index_next;
+end
+
+% all(squeeze(Policy.household(:,1,1:zeroassetindex-2,1,1,4:6,:,2:20))==1,[3 4 5])
+% if all(squeeze(Policy.household(:,1,1:zeroassetindex-2,1,1,3:7,:,2:20))==1,'all')
+%     warning("infeasible Stationary Distribution")
+% end
+
+end
+
+function feasible=checkfeasible_household_case3(V,Policy,asset_grid,zeroassetindex,n_d,n_a,n_z,N_j,d_grid,a_grid,Params,vfoptions)
 
 feasible=true;
 fhh_options.tolerance=vfoptions.tolerance;
