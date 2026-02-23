@@ -1,7 +1,7 @@
 function F=Electrify_HouseholdReturnFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
-    sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,Lhscale,...
+    sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
     scenario,r_pp,r_r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     )
 % Get rid of progressive taxes
@@ -11,11 +11,6 @@ function F=Electrify_HouseholdReturnFn( ...
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
 F=-Inf;
-
-if buyhouse==5
-    % This is just a test
-    return
-end
 
 if scenario<3 && (hprime>0 || aprime~=0)
     % Not buying houses or assets right now
@@ -42,22 +37,9 @@ end
 P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
 
 %% Allow/Disallow some trivial agent decisions
-if sprime>0 && aprime+(1+agej_pct_cost)*hprime<0
-    % Cannot buy shares with negative net worth
-    return
-end
-net_worth_prime=P*sprime+aprime+(1+agej_pct_cost)*hprime;
-if agej*ypp<11
-    if net_worth_prime<-0.65*((10+ypp)-agej*ypp)/10
-        % Limit starter loan needed to get people going
-        net_worth_prime=-20;
-    else
-        net_worth_prime=0;
-    end
-elseif (net_worth_prime < 0 ...                          % Don't allow net debt
-        || aprime<0 && hprime<=h ...                     % Loans must be for new housing only
-        || aprime<-f_coll*(1+agej_pct_cost)*hprime ...   % Collateral constraint on borrowing
-        || agej>=Jr && aprime<0)                         % Ban pensioners from negative assets (even if they own houses)
+if (sprime>0 && aprime+(1+agej_pct_cost)*hprime<0 ... % Cannot buy shares with negative net worth
+    || aprime<-f_coll*(1+agej_pct_cost)*hprime ...    % Collateral constraint on borrowing
+    || agej>=Jr && aprime<0)                          % Ban pensioners from negative assets (even if they own houses)
     return 
 end
 
@@ -98,7 +80,7 @@ end
 
 if agej<Jr % If working age
     %consumption = labor income plus other "other income" below
-    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp*Lhscale; 
+    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
 else % Retirement
     c=pension*ypp;
 end
@@ -115,8 +97,20 @@ end
 % house transaction costs - rental - pvinstall - energy costs (offset by pv generation) - capital gains tax - next period share, asset holdings
 c=c-htc-rentalcosts-pvinstallcost-(1+agej_pct_cost)*(energy_pct_cost*max(h,1)^2*(1-solarpv/2))*ypp-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
 
+% If we are aiming for a starter loan, what loan can we afford?
+net_worth_prime=P*sprime+aprime+(1+agej_pct_cost)*hprime;
+if aprime<0 && agej*ypp<11
+    if c<-r_r_wedge_pp*aprime
+        return % Cannot afford next year's payments with income leftovers
+    end
+    if net_worth_prime<-0.5*((10+ypp)-agej*ypp)/10
+        % Limit starter loan needed to get people going
+        return
+    end
+end
+
 if c>0
-    F=(((c^(1-sigma_h))*(hs^sigma_h))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta) +net_worth_prime; % The utility function
+    F=(((c^(1-sigma_h))*(hs^sigma_h))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
 end
 
 % Warm-glow bequest; must handle aprime<0

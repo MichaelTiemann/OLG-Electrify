@@ -1,7 +1,7 @@
 function income=Electrify_HouseholdIncomeFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
-    kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr,Lhscale, ...
+    kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
     r_pp,r_r_wedge_pp,agej_pct_cost)
 % Replace assets with 'share holdings'
 % Get rid of progressive taxes
@@ -20,7 +20,7 @@ Plag=P; % As stationary general eqm
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
     % income just is consumption but without subtracting the term for next period share holdings (-P*sprime) or asset holdings (aprime)
-    income=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp*Lhscale;
+    income=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp;
 else % Retirement
     income=pension*ypp;
 end

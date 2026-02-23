@@ -1,7 +1,7 @@
 function c=Electrify_HouseholdConsumptionFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
-    kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr,Lhscale, ...
+    kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
     r_pp,r_r_wedge_pp,f_htc,rentprice,agej_pct_cost,pv_pct_cost,energy_pct_cost)
 % Get rid of progressive taxes
 % Add Lhnormalize
@@ -45,7 +45,7 @@ Plag=P; % As stationary general eqm
 
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
-    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp*Lhscale; 
+    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
 else % Retirement
     c=pension*ypp;
 end
