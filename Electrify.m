@@ -4,7 +4,7 @@
 % OLGModel14.m in the repo https://github.com/vfitoolkit/IntroToOLGModels
 % and LifeCycleModel35.m in the repo https://github.com/vfitoolkit/IntroToLifeCycleModels
 
-solve_GE=false;
+solve_GE=true;
 
 Names_i={'household','firm'};
 PTypeDistParamNames={'ptypemass'};
@@ -17,7 +17,7 @@ addpath(genpath('./MatlabToolkits/'))
 % Scenario 1: no housing, no assets, no inflation
 % Scenario 2: add rental+energy costs, but no housing/assets/inflation
 % Scenario 3: add housing/assets/inflation
-Params.scenario=2;
+Params.scenario=3;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
@@ -48,7 +48,7 @@ simoptions.ngridinterp     = vfoptions.ngridinterp;
 % Grid sizes to use for household
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
-max_J=[100,100,80];
+max_J=[80,80,80];
 Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 Params.J=ceil((max_J(Params.scenario)-Params.agejshifter)/Params.ypp); % =60/ypp, Number of period in life-cycle
 if Params.scenario<3
@@ -75,7 +75,7 @@ vfoptions.lowmemory.firm=0;
 
 %% Global parameters (applies to household and firm)
 % Note: with w=1, labor tax=20%, kappa_j(1)=0.5, agents have 0.4 budget to start
-% If rent=0.3 and energy=0.1, they live, but more costs they strike...
+% If rent=0.3 energy=0.1, they live, but cannot save; they strike
 
 % Annual risk-free rate of return
 r=0.05; Params.r_pp=(1+r)^Params.ypp-1;
@@ -87,10 +87,10 @@ rentprice=[0,0.3,0.3]; % I figured setting rent a decent fraction of income is s
 Params.rentprice=rentprice(Params.scenario);
 houseservices=[1,1,1]; % housing services as a fraction of house value
 Params.houseservices=houseservices(Params.scenario);
-energy_pct_cost=[0,0.10,0.10]; % Electricity: 3%; Gas: 1-2%; Petrol: 1-2%
+energy_pct_cost=[0,0.07,0.07]; % Electricity: 3%; Gas: 1-2%; Petrol: 1-2%
 Params.energy_pct_cost=energy_pct_cost(Params.scenario);
 if Params.scenario==3
-    Params.f_htc=0.15; % transaction cost of buying/selling house (is a percent of h+hprime)
+    Params.f_htc=0.05; % transaction cost of buying/selling house (is a percent of h+hprime)
     f_coll=[0,0,0.8]; % collateral contraint (fraction of house value that can be borrowed)
     Params.f_coll=f_coll(Params.scenario);
     pv_pct_cost=[0,0,0.05]; % modeling a $30K install for a $600K house
@@ -109,8 +109,8 @@ Params.eta = 1.5; % Curvature of leisure (This will end up being 1/Frisch elasty
 psi = [2, 2, 2]; % Weight on leisure
 Params.psi=psi(Params.scenario);
 % Labor productivity at start, peak, and end of working life
-k_j1 = [0.5, 0.5, 0.5];
-k_j2 = [2, 2, 2];
+k_j1 = [0.5, 0.5, 0.75];
+k_j2 = [2, 2, 3];
 k_j2_length = [0,0,5];
 k_j3 = [1, 1, 1];
 
@@ -260,7 +260,7 @@ if Params.scenario<3
 else
     % Grid for bank account; a negative balance implies a mortgage
     a_grid_cubed=linspace(-1,0,ceil(n_a.household(2)/2)-1).^3;
-    a_grid_linear=linspace(0,4,floor(n_a.household(2)/2)+2);
+    a_grid_linear=linspace(0,2,floor(n_a.household(2)/2)+2);
     asset_grid=[0.5*a_grid_cubed, a_grid_linear(2:end)]';
     
     % Make it so that there is a zero assets

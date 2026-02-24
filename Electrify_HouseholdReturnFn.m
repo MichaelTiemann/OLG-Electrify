@@ -38,7 +38,7 @@ if scenario==3
     if h==0
         hs=0.5*houseservices*minhouse;
     else
-        hs=houseservices*sqrt(h);
+        hs=houseservices*h;
         rentalcosts=0;
     end
     % Houses start at 2x annual wage
@@ -48,7 +48,7 @@ end
 
 %% Allow/Disallow some trivial agent decisions
 if (sprime>0 && aprime+hprimecost<0 ... % Cannot buy shares with negative net worth
-    || aprime<-f_coll*hprimecost ...    % Collateral constraint on borrowing
+    || agej*ypp>=11 && aprime<-f_coll*hprimecost ...  % Collateral constraint on borrowing (for older buyers that earn real money)
     || agej>=Jr && aprime<0)                          % Ban pensioners from negative assets (even if they own houses)
     return 
 end
