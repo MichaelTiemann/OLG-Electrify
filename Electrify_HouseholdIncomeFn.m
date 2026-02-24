@@ -2,11 +2,15 @@ function income=Electrify_HouseholdIncomeFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-    r_pp,r_r_wedge_pp,agej_pct_cost)
-% Replace assets with 'share holdings'
-% Get rid of progressive taxes
-% Add Lhnormalize
-% Figure out real estate transactions
+    r_pp,r_r_wedge_pp,agej_pct_cost,energy_pct_cost)
+
+hcost=0;
+hprimecost=0;
+if h+hprime>0
+    % Houses start at 4x annual wage
+    hcost=4*h*(1+agej_pct_cost);
+    hprimecost=4*hprime*(1+agej_pct_cost);
+end
 
 % We can get P from the equation that defines r as the return to the mutual fund
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
@@ -24,12 +28,11 @@ if agej<Jr % If working age
 else % Retirement
     income=pension*ypp;
 end
-% Other income: accidental share bequest + share holdings (including dividend) - capital gains + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
-income=income+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)+AccidentBeqAH_pp+(1+agej_pct_cost)*(h-hprime);
-if a<0
-    % Subtract loan interest by adding a negative number
-    income=income+r_r_wedge_pp*a;
-else
+% Other income: accidental share bequest + share holdings (including dividend) - capital gains + accidental asset+house bequest + net housing assets
+income=income+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)+AccidentBeqAH_pp+(hcost-hprimecost);
+% PV generation: 30kW (2 solar units) meets h==1 energy needs
+income=income+(1+agej_pct_cost)*energy_pct_cost*(solarpv/2)*ypp;
+if a>0
     % Add deposit interest
     income=income+r_pp*a;
 end

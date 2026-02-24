@@ -4,7 +4,7 @@
 % OLGModel14.m in the repo https://github.com/vfitoolkit/IntroToOLGModels
 % and LifeCycleModel35.m in the repo https://github.com/vfitoolkit/IntroToLifeCycleModels
 
-solve_GE=true;
+solve_GE=false;
 
 Names_i={'household','firm'};
 PTypeDistParamNames={'ptypemass'};
@@ -17,7 +17,7 @@ addpath(genpath('./MatlabToolkits/'))
 % Scenario 1: no housing, no assets, no inflation
 % Scenario 2: add rental+energy costs, but no housing/assets/inflation
 % Scenario 3: add housing/assets/inflation
-Params.scenario=3;
+Params.scenario=2;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
@@ -58,7 +58,7 @@ if Params.scenario<3
     vfoptions.lowmemory.household=0;
 else
     n_d.household=[31,5]; % Decisions: labor, buyhouse (5)
-    n_a.household=[13,15,5,4]; % Endogenous shares, assets (>=6), housing (>=2), and solarpv (4) assets (0-45 kW generation)
+    n_a.household=[13,15,5,5]; % Endogenous shares, assets (>=6), housing (>=2), and solarpv (5) assets (0-60 kW generation)
     n_z.household=1+2*floor(1.2*log(min(Params.J,60))); % AR(1) with age-dependent params = 7 with 60 periods
     vfoptions.lowmemory.household=2;
 end
@@ -74,6 +74,9 @@ N_j.firm=Inf; % Infinite horizon
 vfoptions.lowmemory.firm=0;
 
 %% Global parameters (applies to household and firm)
+% Note: with w=1, labor tax=20%, kappa_j(1)=0.5, agents have 0.4 budget to start
+% If rent=0.3 and energy=0.1, they live, but more costs they strike...
+
 % Annual risk-free rate of return
 r=0.05; Params.r_pp=(1+r)^Params.ypp-1;
 r_wedge=0.05; Params.r_r_wedge_pp=(1+r+r_wedge)^Params.ypp-1;
@@ -84,11 +87,11 @@ rentprice=[0,0.3,0.3]; % I figured setting rent a decent fraction of income is s
 Params.rentprice=rentprice(Params.scenario);
 houseservices=[1,1,1]; % housing services as a fraction of house value
 Params.houseservices=houseservices(Params.scenario);
-energy_pct_cost=[0,0.05,0.07]; % Electricity: 3%; Gas: 1-2%; Petrol: 1-2%
+energy_pct_cost=[0,0.10,0.10]; % Electricity: 3%; Gas: 1-2%; Petrol: 1-2%
 Params.energy_pct_cost=energy_pct_cost(Params.scenario);
 if Params.scenario==3
-    Params.f_htc=0.03; % transaction cost of buying/selling house (is a percent of h+hprime)
-    f_coll=[0,0,0.5]; % collateral contraint (fraction of house value that can be borrowed)
+    Params.f_htc=0.15; % transaction cost of buying/selling house (is a percent of h+hprime)
+    f_coll=[0,0,0.8]; % collateral contraint (fraction of house value that can be borrowed)
     Params.f_coll=f_coll(Params.scenario);
     pv_pct_cost=[0,0,0.05]; % modeling a $30K install for a $600K house
     Params.pv_pct_cost=pv_pct_cost(Params.scenario);
@@ -235,7 +238,7 @@ Params.G_pp=0.1*Params.ypp; % Government expenditure
 Params.firmbeta=1/(1+Params.r_pp/(1-Params.tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
 Params.D_pp=(1+0.2)^Params.ypp-1; % Per-period dividends rate expected/received by households
 Params.P0=1;
-Lhscale=[0.21,0.21,0.29]; % Scaling the household labor supply
+Lhscale=[0.21,0.21,0.21]; % Scaling the household labor supply
 Params.Lhscale=Lhscale(Params.scenario);
 
 %% Grids for household
@@ -246,7 +249,7 @@ labor_grid=linspace(0,1,n_d.household(1))'; % Notice that it is imposing the 0<=
 % Grid for share holdings, always > 0
 % For later scenarios, shrink the grid for more accuracy
 s_grid_cubed=linspace(0,1,ceil(n_a.household(1)/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
-s_grid_linear=linspace(1,10-4*(Params.scenario>1),floor(n_a.household(1)/2)+1);
+s_grid_linear=linspace(1,10-2*(Params.scenario>1),floor(n_a.household(1)/2)+1);
 share_grid=[s_grid_cubed, s_grid_linear(2:end)]';
 
 % Set up d for VFI Toolkit (is the two decision variables)
@@ -257,7 +260,7 @@ if Params.scenario<3
 else
     % Grid for bank account; a negative balance implies a mortgage
     a_grid_cubed=linspace(-1,0,ceil(n_a.household(2)/2)-1).^3;
-    a_grid_linear=linspace(0,3,floor(n_a.household(2)/2)+2);
+    a_grid_linear=linspace(0,4,floor(n_a.household(2)/2)+2);
     asset_grid=[0.5*a_grid_cubed, a_grid_linear(2:end)]';
     
     % Make it so that there is a zero assets
@@ -563,9 +566,9 @@ if solve_GE
         heteroagentoptions.toleranceGEprices=10^(-4);
         heteroagentoptions.toleranceGEcondns=10^(-4); % This is the hard one
     else
-        heteroagentoptions.toleranceGEprices=10^(-3);
-        heteroagentoptions.toleranceGEcondns=10^(-3); % This is the hard one
-        heteroagentoptions.maxiter=600;
+        heteroagentoptions.toleranceGEprices=10^(-2);
+        heteroagentoptions.toleranceGEcondns=10^(-1); % This is the hard one
+        heteroagentoptions.maxiter=10;
     end
         
     p_eqm=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j, Names_i, [], pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
@@ -632,12 +635,12 @@ if Params.scenario<3
             labor,sprime,s,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_r_wedge_pp ...
+            r_pp,r_r_wedge_pp,energy_pct_cost ...
         ) Electrify_HouseholdIncomeFn( ...
             labor,0,sprime,0,0,s,0,0,0,z,e, ...
             pension,AccidentBeqS_pp,0,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_r_wedge_pp,0);
+            r_pp,r_r_wedge_pp,0,energy_pct_cost);
 else
     FnsToEvaluate.Consumption.household=@( ...
             labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
@@ -653,12 +656,12 @@ else
             labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_r_wedge_pp,agej_pct_cost ...
+            r_pp,r_r_wedge_pp,agej_pct_cost,energy_pct_cost ...
         ) Electrify_HouseholdIncomeFn( ...
             labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_r_wedge_pp,agej_pct_cost);
+            r_pp,r_r_wedge_pp,agej_pct_cost,energy_pct_cost);
 end
 
 AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist, Policy, FnsToEvaluate, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
@@ -720,7 +723,7 @@ for fhh_agej=1:5
         1,0,asset_grid(aprime_index_next),0,0,asset_grid(aprime_index_last),0,0,0,0,0, ...
         Params.pension,Params.AccidentBeqS_pp,0,Params.w,Params.P0,Params.D_pp, ...
         Params.kappa_j(fhh_agej),Params.tau_l,Params.tau_d,Params.tau_cg,Params.ypp,fhh_agej,Params.Jr, ...
-        Params.r_pp,0,0);
+        Params.r_pp,0,0,Params.energy_pct_cost);
     if income<0
         feasible=false;
         error("income negative")
@@ -784,7 +787,7 @@ for fhh_agej=1:5
         1,0,0,asset_grid(aprime_index_next),0,0,asset_grid(aprime_index_last),0,0,0,0, ...
         Params.pension,Params.AccidentBeqS_pp,Params.AccidentBeqAH_pp,Params.w,Params.P0,Params.D_pp, ...
         Params.kappa_j(fhh_agej),Params.tau_l,Params.tau_d,Params.tau_cg,Params.ypp,fhh_agej,Params.Jr, ...
-        Params.r_pp,Params.r_r_wedge_pp,Params.agej_pct_cost(fhh_agej));
+        Params.r_pp,Params.r_r_wedge_pp,Params.agej_pct_cost(fhh_agej),Params.energy_pct_cost);
     if income<0
         feasible=false;
         error("income negative")
