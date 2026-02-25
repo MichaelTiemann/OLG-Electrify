@@ -5,17 +5,11 @@ function F=Electrify_HouseholdReturnFn( ...
     scenario,r_pp,r_r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
     )
 % Get rid of progressive taxes
-% Add Lhnormalize
 
 % Note: experienceasset, so first inputs are (d,a,z,e,...)
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
 F=-Inf;
-
-if scenario<3 && (hprime>0 || aprime~=0)
-    % Not buying houses or assets right now
-    return
-end
 
 if buyhouse==0
     if hprime~=0
@@ -30,10 +24,12 @@ elseif buyhouse>=3
 end
 
 % Housing matters
-hs=1; % Housing services (based on housing stock)
 rentalcosts=rentprice*ypp;
+hs=1; % Housing services (based on housing stock)
+htc=0; % house transaction cost
 hcost=0;
 hprimecost=0;
+pvinstallcost=0;
 if scenario==3
     if h==0
         hs=0.5*houseservices*minhouse;
@@ -44,11 +40,30 @@ if scenario==3
     % Houses start at 2x annual wage
     hcost=2*h*(1+agej_pct_cost);
     hprimecost=2*hprime*(1+agej_pct_cost);
+    % Make buying/selling a house costly/illiquid
+    if hprime~=h
+        htc=f_htc*(hcost+hprimecost);
+    end
+    
+    % buyhouse 2 and 4 are install/upgrade PV options
+    if buyhouse==2 || buyhouse==4
+        if (h+hprime)==0
+            % No house -> no solar
+            pvinstallcost=Inf;
+        elseif h==hprime
+            % Pay the retrofit penalty
+            pvinstallcost=1.1*pv_pct_cost*hcost;
+        else % Changing house
+            % PV costs approximately 5% of new house ($30K system for $600K house)
+            pvinstallcost=pv_pct_cost*hprimecost;
+        end
+    end
 end
 
 %% Allow/Disallow some trivial agent decisions
-if (sprime>0 && aprime+hprimecost<0 ... % Cannot buy shares with negative net worth
+if (sprime-s>0 && aprime+hprimecost<0 ...             % Cannot buy shares with negative net worth
     || agej*ypp>=11 && aprime<-f_coll*hprimecost ...  % Collateral constraint on borrowing (for older buyers that earn real money)
+    || hprime<h && aprime<0 ...                       % Cannot sell down a house that is collateralized
     || agej>=Jr && aprime<0)                          % Ban pensioners from negative assets (even if they own houses)
     return 
 end
@@ -61,36 +76,15 @@ end
 P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
 
 Plag=P; % As stationary general eqm
-htc=0; % house transaction cost
-pvinstallcost=0; % solarpv installation cost
-
-% Make buying/selling a house costly/illiquid
-if hprime~=h
-    htc=f_htc*(hcost+hprimecost);
-end
-
-% buyhouse 2 and 4 are install/upgrade PV options
-if buyhouse==2 || buyhouse==4
-    if (h+hprime)==0
-        % No house -> no solar
-        pvinstallcost=Inf;
-    elseif h==hprime
-        % Pay the retrofit penalty
-        pvinstallcost=1.1*pv_pct_cost*hcost;
-    else % Changing house
-        % PV costs approximately 5% of new house ($30K system for $600K house)
-        pvinstallcost=pv_pct_cost*hprimecost;
-    end
-end
 
 if agej<Jr % If working age
-    %consumption = labor income plus other "other income" below
+    %consumption = labor income + "other income" below
     c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
 else % Retirement
     c=pension*ypp;
 end
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
-c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqAH_pp+(hcost-hprimecost);
+c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqS_pp+AccidentBeqAH_pp+(hcost-hprimecost);
 % PV generation: 30kW (2 solar units) meets h==1 energy needs
 c=c+(1+agej_pct_cost)*energy_pct_cost*(solarpv/2)*ypp;
 if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
@@ -103,14 +97,11 @@ end
 % ...subtract capital gains tax and next period share, asset holdings
 c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation, and scaled energy costs
-c=c-htc-rentalcosts-hcost*1.02*ypp-pvinstallcost-(1+agej_pct_cost)*energy_pct_cost*max(h^2,1)*ypp;
+c=c-htc-rentalcosts-hcost*0.02*ypp-pvinstallcost-(1+agej_pct_cost)*energy_pct_cost*max(h^1.5,1)*ypp;
 
 % If we are aiming for a starter loan, what loan can we afford?
 net_worth_prime=P*sprime+aprime+hprimecost;
 if aprime<0 && agej*ypp<11
-    if c<-r_r_wedge_pp*aprime
-        return % Cannot afford next year's payments with income leftovers
-    end
     if net_worth_prime<-0.5*((10+ypp)-agej*ypp)/10
         % Limit starter loan needed to get people going
         return

@@ -4,7 +4,7 @@
 % OLGModel14.m in the repo https://github.com/vfitoolkit/IntroToOLGModels
 % and LifeCycleModel35.m in the repo https://github.com/vfitoolkit/IntroToLifeCycleModels
 
-solve_GE=true;
+solve_GE=false;
 
 Names_i={'household','firm'};
 PTypeDistParamNames={'ptypemass'};
@@ -58,7 +58,7 @@ if Params.scenario<3
     vfoptions.lowmemory.household=0;
 else
     n_d.household=[31,5]; % Decisions: labor, buyhouse (5)
-    n_a.household=[13,15,5,5]; % Endogenous shares, assets (>=6), housing (>=2), and solarpv (5) assets (0-60 kW generation)
+    n_a.household=[9,25,5,5]; % Endogenous shares, assets (>=6), housing (>=2), and solarpv (5) assets (0-60 kW generation)
     n_z.household=1+2*floor(1.2*log(min(Params.J,60))); % AR(1) with age-dependent params = 7 with 60 periods
     vfoptions.lowmemory.household=2;
 end
@@ -85,13 +85,13 @@ r_wedge=0.05; Params.r_r_wedge_pp=(1+r+r_wedge)^Params.ypp-1;
 % Params.minhouse % set below, is the minimum value of house that can be purchased
 rentprice=[0,0.3,0.3]; % I figured setting rent a decent fraction of income is sensible
 Params.rentprice=rentprice(Params.scenario);
-houseservices=[1,1,1]; % housing services as a fraction of house value
+houseservices=[0,0.5,0.5]; % housing services as a fraction of house value
 Params.houseservices=houseservices(Params.scenario);
 energy_pct_cost=[0,0.07,0.07]; % Electricity: 3%; Gas: 1-2%; Petrol: 1-2%
 Params.energy_pct_cost=energy_pct_cost(Params.scenario);
 if Params.scenario==3
     Params.f_htc=0.05; % transaction cost of buying/selling house (is a percent of h+hprime)
-    f_coll=[0,0,0.8]; % collateral contraint (fraction of house value that can be borrowed)
+    f_coll=[0,0,0.5]; % collateral contraint (fraction of house value that can be borrowed)
     Params.f_coll=f_coll(Params.scenario);
     pv_pct_cost=[0,0,0.05]; % modeling a $30K install for a $600K house
     Params.pv_pct_cost=pv_pct_cost(Params.scenario);
@@ -106,11 +106,11 @@ Params.sigma = 2; % Coeff of relative risk aversion (curvature of consumption)
 sigma_h=[0,0,0.5];
 Params.sigma_h=sigma_h(Params.scenario); % Relative importance of housing services (vs consumption) in utility
 Params.eta = 1.5; % Curvature of leisure (This will end up being 1/Frisch elasty)
-psi = [2, 2, 2]; % Weight on leisure
+psi = [2, 2, 1]; % Weight on leisure
 Params.psi=psi(Params.scenario);
 % Labor productivity at start, peak, and end of working life
-k_j1 = [0.5, 0.5, 0.75];
-k_j2 = [2, 2, 3];
+k_j1 = [0.5, 0.5, 0.5];
+k_j2 = [2, 2, 2];
 k_j2_length = [0,0,5];
 k_j3 = [1, 1, 1];
 
@@ -249,7 +249,7 @@ labor_grid=linspace(0,1,n_d.household(1))'; % Notice that it is imposing the 0<=
 % Grid for share holdings, always > 0
 % For later scenarios, shrink the grid for more accuracy
 s_grid_cubed=linspace(0,1,ceil(n_a.household(1)/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
-s_grid_linear=linspace(1,10-2*(Params.scenario>1),floor(n_a.household(1)/2)+1);
+s_grid_linear=linspace(1,10-4*(Params.scenario>1),floor(n_a.household(1)/2)+1);
 share_grid=[s_grid_cubed, s_grid_linear(2:end)]';
 
 % Set up d for VFI Toolkit (is the two decision variables)
@@ -260,8 +260,8 @@ if Params.scenario<3
 else
     % Grid for bank account; a negative balance implies a mortgage
     a_grid_cubed=linspace(-1,0,ceil(n_a.household(2)/2)-1).^3;
-    a_grid_linear=linspace(0,2,floor(n_a.household(2)/2)+2);
-    asset_grid=[0.5*a_grid_cubed, a_grid_linear(2:end)]';
+    a_grid_linear=linspace(0,4,floor(n_a.household(2)/2)+2);
+    asset_grid=[a_grid_cubed, a_grid_linear(2:end)]';
     
     % Make it so that there is a zero assets
     % Find closest to zero assets
@@ -370,6 +370,7 @@ z_grid.firm=exp(z_grid.firm);
 DiscountFactorParamNames.household={'beta_pp','sj'};
 
 if Params.scenario<3
+    % Hardwire buyhouse, hprime, aprime, h, a, and solarpv to zero
     ReturnFn.household=@( ...
         labor,sprime,s,z,e, ...
         pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
@@ -416,10 +417,40 @@ tic;
 [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
 toc
 
+if false
+    if Params.scenario==3
+        % explore the feasibility of the asset ladder
+        aa0=linspace(1,n_a.household(2),n_a.household(2))';
+        a_index_last=zeroassetindex;
+        this_z=ceil(n_z.household/2);
+        this_e=ceil(vfoptions.n_e.household/2);
+        lvec=2*[0.21,0.22,0.12,0.06,0.06,0.11];
+        bhvec=[0,0,1,0,0,0];
+        svec=[0.11,0.38,0.08,0.01,0.04,0.11];
+        spvec=svec(2:end);
+        avec=[0.3,0.16,-0.54,-0.85,-0.79,-0.68];
+        apvec=avec(2:end);
+        hvec=[0,0,1,0,0,0];
+        hpvec=hvec(2:end);
+        pvvec=[0,0,1,0,0,0];
+        for aa_agej=4:8
+            % a_next=squeeze(Policy.household(4,svec(aa_agej-3),:,hvec(aa_agej-3),pvvec(aa_agej-3),this_z,this_e,aa_agej));
+            % for ii=1:length(a_next)
+                F=Electrify_HouseholdReturnFn( ...
+                    lvec(aa_agej-3),bhvec(aa_agej-3),spvec(aa_agej-3),apvec(aa_agej-3),hpvec(aa_agej-3),svec(aa_agej-3),avec(aa_agej-3),hvec(aa_agej-3),pvvec(aa_agej-3),0,0, ...
+                    Params.pension,Params.AccidentBeqS_pp,Params.AccidentBeqAH_pp,Params.w,Params.P0,Params.D_pp, ...
+                    Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.kappa_j(aa_agej),Params.tau_l,Params.tau_d,Params.tau_cg,Params.warmglow1,Params.warmglow2,Params.ypp,aa_agej,Params.Jr,Params.J, ...
+                    Params.scenario,Params.r_pp,Params.r_r_wedge_pp,Params.f_htc,Params.minhouse,Params.rentprice,Params.f_coll,Params.houseservices,Params.agej_pct_cost(aa_agej),Params.pv_pct_cost,Params.energy_pct_cost);
+            % end
+            % a_index_last=a_next(ii);
+        end
+    end
+end
+
 if Params.scenario<3
     checkfeasible_household_case12(V,Policy,a_grid.household,1,n_d,n_a,n_z,N_j,d_grid,a_grid,Params,vfoptions);
 else
-    checkfeasible_household_case3(V,Policy,asset_grid,zeroassetindex,n_d,n_a,n_z,N_j,d_grid,a_grid,Params,vfoptions);
+    checkfeasible_household_case3(V,Policy,buyhouse_grid,asset_grid,zeroassetindex,house_grid,n_d,n_a,n_z,N_j,d_grid,a_grid,Params,vfoptions);
 end
 
 %% Initial distribution of agents at birth (j=1)
@@ -568,7 +599,7 @@ if solve_GE
     else
         heteroagentoptions.toleranceGEprices=10^(-2);
         heteroagentoptions.toleranceGEcondns=10^(-1); % This is the hard one
-        heteroagentoptions.maxiter=10;
+        heteroagentoptions.maxiter=35;                % About 3 hours
     end
         
     p_eqm=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j, Names_i, [], pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
@@ -606,6 +637,8 @@ else
     title('Life Cycle Profile: Effective Labour Supply')
     subplot(3,2,3); plot(1:1:Params.J,AgeConditionalStats.S.Mean)
     title('Life Cycle Profile: Share holdings')
+    subplot(3,2,5); plot(1:1:Params.J,Params.kappa_j)
+    title('Life Cycle Profile: kappa_j')
 end
 if Params.scenario==3
     subplot(3,2,2); plot(1:1:Params.J,AgeConditionalStats.A.Mean)
@@ -706,13 +739,14 @@ fhh_options.lowmemory=vfoptions.lowmemory.household;
 fhh_options.n_e=vfoptions.n_e.household;
 fhh_options.e_grid=vfoptions.e_grid.household;
 fhh_options.pi_e=vfoptions.pi_e.household;
+z_idx=ceil(n_z.household/2);
+e_idx=ceil(fhh_options.n_e/2);
 fhh=PolicyInd2Val_FHorz(Policy.household,n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,fhh_options);
 
 z_idx=ceil(n_z.household/2);
-e_idx=ceil(fhh_options.n_e/2);
 aprime_index_last=1;
 for fhh_agej=1:5
-    fhh_next=squeeze(fhh(:,:,z_idx,e_idx,fhh_agej));
+        fhh_next=squeeze(fhh(:,:,z_idx,e_idx,fhh_agej));
     aprime_index_next=find(asset_grid==fhh_next(2,aprime_index_last));
     if fhh_next(1,aprime_index_next)==0
         feasible=false;
@@ -760,26 +794,30 @@ end
 
 end
 
-function feasible=checkfeasible_household_case3(V,Policy,asset_grid,zeroassetindex,n_d,n_a,n_z,N_j,d_grid,a_grid,Params,vfoptions)
+function feasible=checkfeasible_household_case3(V,Policy,buyhouse_grid,asset_grid,zeroassetindex,house_grid,n_d,n_a,n_z,N_j,d_grid,a_grid,Params,vfoptions)
 
 feasible=true;
 fhh_options.tolerance=vfoptions.tolerance;
 fhh_options.lowmemory=vfoptions.lowmemory.household;
-fhh_options.n_e=vfoptions.n_e.household;
 fhh_options.experienceasset=vfoptions.experienceasset.household;
 fhh_options.aprimeFn=vfoptions.aprimeFn.household;
 fhh_options.refine_d=vfoptions.refine_d.household;
+fhh_options.n_e=vfoptions.n_e.household;
 fhh_options.e_grid=vfoptions.e_grid.household;
 fhh_options.pi_e=vfoptions.pi_e.household;
+z_idx=ceil(n_z.household/2);
+e_idx=ceil(fhh_options.n_e/2);
 fhh=PolicyInd2Val_FHorz(Policy.household,n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,fhh_options);
 
 z_idx=ceil(n_z.household/2);
-e_idx=ceil(fhh_options.n_e/2);
+buyhouse_index_last=1;
 aprime_index_last=zeroassetindex;
+hprime_index_last=1;
 for fhh_agej=1:5
-    fhh_next=squeeze(fhh(:,1,:,1,1,z_idx,e_idx,fhh_agej));
-    aprime_index_next=find(asset_grid==fhh_next(4,aprime_index_last));
-    if fhh_next(1,aprime_index_next)==0
+    fhha_next=squeeze(fhh(:,1,:,1,1,z_idx,e_idx,fhh_agej));
+    aprime_index_next=find(asset_grid==fhha_next(4,aprime_index_last));
+    % hprime_index_next=find(house_grid==fhh_next(2,hprime_index_last));
+    if fhha_next(1,aprime_index_next)==0
         feasible=false;
         warning("labor strike")
     end
@@ -813,7 +851,7 @@ for fhh_agej=1:5
             fprintf("F = %.2f \n", F);
         else
             feasible=false;
-            error("infeasible last->next")
+            warning("infeasible last->next")
         end
     end
     aprime_index_last=aprime_index_next;
