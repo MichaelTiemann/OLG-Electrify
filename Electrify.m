@@ -48,7 +48,7 @@ simoptions.ngridinterp     = vfoptions.ngridinterp;
 % Grid sizes to use for household
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
-max_J=[80,80,80];
+max_J=[100,100,100];
 Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 Params.J=ceil((max_J(Params.scenario)-Params.agejshifter)/Params.ypp); % =60/ypp, Number of period in life-cycle
 if Params.scenario<3
@@ -57,8 +57,10 @@ if Params.scenario<3
     n_z.household=3+2*floor(1.7*log(min(Params.J,60))); % AR(1) with age-dependent params = 15 with 60 periods
     vfoptions.lowmemory.household=0;
 else
-    n_d.household=[31,5]; % Decisions: labor, buyhouse (5)
-    n_a.household=[9,25,5,5]; % Endogenous shares, assets (>=6), housing (>=2), and solarpv (5) assets (0-60 kW generation)
+    n_d.household=[21,5]; % Decisions: labor, buyhouse (5)
+    % 21,33,4,5 => labor strike
+    % 15,23,4,5 => ok
+    n_a.household=[9,23,5,5]; % Endogenous shares, assets (>=6), housing (>=2), and solarpv (5) assets (0-60 kW generation)
     n_z.household=1+2*floor(1.2*log(min(Params.J,60))); % AR(1) with age-dependent params = 7 with 60 periods
     vfoptions.lowmemory.household=2;
 end
@@ -249,8 +251,9 @@ labor_grid=linspace(0,1,n_d.household(1))'; % Notice that it is imposing the 0<=
 % Grid for share holdings, always > 0
 % For later scenarios, shrink the grid for more accuracy
 s_grid_cubed=linspace(0,1,ceil(n_a.household(1)/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
-s_grid_linear=linspace(1,10-4*(Params.scenario>1),floor(n_a.household(1)/2)+1);
-share_grid=[s_grid_cubed, s_grid_linear(2:end)]';
+s_grid_linear=linspace(1,10,floor(n_a.household(1)/2)+1);
+% share_grid=[s_grid_cubed, s_grid_linear(2:end)]';
+share_grid=[16*linspace(0,1,n_a.household(1))]';
 
 % Set up d for VFI Toolkit (is the two decision variables)
 if Params.scenario<3
@@ -260,7 +263,7 @@ if Params.scenario<3
 else
     % Grid for bank account; a negative balance implies a mortgage
     a_grid_cubed=linspace(-1,0,ceil(n_a.household(2)/2)-1).^3;
-    a_grid_linear=linspace(0,4,floor(n_a.household(2)/2)+2);
+    a_grid_linear=linspace(0,12,floor(n_a.household(2)/2)+2);
     asset_grid=[a_grid_cubed, a_grid_linear(2:end)]';
     
     % Make it so that there is a zero assets
