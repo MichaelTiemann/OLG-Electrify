@@ -18,6 +18,9 @@ addpath(genpath('./MatlabToolkits/'))
 % Scenario 2: add rental+energy costs, but no housing/assets/inflation
 % Scenario 3: add housing/assets/inflation
 Params.scenario=3;
+% If true, shrink n_z down to 3 (the min for discretization)
+% and make e parameter always zero (no e_grid)
+small_z_no_e=false;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
@@ -60,18 +63,31 @@ else
     n_d.household=[21,5]; % Decisions: labor, buyhouse (5)
     % 21,33,4,5 => labor strike
     % 15,23,4,5 => ok
-    n_a.household=[9,23,5,5]; % Endogenous shares, assets (>=6), housing (>=2), and solarpv (5) assets (0-60 kW generation)
+    n_a.household=[5,31,5,5]; % Endogenous shares, assets (>=6), housing (>=2), and solarpv (5) assets (0-60 kW generation)
     n_z.household=1+2*floor(1.2*log(min(Params.J,60))); % AR(1) with age-dependent params = 7 with 60 periods
-    vfoptions.lowmemory.household=2;
+    if small_z_no_e
+        vfoptions.lowmemory.household=1;
+    else
+        vfoptions.lowmemory.household=2;
+    end
 end
-% Exogenous labor productivity units shocks (next two lines)
-vfoptions.n_e.household=3; % iid
+if small_z_no_e
+    n_z.household=3;
+    Params.e=0;
+else
+    % Exogenous labor productivity units shocks (next two lines)
+    vfoptions.n_e.household=3; % iid
+end
 N_j.household=Params.J; % Number of periods in finite horizon
 
 % Grids to use for firm
 n_d.firm=101; % Dividend payment
 n_a.firm=201; % Capital holdings
-n_z.firm=3+2*floor(log(min(Params.J,60))); % Productivity shock; scaled to model, not firm horizon
+if small_z_no_e
+    n_z.firm=3;
+else
+    n_z.firm=3+2*floor(log(min(Params.J,60))); % Productivity shock; scaled to model, not firm horizon
+end
 N_j.firm=Inf; % Infinite horizon
 vfoptions.lowmemory.firm=0;
 
@@ -253,7 +269,7 @@ labor_grid=linspace(0,1,n_d.household(1))'; % Notice that it is imposing the 0<=
 s_grid_cubed=linspace(0,1,ceil(n_a.household(1)/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
 s_grid_linear=linspace(1,10,floor(n_a.household(1)/2)+1);
 % share_grid=[s_grid_cubed, s_grid_linear(2:end)]';
-share_grid=[16*linspace(0,1,n_a.household(1))]';
+share_grid=16*linspace(0,1,n_a.household(1))';
 
 % Set up d for VFI Toolkit (is the two decision variables)
 if Params.scenario<3
@@ -263,7 +279,7 @@ if Params.scenario<3
 else
     % Grid for bank account; a negative balance implies a mortgage
     a_grid_cubed=linspace(-1,0,ceil(n_a.household(2)/2)-1).^3;
-    a_grid_linear=linspace(0,12,floor(n_a.household(2)/2)+2);
+    a_grid_linear=linspace(0,16,floor(n_a.household(2)/2)+2);
     asset_grid=[a_grid_cubed, a_grid_linear(2:end)]';
     
     % Make it so that there is a zero assets
@@ -337,22 +353,27 @@ end
 [z_grid_J, pi_z_J] = discretizeLifeCycleAR1_FellaGallipoliPan(Params.rho_z,Params.sigma_epsilon_z,n_z.household,Params.J);
 % z_grid_J is n_z-by-J, so z_grid_J(:,j) is the grid for age j
 % pi_z_J is n_z-by-n_z-by-J, so pi_z_J(:,:,j) is the transition matrix for age j
-
-% Second, e, the iid normal with age-dependent parameters
-[e_grid_J, pi_e_J] = discretizeLifeCycleAR1_FellaGallipoliPan(zeros(1,Params.J),Params.sigma_e,vfoptions.n_e.household,Params.J); % Note: AR(1) with rho=0 is iid normal
-% Because e is iid we actually just use
-pi_e_J=shiftdim(pi_e_J(1,:,:),1);
+if small_z_no_e
+    z_grid_J=0*z_grid_J;
+else
+    % Second, e, the iid normal with age-dependent parameters
+    [e_grid_J, pi_e_J] = discretizeLifeCycleAR1_FellaGallipoliPan(zeros(1,Params.J),Params.sigma_e,vfoptions.n_e.household,Params.J); % Note: AR(1) with rho=0 is iid normal
+    % Because e is iid we actually just use
+    pi_e_J=shiftdim(pi_e_J(1,:,:),1);
+end
 
 % z_grid and pi_z for household
 z_grid.household=z_grid_J;
 pi_z.household=pi_z_J;
 
-% Any (iid) e variable always has to go into vfoptions and simoptions
-vfoptions.e_grid.household=e_grid_J;
-vfoptions.pi_e.household=pi_e_J;
-simoptions.n_e.household=vfoptions.n_e.household;
-simoptions.e_grid.household=e_grid_J;
-simoptions.pi_e.household=pi_e_J;
+if ~small_z_no_e
+    % Any (iid) e variable always has to go into vfoptions and simoptions
+    vfoptions.e_grid.household=e_grid_J;
+    vfoptions.pi_e.household=pi_e_J;
+    simoptions.n_e.household=vfoptions.n_e.household;
+    simoptions.e_grid.household=e_grid_J;
+    simoptions.pi_e.household=pi_e_J;
+end
 
 
 %% Grids for firm
@@ -364,6 +385,9 @@ k_grid_linear=linspace(1,k_max(Params.scenario),floor(n_a.firm/2)+1);
 a_grid.firm=[k_grid_cubed, k_grid_linear(2:end)]';
 
 [z_grid.firm,pi_z.firm] = discretizeAR1_FarmerToda(0,Params.rho_z_firm,Params.sigma_z_e_firm,n_z.firm);
+if small_z_no_e
+    z_grid.firm=0*z_grid.firm;
+end
 z_grid.firm=exp(z_grid.firm);
 
 
@@ -459,13 +483,24 @@ end
 %% Initial distribution of agents at birth (j=1)
 % Before we plot the life-cycle profiles we have to define how agents are
 % at age j=1. We will give them all zero shares (and possibly zero assets, no house, no solarpv).
-jequaloneDist.household=zeros([n_a.household,n_z.household,vfoptions.n_e.household],'gpuArray'); % Put no households anywhere on grid
-if Params.scenario<3
-    % All agents start with zero shares, and the median shocks
-    jequaloneDist.household(1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;
+if small_z_no_e
+    jequaloneDist.household=zeros([n_a.household,n_z.household],'gpuArray'); % Put no households anywhere on grid
+    if Params.scenario<3
+        % All agents start with zero shares, and the median shocks
+        jequaloneDist.household(1,floor((n_z.household+1)/2))=1;
+    else
+        % All agents start with zero shares, assets, houses, solarpv, and median shocks
+        jequaloneDist.household(1,zeroassetindex,1,1,floor((n_z.household+1)/2))=1;
+    end
 else
-    % All agents start with zero shares, assets, houses, solarpv, and median shocks
-    jequaloneDist.household(1,zeroassetindex,1,1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;
+    jequaloneDist.household=zeros([n_a.household,n_z.household,vfoptions.n_e.household],'gpuArray'); % Put no households anywhere on grid
+    if Params.scenario<3
+        % All agents start with zero shares, and the median shocks
+        jequaloneDist.household(1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;
+    else
+        % All agents start with zero shares, assets, houses, solarpv, and median shocks
+        jequaloneDist.household(1,zeroassetindex,1,1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;
+    end
 end
 
 % Note that because the firms are infinite horizon they do not have an age=1 distribution
@@ -739,12 +774,18 @@ function feasible=checkfeasible_household_case12(V,Policy,asset_grid,zeroassetin
 feasible=true;
 fhh_options.tolerance=vfoptions.tolerance;
 fhh_options.lowmemory=vfoptions.lowmemory.household;
-fhh_options.n_e=vfoptions.n_e.household;
-fhh_options.e_grid=vfoptions.e_grid.household;
-fhh_options.pi_e=vfoptions.pi_e.household;
 z_idx=ceil(n_z.household/2);
-e_idx=ceil(fhh_options.n_e/2);
-fhh=PolicyInd2Val_FHorz(Policy.household,n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,fhh_options);
+if isfield(vfoptions,'n_e')
+    fhh_options.n_e=vfoptions.n_e.household;
+    fhh_options.e_grid=vfoptions.e_grid.household;
+    fhh_options.pi_e=vfoptions.pi_e.household;
+    e_idx=ceil(fhh_options.n_e/2);
+    fhh=PolicyInd2Val_FHorz(Policy.household,n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,fhh_options);
+    fhh=squeeze(fhh(:,:,:,:,z_idx,e_idx,:));
+else
+    fhh=PolicyInd2Val_FHorz(Policy.household,n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,fhh_options);
+    fhh=squeeze(fhh(:,:,:,:,z_idx,:));
+end
 
 z_idx=ceil(n_z.household/2);
 aprime_index_last=1;
@@ -805,19 +846,25 @@ fhh_options.lowmemory=vfoptions.lowmemory.household;
 fhh_options.experienceasset=vfoptions.experienceasset.household;
 fhh_options.aprimeFn=vfoptions.aprimeFn.household;
 fhh_options.refine_d=vfoptions.refine_d.household;
-fhh_options.n_e=vfoptions.n_e.household;
-fhh_options.e_grid=vfoptions.e_grid.household;
-fhh_options.pi_e=vfoptions.pi_e.household;
 z_idx=ceil(n_z.household/2);
-e_idx=ceil(fhh_options.n_e/2);
-fhh=PolicyInd2Val_FHorz(Policy.household,n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,fhh_options);
+if isfield(vfoptions,'n_e')
+    fhh_options.n_e=vfoptions.n_e.household;
+    fhh_options.e_grid=vfoptions.e_grid.household;
+    fhh_options.pi_e=vfoptions.pi_e.household;
+    e_idx=ceil(fhh_options.n_e/2);
+    fhh=PolicyInd2Val_FHorz(Policy.household,n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,fhh_options);
+    fhh=squeeze(fhh(:,:,:,:,:,z_idx,e_idx,:));
+else
+    fhh=PolicyInd2Val_FHorz(Policy.household,n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,fhh_options);
+    fhh=squeeze(fhh(:,:,:,:,:,z_idx,:));
+end
 
-z_idx=ceil(n_z.household/2);
 buyhouse_index_last=1;
 aprime_index_last=zeroassetindex;
 hprime_index_last=1;
 for fhh_agej=1:5
-    fhha_next=squeeze(fhh(:,1,:,1,1,z_idx,e_idx,fhh_agej));
+    % We have already removed z_idx and possibly e_idx above
+    fhha_next=squeeze(fhh(:,1,:,1,1,fhh_agej));
     aprime_index_next=find(asset_grid==fhha_next(4,aprime_index_last));
     % hprime_index_next=find(house_grid==fhh_next(2,hprime_index_last));
     if fhha_next(1,aprime_index_next)==0
