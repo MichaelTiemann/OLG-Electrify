@@ -20,7 +20,7 @@ addpath(genpath('./MatlabToolkits/'))
 Params.scenario=3;
 % If true, shrink n_z down to 3 (the min for discretization)
 % and make e parameter always zero (no e_grid)
-small_z_no_e=false;
+small_z_no_e=true;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
@@ -66,13 +66,13 @@ else
     n_a.household=[5,31,5,5]; % Endogenous shares, assets (>=6), housing (>=2), and solarpv (5) assets (0-60 kW generation)
     n_z.household=1+2*floor(1.2*log(min(Params.J,60))); % AR(1) with age-dependent params = 7 with 60 periods
     if small_z_no_e
-        vfoptions.lowmemory.household=1;
+        vfoptions.lowmemory.household=0;
     else
         vfoptions.lowmemory.household=2;
     end
 end
 if small_z_no_e
-    n_z.household=3;
+    n_z.household=1;
     Params.e=0;
 else
     % Exogenous labor productivity units shocks (next two lines)
@@ -84,7 +84,7 @@ N_j.household=Params.J; % Number of periods in finite horizon
 n_d.firm=101; % Dividend payment
 n_a.firm=201; % Capital holdings
 if small_z_no_e
-    n_z.firm=3;
+    n_z.firm=1;
 else
     n_z.firm=3+2*floor(log(min(Params.J,60))); % Productivity shock; scaled to model, not firm horizon
 end
@@ -349,13 +349,15 @@ else
     % d_grid must be set up as d_grid=[d1_grid; d2_grid; d3_grid];
     simoptions.refine_d=vfoptions.refine_d;
 end
-% First, z, the AR(1) with age-dependent parameters
-[z_grid_J, pi_z_J] = discretizeLifeCycleAR1_FellaGallipoliPan(Params.rho_z,Params.sigma_epsilon_z,n_z.household,Params.J);
-% z_grid_J is n_z-by-J, so z_grid_J(:,j) is the grid for age j
-% pi_z_J is n_z-by-n_z-by-J, so pi_z_J(:,:,j) is the transition matrix for age j
 if small_z_no_e
-    z_grid_J=0*z_grid_J;
+    z_grid_J=zeros(1,Params.J);
+    pi_z_J=ones(1,1,Params.J);
 else
+    % First, z, the AR(1) with age-dependent parameters
+    [z_grid_J, pi_z_J] = discretizeLifeCycleAR1_FellaGallipoliPan(Params.rho_z,Params.sigma_epsilon_z,n_z.household,Params.J);
+    % z_grid_J is n_z-by-J, so z_grid_J(:,j) is the grid for age j
+    % pi_z_J is n_z-by-n_z-by-J, so pi_z_J(:,:,j) is the transition matrix for age j
+
     % Second, e, the iid normal with age-dependent parameters
     [e_grid_J, pi_e_J] = discretizeLifeCycleAR1_FellaGallipoliPan(zeros(1,Params.J),Params.sigma_e,vfoptions.n_e.household,Params.J); % Note: AR(1) with rho=0 is iid normal
     % Because e is iid we actually just use
@@ -384,9 +386,11 @@ k_grid_cubed=linspace(0,1,ceil(n_a.firm/2)).^3; % The ^3 means most points are n
 k_grid_linear=linspace(1,k_max(Params.scenario),floor(n_a.firm/2)+1);
 a_grid.firm=[k_grid_cubed, k_grid_linear(2:end)]';
 
-[z_grid.firm,pi_z.firm] = discretizeAR1_FarmerToda(0,Params.rho_z_firm,Params.sigma_z_e_firm,n_z.firm);
 if small_z_no_e
-    z_grid.firm=0*z_grid.firm;
+    z_grid.firm=0;
+    pi_z.firm=1;
+else
+    [z_grid.firm,pi_z.firm] = discretizeAR1_FarmerToda(0,Params.rho_z_firm,Params.sigma_z_e_firm,n_z.firm);
 end
 z_grid.firm=exp(z_grid.firm);
 
