@@ -666,6 +666,21 @@ end % Otherwise we can use initial guesses set for Params
 % Can just use the same FnsToEvaluate as before.
 AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist,Policy,FnsToEvaluate,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
 
+if max(AgeConditionalStats.S.Maximum)==share_grid(end)
+    warning("share_grid maximum reached")
+end
+if Params.scenario==3
+    if max(AgeConditionalStats.A.Maximum)==asset_grid(end)
+        warning("asset_grid maximum reached")
+    end
+    if max(AgeConditionalStats.H.Maximum)==house_grid(end)
+        warning("house_grid maximum reached")
+    end
+    if max(AgeConditionalStats.PV.Maximum)==solarpv_grid(end)
+        warning("solarpv_grid maximum reached")
+    end
+end
+
 %% Plot the life cycle profiles of capital and labour for the inital and final eqm.
 
 figure_c=figure(10);
