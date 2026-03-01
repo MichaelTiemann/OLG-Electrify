@@ -102,9 +102,17 @@ c=c-htc-rentalcosts-hcost*0.02*ypp-pvinstallcost-(1+agej_pct_cost)*energy_pct_co
 % If we are aiming for a starter loan, what loan can we afford?
 net_worth_prime=P*sprime+aprime+hprimecost;
 if aprime<0 && agej*ypp<11
-    if net_worth_prime<-0.5*((10+ypp)-agej*ypp)/10
-        % Limit starter loan needed to get people going
-        return
+    maxloan=-0.5*((10+ypp)-agej*ypp)/10;
+    if net_worth_prime<maxloan
+        if net_worth_prime+c>maxloan
+            % We could have put this into aprime ...
+            % ... but asset_grid might be too small
+            % This keeps state feasible, but disfavored
+            c=exp(-500);
+        else
+            % Limit starter loan needed to get people going
+            return
+        end
     end
 end
 

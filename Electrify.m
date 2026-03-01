@@ -4,7 +4,7 @@
 % OLGModel14.m in the repo https://github.com/vfitoolkit/IntroToOLGModels
 % and LifeCycleModel35.m in the repo https://github.com/vfitoolkit/IntroToLifeCycleModels
 
-solve_GE=false;
+solve_GE=true;
 
 Names_i={'household','firm'};
 PTypeDistParamNames={'ptypemass'};
@@ -641,8 +641,14 @@ if solve_GE
     else
         heteroagentoptions.toleranceGEprices=10^(-2);
         heteroagentoptions.toleranceGEcondns=10^(-1); % This is the hard one
-        heteroagentoptions.maxiter=35;                % About 3 hours
+        heteroagentoptions.maxiter=1; % 35;                % About 3 hours
     end
+    % heteroagentoptions.useCustomModelStats=1;
+    heteroagentoptions.household.CustomModelStats=@( ...
+        V,Policy,StationaryDist,Parameters,FnsToEvaluate, ...
+        n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,heteroagentoptions,vfoptions,simoptions ...
+        ) Electrify_HouseholdCustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate, ...
+        n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,heteroagentoptions,vfoptions,simoptions);
         
     p_eqm=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j, Names_i, [], pi_z, d_grid, a_grid, z_grid,jequaloneDist, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, GEPriceParamNames,heteroagentoptions, simoptions, vfoptions);
     % p_eqm contains the general equilibrium parameter values
