@@ -15,7 +15,7 @@ profit=y-w*l*ypp;
 
 % Investment
 delta_pp=(1+delta)^ypp-1;
-invest=kprime-(1-delta)^ypp*k;
+invest=kprime-(1-delta_pp)*k;
 
 % Capital-adjustment costs
 capitaladjcost=(capadjconstant/2)*((invest/k-delta_pp)^2) *k; 

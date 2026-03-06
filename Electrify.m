@@ -4,64 +4,66 @@
 % OLGModel14.m in the repo https://github.com/vfitoolkit/IntroToOLGModels
 % and LifeCycleModel35.m in the repo https://github.com/vfitoolkit/IntroToLifeCycleModels
 
-solve_GE=true;
-solve_TPath=true;
-
-T=5; % Transition path steps; ParamPath on Ek (Energy Use) and ek (Energy Efficiency)
-ParamPath.Ek=linspace(1,0.75,T); Params.Ek=ParamPath.Ek(1);
-ParamPath.ek=linspace(1,1.5,T); Params.ek=ParamPath.ek(1);
-
-Names_i={'household','firm'};
-PTypeDistParamNames={'ptypemass'};
-Params.ptypemass=[1,1]; % Mass of households and firms are each equal to one
-
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
+
+solve_GE=true;
+solve_TPath=false;
+% If true, shrink n_z down to 3 (the min for discretization)
+% and make e parameter always zero (no e_grid)
+small_z_no_e=false;
+
+Names_i={'household','firm','energy'};
+PTypeDistParamNames={'ptypemass'};
+Params.ptypemass=[1,1,1]; % Mass of households and firms are each equal to one
 
 %% Parameters for household (3 scenarios)
 % Scenario 1: no housing, no assets, no inflation
 % Scenario 2: add rental+energy costs, but no housing/assets/inflation
 % Scenario 3: add housing/assets/inflation
 Params.scenario=1;
-% If true, shrink n_z down to 3 (the min for discretization)
-% and make e parameter always zero (no e_grid)
-small_z_no_e=true;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
 % Discounting parameters (beta_pp and sj) defined in terms of ypp
 Params.ypp=1; % model period, in years (just used this to modify some parameters from annual to model period)
 
-%% Begin setting up to use VFI Toolkit to solve
-% vfoptions.howardsgreedy=0;
-% vfoptions.howards=80;
-% vfoptions.maxhowards=200;
-if Params.scenario<3
-    vfoptions.tolerance=10^(-9);
-else
-    vfoptions.tolerance=10^(-4);
-end
-% Note that simoptions.tolerance is used very differently than vfoptions.tolerance
-
-% The user can experiment with gridinterplayer=0 (pure discretization) or gridinterplayer=1 (linear interpolation b/w grid points).
-% If gridinterplayer=1, then you must set vfoptions.divideandconquer=1 (required for transition).
-vfoptions.gridinterplayer  = 0;
-vfoptions.ngridinterp      = 10;
-vfoptions.divideandconquer.household = (Params.scenario<3);
-vfoptions.divideandconquer.firm = 0;
-vfoptions.level1n=11;
-simoptions.gridinterplayer = vfoptions.gridinterplayer;
-simoptions.ngridinterp     = vfoptions.ngridinterp;
-
-% Grid sizes to use for household
-
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
-max_J=[30,100,100];
+max_J=[100,100,100];
 Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 Params.J=ceil((max_J(Params.scenario)-Params.agejshifter)/Params.ypp); % =60/ypp, Number of period in life-cycle
+N_j.household=Params.J; % Number of periods in finite horizon
+
+ypT=5;                         % 5 years per transition period...
+if floor(ypT/Params.ypp)~=ceil(ypT/Params.ypp)
+    error("fix ypp and/or ypT to divide nicely")
+end
+ppT=ypT/Params.ypp;            % periods per transition
+jpT=(1:ypT:max_J(Params.scenario)); % Select the year values for transition periods
+
+T=max_J(Params.scenario)/ypT;
+
+% ParamPath on Ek (Energy Use) and ek (Energy Efficiency)
+% More transitions down in the demographics section
+ParamPath.Ek=linspace(1,0.5,T); Params.Ek=ParamPath.Ek(1);
+ParamPath.ek=linspace(1,2,T); Params.ek=ParamPath.ek(1);
+
+% Model inflation as a series of 10-year supply-side shocks across 100 year transition period
+% These are shocks above "normal" cpi inflation
+shock_period=10;
+shock_years=(1+shock_period:shock_period:101);
+% Exponentially increasing every shock_period years from from ~2% to ~7% after initial shock-free period
+shock_pct=[zeros(1,shock_period), repelem(cumsum(exp((shock_years-(shock_period+1))/64)/50),1,10)];
+ParamPath.cpi=shock_pct(1:ypT:100);  Params.cpi=ParamPath.cpi(1);
+% Steady increase of fossil costs above "normal" cpi inflation
+energy_pct=1.01.^(1:Params.ypp:101);
+ParamPath.cpi_energy=energy_pct(1:ypT:100); Params.cpi_energy=ParamPath.cpi_energy(1);
+
+
+%% Grid sizes to use for household
 if Params.scenario<3
-    n_d.household=51; % Half-sized for tpath
-    n_a.household=101; % Half-sized for tpath
+    n_d.household=101;
+    n_a.household=201;
     n_z.household=3+2*floor(1.7*log(min(Params.J,60))); % AR(1) with age-dependent params = 15 with 60 periods
     vfoptions.lowmemory.household=0;
 else
@@ -83,11 +85,10 @@ else
     % Exogenous labor productivity units shocks (next two lines)
     vfoptions.n_e.household=3; % iid
 end
-N_j.household=Params.J; % Number of periods in finite horizon
 
-% Grids to use for firm
-n_d.firm=51; % Dividend payment
-n_a.firm=101; % Capital holdings
+%% Grids to use for firm
+n_d.firm=101; % Dividend payment
+n_a.firm=201; % Capital holdings
 if small_z_no_e
     n_z.firm=1;
 else
@@ -96,13 +97,33 @@ end
 N_j.firm=Inf; % Infinite horizon
 vfoptions.lowmemory.firm=0;
 
+%% Grids to use for energy
+n_d.energy=0; % What decisions?
+n_a.energy=1; % What assets?
+if small_z_no_e
+    n_z.energy=1;
+else
+    n_z.energy=3+2*floor(log(min(Params.J,60))); % Productivity shock; scaled to model, not firm horizon
+end
+N_j.energy=Inf; % Infinite horizon
+vfoptions.lowmemory.energy=0;
+
 %% Global parameters (applies to household and firm)
 % Note: with w=1, labor tax=20%, kappa_j(1)=0.5, agents have 0.4 budget to start
 % If rent=0.3 energy=0.1, they live, but cannot save; they strike
 
 % Annual risk-free rate of return
-r=0.05; Params.r_pp=(1+r)^Params.ypp-1;
-r_wedge=0.05; Params.r_r_wedge_pp=(1+r+r_wedge)^Params.ypp-1;
+r=0.05; % We will discover risk-free rate of return per period in GE
+r_wedge=0.05; Params.r_wedge_pp=(1+r_wedge)^Params.ypp-1;
+
+Lhscale=[0.21,0.21,0.21]; % Scaling the household labor supply; we scale model and GE finds its own equilibrium
+Params.Lhscale=Lhscale(Params.scenario);
+
+%% Parameters for households
+% Discount rate; Changed to get S to increase nearer to 1 given r=0.05
+% (ran it with beta=0.99, got S=0.3, so increased this; note that it interacts with sj to give the actual discount factor)
+beta=[0.95,0.95,0.99];
+Params.beta_pp = beta(Params.scenario)^Params.ypp;
 
 % Housing
 % Params.minhouse % set below, is the minimum value of house that can be purchased
@@ -120,17 +141,14 @@ if Params.scenario==3
     Params.pv_pct_cost=pv_pct_cost(Params.scenario);
 end
 
-% Discount rate; Changed to get S to increase nearer to 1 given r=0.05
-% (ran it with beta=0.99, got S=0.3, so increased this; note that it interacts with sj to give the actual discount factor)
-beta=[0.95,0.95,0.99];
-Params.beta_pp = beta(Params.scenario)^Params.ypp;
 % Preferences
 Params.sigma = 2; % Coeff of relative risk aversion (curvature of consumption)
 sigma_h=[0,0,0.5];
 Params.sigma_h=sigma_h(Params.scenario); % Relative importance of housing services (vs consumption) in utility
 Params.eta = 1.5; % Curvature of leisure (This will end up being 1/Frisch elasty)
-psi = [2, 2, 1]; % Weight on leisure
+psi = [2, 1, 1]; % Weight on leisure
 Params.psi=psi(Params.scenario);
+
 % Labor productivity at start, peak, and end of working life
 k_j1 = [0.5, 0.5, 0.5];
 k_j2 = [2, 2, 2];
@@ -192,15 +210,6 @@ Params.sigma_e=[sigma_e(1)*ones_pp4y, ...
 % earnings process will not equal that of Karahan & Ozkan (2013)
 % Note: Karahan & Ozkan (2013) also have a fixed effect (which they call alpha) and which I ignore here.
 
-% Age-dependent universal, permanent supply-side shocks to housing, energy, and pv installation costs
-shock_period=ceil(10/Params.ypp);
-shock_years=(1+shock_period:shock_period:ceil(101/Params.ypp));
-% Exponentially increasing every shock_period years from from ~2% to ~7% after initial shock-free period
-shock_pct=[zeros(1,length(shock_years));zeros(1,length(shock_years));exp(shock_years/(Params.Jr-1))/50];
-Params.agej_pct_cost=[zeros(1,1+shock_period), repelem(shock_pct(Params.scenario,:),shock_period)];
-% Only worry about the shocks within the model horizon
-Params.agej_pct_cost=Params.agej_pct_cost(1:Params.J);
-
 % Conditional survival probabilities: sj is the probability of surviving to be age j+1, given alive at age j
 % Most countries have calculations of these (as they are used by the government departments that oversee pensions)
 % In fact I will here get data on the conditional death probabilities, and then survival is just 1-death.
@@ -213,23 +222,63 @@ dj=[0.006879, 0.000463, 0.000307, 0.000220, 0.000184, 0.000172, 0.000160, 0.0001
     0.071107, 0.078342, 0.086244, 0.094861, 0.104242, 0.114432, 0.125479, 0.137427, 0.150317, 0.164187, 0.179066, 0.194979, 0.211941, 0.229957, 0.249020, 0.269112, 0.290198, 0.312231, 1.000000]; 
 dj=resize(dj,101+Params.ypp,FillValue=1);
 % dj covers Ages 0-100, plus extras at end to make it period-friendly
-Params.sj=prod(1-reshape(dj(1:Params.ypp*ceil(101/Params.ypp)),[Params.ypp,ceil(101/Params.ypp)]),1); % p5-year survival rates
-Params.sj=Params.sj(1+ceil(20/Params.ypp):ceil(20/Params.ypp)+N_j.household); % Just the ages we are using (20yo and up)
-Params.sj(end)=0; % In the present model the last period (j=J) value of sj is actually irrelevant
+% Note: when Params.ypp==1, the product over the reshaped array is over a single year period (i.e. trivial)
+sj_init=prod(1-reshape(dj(1:Params.ypp*ceil(101/Params.ypp)),[Params.ypp,ceil(101/Params.ypp)]),1); % p5-year survival rates
+sj_init=sj_init(1+ceil(20/Params.ypp):ceil(20/Params.ypp)+N_j.household); % Just the ages we are using (20yo and up)
+sj_init(end)=0; % In the present model the last period (j=J) value of sj is actually irrelevant
+
+% Add 5 years of life expectancy...age sj(65) in the future will be sj(60) by today's statistics
+% Part of this is achieved by improving early childhood survival as well...feeding two birds with one worm
+sj_final=prod(1-reshape([dj(1:2:10), repelem(dj(11:15), 3), dj(16:Params.ypp*ceil(101/Params.ypp)-5)],[Params.ypp,ceil(101/Params.ypp)]),1);
+sj_final=sj_final(1+ceil(20/Params.ypp):ceil(20/Params.ypp)+N_j.household); % Just the ages we are using (20yo and up)
+sj_final(end)=0; % In the present model the last period (j=J) value of sj is actually irrelevant
+
+%% Setup for sj and mewj transitions (T-by-N_j)
+% 40 years of changing demographics
+% 60 years in final demographic state (to allow time to converge to final stationary general eqm)
+% Conditional survival probabilities
+ParamPath.sj=[sj_init+(sj_final-sj_init).*linspace(0,1,ceil(40/Params.ypp))'; sj_final.*ones(ceil(60/Params.ypp),1)];
+Params.sj=ParamPath.sj(1,:); % conditional survival probabilities (will be overwritten, just want it for setup)
+ParamPath.sj=ParamPath.sj(jpT,:);
+% T-by-N_j (whether this or N_j-by_T, toolkit understands both)
+% Calculate the implied mewj from the sj
+ParamPath.mewj=cumprod([ones(T,1), ParamPath.sj(:,1:end-1)], 2); % mass of age jj is the mass of jj-1 that survive
+% Factor in population growth; In N_j dimension, older people are from earlier (smaller) populations
+% ...in the T dimension, we see overall population growth as T increases
+ParamPath.mewj=ParamPath.mewj./((1+Params.n_pp).^(Params.ypp*((1:N_j.household)-1))); % Population shrinks in the N_j dimension
+ParamPath.mewj=ParamPath.mewj.*((1+Params.n_pp).^(ppT*((1:T)-1)))'; % Population grows in the T dimension
+ParamPath.mewj=ParamPath.mewj./sum(ParamPath.mewj,2); % normalize age-masses to sum to one
+Params.mewj=ParamPath.mewj(1,:);
+% Looking at ParamPath.mewj you can see that as tt increases, the mass at older ages increases
+
+% Note: This is rather incomplete, as really you should also have
+% population growth rate n. But this does not change any thing in terms of
+% the 'objects to compute'. Instead you need to renormalize the model for
+% the population growth, and this just means you get a 'n' appearing in
+% some equations below. But other than 'n' in some equations, the way you
+% do this with the toolkit does not change.
 
 % Warm glow of bequest
 Params.warmglow1=0.3; % (relative) importance of bequests
 Params.warmglow2=3; % bliss point of bequests (essentially, the target amount)
 Params.warmglow3=Params.sigma; % By using the same curvature as the utility of consumption it makes it much easier to guess appropraite parameter values for the warm glow
 
+% The warmglow parameters will help us find the GE solution to actual bequest rates/values
+AccidentBeqS=[0.02,0.02,0.02]; % Accidental bequests (this is the lump sum transfer of shares)
+Params.AccidentBeqS_pp=AccidentBeqS(Params.scenario)*Params.ypp;
+if Params.scenario==3
+    AccidentBeqAH=[0,0,0.02]; % Accidental bequests (this is the lump sum transfer of assets+house value)
+    Params.AccidentBeqAH_pp=AccidentBeqAH(Params.scenario)*Params.ypp;
+end
+
 % Taxes
 Params.tau_l = 0.2; % Tax rate on labour income
 
 %% Parameters for firm
 % Production
-Params.alpha_k=0.311; % diminishing returns to capital input
+Params.alpha_k=0.311; % diminishing returns to capital and energy inputs
 Params.alpha_l=0.650; % diminishing returns to labor input
-Params.delta=0.05; % Annual depreciation of physical capital
+Params.delta=0.054; % Annual depreciation of physical capital
 % Capital adjustment costs
 Params.capadjconstant=1.21; % term in the capital adjustment cost
 % Tax
@@ -241,28 +290,15 @@ Params.tau_cg=0.2; % Tax rate on capital gains
 Params.rho_z_firm=0.767;
 Params.sigma_z_e_firm=0.211;
 
+%% Parameters for energy
+% Idiosyncatic productivity shocks
+Params.rho_z_energy=0.767;
+Params.sigma_z_e_energy=0.211;
+
 % Set the firm discount factor below (as it is determined in general eqm)
 % Params.firmbeta=1/(1+Params.r_pp)/(1-Params.tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
 
-%% Also, we want to target a capital-output ratio
-% This is relevant to the general equilibrium conditions
-Params.TargetKdivL=2.03;
-
-%% Remaining parameters
-
-% Some initial values/guesses for variables that will be determined in general eqm
-Params.pension=0.4; % Initial guess (this will be determined in general eqm)
-Params.w=1;
-AccidentBeqS= [0.02,0.02,0.02]; % Accidental bequests (this is the lump sum transfer of shares)
-AccidentBeqAH= [0,0,0.02]; % Accidental bequests (this is the lump sum transfer of assets+house value)
-Params.AccidentBeqS_pp=AccidentBeqS(Params.scenario)*Params.ypp;
-Params.AccidentBeqAH_pp=AccidentBeqAH(Params.scenario)*Params.ypp;
-Params.G_pp=0.1*Params.ypp; % Government expenditure
-Params.firmbeta=1/(1+Params.r_pp/(1-Params.tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
-Params.D_pp=(1+0.2)^Params.ypp-1; % Per-period dividends rate expected/received by households
-Params.P0=1;
-Lhscale=[0.21,0.21,0.21]; % Scaling the household labor supply
-Params.Lhscale=Lhscale(Params.scenario);
+%% Remaining Parameters will be set in GE below
 
 %% Grids for household
 
@@ -314,7 +350,6 @@ else
     solarpv_grid=(0:1:n_a.household(4)-1)';
     
     d_grid.household=[labor_grid; buyhouse_grid];
-    
     a_grid.household=[share_grid; asset_grid; house_grid; solarpv_grid];
     
     %% Solar PV is an experience asset
@@ -386,18 +421,31 @@ end
 %% Grids for firm
 d_grid.firm=linspace(0,1,n_d.firm)'; % Notice that it is imposing the d>=0 condition implicitly
 % k_max=10 replicates OLGModel14; K>4=infeasible when ypp=1, but need more as ypp increases
-k_max=[10,6,6];
+k_max=[10,5+ceil(log(Params.ypp)),5+ceil(log(Params.ypp))];
 k_grid_cubed=linspace(0,1,ceil(n_a.firm/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
 k_grid_linear=linspace(1,k_max(Params.scenario),floor(n_a.firm/2)+1);
 a_grid.firm=[k_grid_cubed, k_grid_linear(2:end)]';
 
 if small_z_no_e
     z_grid.firm=zeros(n_z.firm,1);
-    pi_z.firm=ones(n_z.household,n_z.household);
+    pi_z.firm=ones(n_z.firm,n_z.firm);
 else
     [z_grid.firm,pi_z.firm] = discretizeAR1_FarmerToda(0,Params.rho_z_firm,Params.sigma_z_e_firm,n_z.firm);
 end
 z_grid.firm=exp(z_grid.firm);
+
+
+%% Grids for energy
+d_grid.energy=0; % Notice that it is imposing the d>=0 condition implicitly
+a_grid.energy=linspace(0,1,n_a.energy)';
+
+if small_z_no_e
+    z_grid.energy=zeros(n_z.energy,1);
+    pi_z.energy=ones(n_z.energy,n_z.energy);
+else
+    [z_grid.energy,pi_z.energy] = discretizeAR1_FarmerToda(0,Params.rho_z_firm,Params.sigma_z_e_energy,n_z.energy);
+end
+z_grid.energy=exp(z_grid.energy);
 
 
 %% Now, create the return function
@@ -409,14 +457,14 @@ if Params.scenario<3
     % Hardwire buyhouse, hprime, aprime, h, a, and solarpv to zero
     ReturnFn.household=@( ...
         labor,sprime,s,z,e, ...
-        pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
+        pension,AccidentBeqS_pp,w,P0,D_pp, ...
         sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
-        scenario,r_pp,r_r_wedge_pp,minhouse,rentprice,houseservices,energy_pct_cost ...
+        scenario,r_pp,r_wedge_pp,minhouse,rentprice,houseservices,energy_pct_cost ...
     ) Electrify_HouseholdReturnFn( ...
         labor,0,sprime,0,0,s,0,0,0,z,e, ...
-        pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
+        pension,AccidentBeqS_pp,0,w,P0,D_pp, ...
         sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
-        scenario,r_pp,r_r_wedge_pp,0,minhouse,rentprice,0,houseservices,0,0,energy_pct_cost ...
+        scenario,r_pp,r_wedge_pp,0,minhouse,rentprice,0,houseservices,0,0,energy_pct_cost ...
     );
 else
     % Notice we use 'Electrify_HouseholdReturnFn'
@@ -424,12 +472,12 @@ else
             labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
-            scenario,r_pp,r_r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
+            scenario,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,cpi,pv_pct_cost,energy_pct_cost ...
         ) Electrify_HouseholdReturnFn( ...
             labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
-            scenario,r_pp,r_r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
+            scenario,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,cpi,pv_pct_cost,energy_pct_cost ...
         );
 end
 
@@ -445,6 +493,151 @@ ReturnFn.firm=@( ...
         w,D_pp, ...
         ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg ...
     );
+
+% For energy
+DiscountFactorParamNames.energy={};
+% Notice we use 'Electrify_EnergyReturnFn'
+ReturnFn.energy=@( ...
+        aprime,a,z ...
+    ) Electrify_EnergyReturnFn( ...
+        aprime,a,z ...
+    );
+
+%% Begin setting up to use VFI Toolkit to solve
+% vfoptions.howardsgreedy=0;
+% vfoptions.howards=80;
+% vfoptions.maxhowards=200;
+if Params.scenario<3
+    vfoptions.tolerance=10^(-9);
+else
+    vfoptions.tolerance=10^(-4);
+end
+% Note that simoptions.tolerance is used very differently than vfoptions.tolerance
+
+% The user can experiment with gridinterplayer=0 (pure discretization) or gridinterplayer=1 (linear interpolation b/w grid points).
+% If gridinterplayer=1, then you must set vfoptions.divideandconquer=1 (required for transition).
+vfoptions.gridinterplayer.household  = 0;
+vfoptions.ngridinterp.household      = 11;
+vfoptions.divideandconquer.household = 1;
+vfoptions.gridinterplayer.firm       = 0;
+vfoptions.ngridinterp.firm           = 11;
+vfoptions.divideandconquer.firm      = 0;
+vfoptions.level1n.household          = 11;
+vfoptions.level1n.firm               = 11;
+simoptions.gridinterplayer = vfoptions.gridinterplayer;
+simoptions.ngridinterp     = vfoptions.ngridinterp;
+
+%% Remaining parameters
+% Steering GE
+Params.TargetKdivL=2.03;
+Params.r_pp=(1+r)^Params.ypp-1;
+
+% Solved by GE
+
+% Some initial values/guesses for variables that will be determined in general eqm
+Params.P0=1;
+Params.firmbeta=1/(1+Params.r_pp/(1-Params.tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
+Params.D_pp=(1+0.2)^Params.ypp-1; % Per-period dividends rate expected/received by households
+Params.w=1;
+Params.pension=0.4; % Initial guess (this will be determined in general eqm)
+Params.G_pp=0.1*Params.ypp; % Government expenditure
+
+
+
+%% General eqm variables
+if Params.scenario<3
+    GEPriceParamNames={'w','firmbeta','D_pp','P0','pension','G_pp','AccidentBeqS_pp'};
+else
+    GEPriceParamNames={'w','firmbeta','D_pp','P0','pension','G_pp','AccidentBeqS_pp','AccidentBeqAH_pp'};
+end
+heteroagentoptions.constrainpositive=GEPriceParamNames;
+
+% We don't need P
+% We can get P from the equation that defines r as the return to the mutual fund
+% 1+r_pp = (P0 +(1-tau_d)D_pp - tau_cg(P0-P))/Plag
+% We are looking at stationary general eqm, so
+% Plag=P;
+% And thus we have
+% P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
+
+%% Set up the General Equilibrium conditions (on assets/interest rate, assuming a representative firm with Cobb-Douglas production function)
+% Note: we need to add z & e to FnsToEvaluate inputs for households,
+% whereas firm only has z (it is just coincidence/lazy that I call them
+% both z).
+
+% Stationary Distribution Aggregates from households (important that ordering of Names and Functions is the same)
+if Params.scenario<3
+    FnsToEvaluate.L_h.household = @(labor,sprime,s,z,e,kappa_j,Lhscale) ...
+        labor*kappa_j*exp(z+e)*Lhscale;  % Aggregate labour supply in efficiency units, not scaled by ypp
+    FnsToEvaluate.S.household = @(labor,sprime,s,z,e) s; % Aggregate share holdings
+    FnsToEvaluate.PensionSpending.household = @(labor,sprime,s,z,e,pension,ypp,agej,Jr) ...
+        (agej>=Jr)*pension*ypp; % Total spending on pensions
+    FnsToEvaluate.PayrollTaxRevenue.household = @(labor,sprime,s,z,e,ypp,agej,Jr,tau_l,w,kappa_j,Lhscale) ...
+        (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*ypp*Lhscale; % Total spending on payroll taxes
+    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,sprime,s,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
+        tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg)))*s; % tau_cg*(P0-Plag)*s, but substitute P=Plag, and then substitute for P
+    FnsToEvaluate.BeqleftS_pp.household = @(labor,sprime,s,z,e,sj) ...
+        sprime*(1-sj); % Accidental share bequests left by people who die
+else
+    FnsToEvaluate.L_h.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,kappa_j,Lhscale) ...
+        labor*kappa_j*exp(z+e)*Lhscale;  % Aggregate labour supply in efficiency units, not scaled by ypp
+    FnsToEvaluate.S.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) s; % Aggregate share holdings
+    FnsToEvaluate.PensionSpending.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,pension,ypp,agej,Jr) ...
+        (agej>=Jr)*pension*ypp; % Total spending on pensions
+    FnsToEvaluate.PayrollTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,ypp,agej,Jr,tau_l,w,kappa_j,Lhscale) ...
+        (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*Lhscale*ypp; % Total spending on payroll taxes
+    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
+        tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg)))*s+(1-tau_d)*r_pp*max(a,0); % tau_cg*(P0-Plag)*s + deposit interest, but substitute P=Plag, and then substitute for P
+    FnsToEvaluate.BeqleftS_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj) ...
+        sprime*(1-sj); % Accidental share bequests left by people who die
+    % AccidentalBeqAHLeft is zero (if in debt) or accidental asset+house bequests left by people who die
+    FnsToEvaluate.BeqleftAH_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,cpi) ...
+        max(0,(aprime+(1+cpi)*hprime)*(1-sj));
+    % BadDebt is the debt somebody accidentally leaves behind, or zero if net worth is positive
+end
+
+% From firms
+FnsToEvaluate.L_f.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) ...
+    (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm, not scaled by ypp
+FnsToEvaluate.K.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) k; % physical capital
+FnsToEvaluate.DividendPaid_pp.firm = @(d,kprime,k,z,ypp) (1+d)^ypp-1; % dividend paid by firm
+FnsToEvaluate.Sissued.firm = @(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
+    Electrify_FirmShareIssuance(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % Share issuance
+FnsToEvaluate.CorpTaxRevenue.firm = @(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
+    Electrify_FirmCorporateTaxRevenue(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % revenue from the corporate profits tax
+
+% General Equilibrium conditions (these should evaluate to zero in general equilbrium)
+GeneralEqmEqns.sharemarket = @(S) S-1; % mass of all shares equals one
+GeneralEqmEqns.labormarket = @(L_h,L_f) (Params.scenario+1)*(L_h-L_f)*Params.ypp; % labor supply of households equals labor demand of firms (scaled by ypp)
+GeneralEqmEqns.pensions = @(PensionSpending,PayrollTaxRevenue) PensionSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue: pension*fractionretired-tau*w*H
+GeneralEqmEqns.govbudget = @(G_pp,tau_d,D_pp,CapitalGainsTaxRevenue,CorpTaxRevenue) G_pp-tau_d*D_pp-CapitalGainsTaxRevenue-CorpTaxRevenue; % G is equal to the target, GdivYtarget*Y
+GeneralEqmEqns.firmdiscounting = @(firmbeta,r_pp,tau_cg) firmbeta-1/(1+r_pp/(1-tau_cg)); % Firms discount rate is related to market return rate
+GeneralEqmEqns.dividends = @(D_pp,DividendPaid_pp) D_pp-DividendPaid_pp; % That the dividend households receive equals that which firms give
+GeneralEqmEqns.ShareIssuance = @(Sissued,P0,D_pp,tau_cg,tau_d,r_pp) ...
+    P0-((((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
+GeneralEqmEqns.CapitalOutputRatio = @(K,L_f,TargetKdivL) K/L_f-TargetKdivL; % Ratio not based on ypp
+GeneralEqmEqns.bequestsS_pp = @(BeqleftS_pp,AccidentBeqS_pp,n_pp) BeqleftS_pp/(1+n_pp)-AccidentBeqS_pp; % Accidental share bequests received equal accidental share bequests left
+if Params.scenario==3
+    GeneralEqmEqns.bequestsAH_pp = @(BeqleftAH_pp,AccidentBeqAH_pp,n_pp) BeqleftAH_pp/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
+end
+
+% For analysing the model
+FnsToEvaluate2=FnsToEvaluate;
+if Params.scenario<3
+    FnsToEvaluate2.earnings.household=@(labor,aprime,a,z,w,kappa_j,Lhscale) w*kappa_j*labor*exp(z)*Lhscale; % w*kappa_j is the labor earnings
+else
+    FnsToEvaluate2.earnings.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,w,kappa_j,Lhscale) w*kappa_j*labor*exp(z)*Lhscale; % w*kappa_j is the labor earnings
+    FnsToEvaluate2.A.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) a; % Aggregate asset/mortgage holdings
+    FnsToEvaluate2.H.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) h; % Aggregate house holdings
+    FnsToEvaluate2.PV.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings
+    FnsToEvaluate2.BadDebt_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,cpi) ...
+        min(0,(aprime+(1+cpi)*hprime)*(1-sj));
+end
+FnsToEvaluate2.Output.firm = @(d,kprime,k,z,w,ypp,alpha_k,alpha_l) ...
+    z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
+
+% Note: I keep the FnsToEvaluate use in general eqm to a minimum (to reduce
+% runtimes) and then use FnsToEvaluate2 to analyse model with more stats.
 
 %% Now solve the value function iteration problem, just to check that things are working before we go to General Equilbrium
 disp('Test ValueFnIter')
@@ -485,108 +678,16 @@ end
 % Note that because the firms are infinite horizon they do not have an age=1 distribution
 
 %% Agents age distribution
-% Many OLG models include some kind of population growth, and perhaps some other things that create a weighting of different ages that needs to
-% be used to calculate the stationary distribution and aggregate variable.
-mewj=ones(1,Params.J); % Marginal distribution of households over age
-for jj=2:length(mewj)
-    mewj(jj)=Params.sj(jj-1)*mewj(jj-1)/(1+Params.n_pp);
-end
-Params.mewj=mewj./sum(mewj); % Normalize to one
-
 AgeWeightsParamNames=struct('household',{{'mewj'}}); % So VFI Toolkit knows which parameter is the mass of agents of each age
 
 %% Test
 disp('Test StationaryDist')
 StationaryDist_init=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_init,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
 
-%% General eqm variables
-if Params.scenario<3
-    GEPriceParamNames={'pension','AccidentBeqS_pp','G_pp','w','firmbeta','D_pp','P0', 'TargetKdivL'};
-else
-    GEPriceParamNames={'pension','AccidentBeqS_pp','AccidentBeqAH_pp','G_pp','w','firmbeta','D_pp','P0', 'TargetKdivL'};
-end
-heteroagentoptions.constrainpositive={'pension','w','D_pp','P0'};
-
-% We don't need P
-% We can get P from the equation that defines r as the return to the mutual fund
-% 1+r_pp = (P0 +(1-tau_d)D_pp - tau_cg(P0-P))/Plag
-% We are looking at stationary general eqm, so
-% Plag=P;
-% And thus we have
-% P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
-
-%% Set up the General Equilibrium conditions (on assets/interest rate, assuming a representative firm with Cobb-Douglas production function)
-% Note: we need to add z & e to FnsToEvaluate inputs for households,
-% whereas firm only has z (it is just coincidence/lazy that I call them
-% both z).
-
-% Stationary Distribution Aggregates from households (important that ordering of Names and Functions is the same)
-if Params.scenario<3
-    FnsToEvaluate.L_h.household = @(labor,sprime,s,z,e,kappa_j,Lhscale) ...
-        labor*kappa_j*exp(z+e)*Lhscale;  % Aggregate labour supply in efficiency units, not scaled by ypp
-    FnsToEvaluate.S.household = @(labor,sprime,s,z,e) s; % Aggregate share holdings
-    FnsToEvaluate.PensionSpending.household = @(labor,sprime,s,z,e,pension,ypp,agej,Jr) ...
-        (agej>=Jr)*pension*ypp; % Total spending on pensions
-    FnsToEvaluate.PayrollTaxRevenue.household = @(labor,sprime,s,z,e,ypp,agej,Jr,tau_l,w,kappa_j,Lhscale) ...
-        (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*ypp*Lhscale; % Total spending on payroll taxes
-    FnsToEvaluate.AccidentalBeqSLeft_pp.household = @(labor,sprime,s,z,e,sj) ...
-        sprime*(1-sj); % Accidental share bequests left by people who die
-    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,sprime,s,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
-        tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg)))*s; % tau_cg*(P0-Plag)*s, but substitute P=Plag, and then substitute for P
-else
-    FnsToEvaluate.L_h.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,kappa_j,Lhscale) ...
-        labor*kappa_j*exp(z+e)*Lhscale;  % Aggregate labour supply in efficiency units, not scaled by ypp
-    FnsToEvaluate.S.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) s; % Aggregate share holdings
-    FnsToEvaluate.A.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) a; % Aggregate asset/mortgage holdings
-    FnsToEvaluate.H.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) h; % Aggregate house holdings
-    FnsToEvaluate.PV.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings
-    FnsToEvaluate.PensionSpending.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,pension,ypp,agej,Jr) ...
-        (agej>=Jr)*pension*ypp; % Total spending on pensions
-    FnsToEvaluate.PayrollTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,ypp,agej,Jr,tau_l,w,kappa_j,Lhscale) ...
-        (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*Lhscale*ypp; % Total spending on payroll taxes
-    FnsToEvaluate.AccidentalBeqSLeft_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj) ...
-        sprime*(1-sj); % Accidental share bequests left by people who die
-    % AccidentalBeqAHLeft is zero (if in debt) or accidental asset+house bequests left by people who die
-    FnsToEvaluate.AccidentalBeqAHLeft_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,agej_pct_cost) ...
-        max(0,(aprime+(1+agej_pct_cost)*hprime)*(1-sj));
-    % BadDebt is the debt somebody accidentally leaves behind, or zero if net worth is positive
-    FnsToEvaluate.BadDebt_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,agej_pct_cost) ...
-        min(0,(aprime+(1+agej_pct_cost)*hprime)*(1-sj));
-    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
-        tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg)))*s+(1-tau_d)*r_pp*max(a,0); % tau_cg*(P0-Plag)*s + deposit interest, but substitute P=Plag, and then substitute for P
-end
-
-% From firms
-FnsToEvaluate.Output.firm = @(d,kprime,k,z,w,ypp,alpha_k,alpha_l) ...
-    z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
-FnsToEvaluate.L_f.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) ...
-    (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm, not scaled by ypp
-FnsToEvaluate.K.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) k; % physical capital
-FnsToEvaluate.DividendPaid_pp.firm = @(d,kprime,k,z,ypp) (1+d)^ypp-1; % dividend paid by firm
-FnsToEvaluate.Sissued.firm = @(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
-    Electrify_FirmShareIssuance(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % Share issuance
-FnsToEvaluate.CorpTaxRevenue.firm = @(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
-    Electrify_FirmCorporateTaxRevenue(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % revenue from the corporate profits tax
-
-% General Equilibrium conditions (these should evaluate to zero in general equilbrium)
-% GeneralEqmEqns.sharemarket = @(S) S-1; % mass of all shares equals one
-GeneralEqmEqns.labormarket = @(L_h,L_f) (Params.scenario+1)*(L_h-L_f)*Params.ypp; % labor supply of households equals labor demand of firms (scaled by ypp)
-GeneralEqmEqns.pensions = @(PensionSpending,PayrollTaxRevenue) PensionSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue: pension*fractionretired-tau*w*H
-GeneralEqmEqns.bequestsS_pp = @(AccidentalBeqSLeft_pp,AccidentBeqS_pp,n_pp) AccidentalBeqSLeft_pp/(1+n_pp)-AccidentBeqS_pp; % Accidental share bequests received equal accidental share bequests left
-if Params.scenario==3
-    GeneralEqmEqns.bequestsAH_pp = @(AccidentalBeqAHLeft_pp,AccidentBeqAH_pp,n_pp) AccidentalBeqAHLeft_pp/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
-end
-GeneralEqmEqns.govbudget = @(G_pp,tau_d,D_pp,CapitalGainsTaxRevenue,CorpTaxRevenue) G_pp-tau_d*D_pp-CapitalGainsTaxRevenue-CorpTaxRevenue; % G is equal to the target, GdivYtarget*Y
-GeneralEqmEqns.firmdiscounting = @(firmbeta,r_pp,tau_cg) firmbeta-1/(1+r_pp/(1-tau_cg)); % Firms discount rate is related to market return rate
-GeneralEqmEqns.dividends = @(D_pp,DividendPaid_pp) D_pp-DividendPaid_pp; % That the dividend households receive equals that which firms give
-GeneralEqmEqns.ShareIssuance = @(Sissued,P0,D_pp,tau_cg,tau_d,r_pp) ...
-    P0-((((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
-GeneralEqmEqns.CapitalOutputRatio =@(K,L_f,TargetKdivL) K/L_f-TargetKdivL; % Ratio not based on ypp
-
 %% Test
 % Note: Because we used simoptions we must include this as an input
 disp('Test AggVars')
-AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate, Params, n_d, n_a, n_z,N_j,Names_i, d_grid, a_grid, z_grid,simoptions);
+AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j,Names_i, d_grid, a_grid, z_grid,simoptions);
 
 % Next few lines were used to try a few parameter values so as to get a
 % decent initial guess before actually solving the general equilbrium
@@ -606,7 +707,7 @@ Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Para
 
 
 %% Solve for the General Equilibrium
-if solve_GE
+% if solve_GE
     % heteroagentoptions.fminalgo=4 % CMA-ES algorithm 
     
     heteroagentoptions.verbose=1;
@@ -636,8 +737,11 @@ if solve_GE
     % GEcondns tells us the values of the GeneralEqmEqns, should be near zero
     Params.pension=p_eqm_init.pension;
     Params.AccidentBeqS_pp=p_eqm_init.AccidentBeqS_pp;
+    % To use a '_tminus1' variable we must include its initial value
+    transpathoptions.initialvalues.BeqleftS_pp=p_eqm_init.AccidentBeqS_pp;
     if Params.scenario==3
         Params.AccidentBeqAH_pp=p_eqm_init.AccidentBeqAH_pp;
+        transpathoptions.initialvalues.BeqleftAH_pp=p_eqm_init.AccidentBeqAH_pp;
     end
     Params.G_pp=p_eqm_init.G_pp;
     Params.w=p_eqm_init.w;
@@ -650,9 +754,9 @@ if solve_GE
     StationaryDist_init=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_init,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
 
     % Calculate various stats
-    AllStats_init=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+    AllStats_init=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
     % Calculate the life-cycle profiles
-    AgeConditionalStats_init=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+    AgeConditionalStats_init=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
     
     % Note: Only part of this initial stationary general eqm we actually 'need'
     % is the agent distribution. Rest is just out of interest.
@@ -661,15 +765,18 @@ if solve_GE
        % initial agent distribution to be a stationary dist (it is in this
        % example, but does not need to be for transition paths)
     
-    %% Solve for final stationary general eqm
+    %%
+    save tpathElectrifyA.mat
+    % load tpathElectrifyA.mat
+
+    %% Solve for final stationary general eqm with Params at time T
     Params.Ek=ParamPath.Ek(T);
     Params.ek=ParamPath.ek(T);
-    
-    % Calculate various stats
-    AllStats_final=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
-    % Calculate the life-cycle profiles
-    AgeConditionalStats_final=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init, FnsToEvaluate,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
-    
+    Params.sj=ParamPath.sj(T,:);
+    Params.mewj=ParamPath.mewj(T,:);
+    Params.cpi=ParamPath.cpi(T);
+    Params.cpi_energy=ParamPath.cpi_energy(T);
+
     [p_eqm_final,GEcondns_final]=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,[],pi_z,d_grid,a_grid,z_grid,jequaloneDist,ReturnFn,FnsToEvaluate,GeneralEqmEqns,Params,DiscountFactorParamNames,AgeWeightsParamNames,PTypeDistParamNames,GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
     % Done, the general eqm prices are in p_eqm
     % GEcondns tells us the values of the GeneralEqmEqns, should be near zero
@@ -684,13 +791,13 @@ if solve_GE
     Params.D_pp=p_eqm_final.D_pp;
     Params.P0=p_eqm_final.P0;
 
-    % Evaluate the initial stationary general eqm
+    % Evaluate the final stationary general eqm
     [V_final, Policy_final]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
     StationaryDist_final=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_final,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
     % Calculate various stats
-    AllStats_final=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist_final, Policy_final, FnsToEvaluate, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
+    AllStats_final=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
     % Calculate the life-cycle profiles
-    AgeConditionalStats_final=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_final,Policy_final, FnsToEvaluate,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+    AgeConditionalStats_final=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_final,Policy_final, FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
 
     % Note: Only part of this final stationary general eqm we actually 'need'
     % is the value fn (although we likely want p_eqm_final for initial guess of PricePath0). 
@@ -699,39 +806,46 @@ if solve_GE
     % Double-check that the general eqm is accurate before we start the
     % transition path, because if it is not then it won't solve
     GEcondns_final
+% end
 
     %%
-    save tpathElectrifyA.mat
-    % load tpathElectrifyA.mat
-
+    save tpathElectrifyB.mat
+    % load tpathElectrifyB.mat
+if solve_TPath
     %% Setup for the transition path
     % T=100; % number of periods for transition path
     
     % Already created ParamPath.sj and ParamPath.mewj
     
     % Initial guess for general eqm parameters
-    PricePath0.w=[linspace(p_eqm_init.w, p_eqm_final.w,ceil(T/2)), p_eqm_final.w*ones(1,T-ceil(T/2))];
-    PricePath0.firmbeta=[linspace(p_eqm_init.firmbeta, p_eqm_final.firmbeta,ceil(T/2)), p_eqm_final.firmbeta*ones(1,T-ceil(T/2))];
-    PricePath0.D_pp=[linspace(p_eqm_init.D_pp, p_eqm_final.D_pp,ceil(T/2)), p_eqm_final.D_pp*ones(1,T-ceil(T/2))];
-    PricePath0.P0=[linspace(p_eqm_init.P0, p_eqm_final.P0,ceil(T/2)), p_eqm_final.P0*ones(1,T-ceil(T/2))];
-    PricePath0.pension=p_eqm_final.pension*ones(1,T);
-    PricePath0.AccidentBeqS_pp=p_eqm_final.AccidentBeqS_pp*ones(1,T);
+    T_eq=ceil(T/2); % Demographic change has stopped and T_eq begins period of transition equilibrium-finding
+    PricePath0.w=[linspace(p_eqm_init.w, p_eqm_final.w,T_eq), p_eqm_final.w*ones(1,T-T_eq)];
+    PricePath0.firmbeta=[linspace(p_eqm_init.firmbeta, p_eqm_final.firmbeta,T_eq), p_eqm_final.firmbeta*ones(1,T-T_eq)];
+    PricePath0.D_pp=[linspace(p_eqm_init.D_pp, p_eqm_final.D_pp,T_eq), p_eqm_final.D_pp*ones(1,T-T_eq)];
+    PricePath0.P0=[linspace(p_eqm_init.P0, p_eqm_final.P0,T_eq), p_eqm_final.P0*ones(1,T-T_eq)];
+    PricePath0.pension=[linspace(p_eqm_init.pension, p_eqm_final.pension,T_eq), p_eqm_final.pension*ones(1,T-T_eq)];
+    PricePath0.AccidentBeqS_pp=[linspace(p_eqm_init.AccidentBeqS_pp,p_eqm_final.AccidentBeqS_pp,T_eq), p_eqm_final.AccidentBeqS_pp*ones(1,T-T_eq)];
     if Params.scenario==3
-        PricePath0.AccidentBeqAH_pp=p_eqm_final.AccidentBeqAH_pp*ones(1,T);
+        PricePath0.AccidentBeqAH_pp=[linspace(p_eqm_init.AccidentBeqAH_pp,p_eqm_final.AccidentBeqAH_pp,T_eq), p_eqm_final.AccidentBeqAH_pp*ones(1,T-T_eq)];
     end
-    PricePath0.G_pp=p_eqm_final.G_pp*ones(1,T);
-    PricePath0.TargetKdivL=2.03*ones(1,T);
+    PricePath0.G_pp=[linspace(p_eqm_init.G_pp, p_eqm_final.G_pp,T_eq), p_eqm_final.G_pp*ones(1,T-T_eq)];
+    % PricePath0.TargetKdivL=2.03*ones(1,T);
     % Just some reasonable guesses I made up.
     
     % General eqm eqns, same idea as with the stationary general eqm
-    GeneralEqmEqns_Transition.capitalmarket2=@(r,alpha_k,alpha_l,delta,K,L) r-(alpha_k*(K^(alpha_k-1))*(L^(alpha_l))-delta); % r=marginal product of capital
-    GeneralEqmEqns_Transition.labormarket2=@(w,alpha_k,alpha_l,K,L) w-(alpha_l)*(K^alpha_k)*(L^(alpha_l-1)); % w=marginal product of labor
-    GeneralEqmEqns_Transition.govbudgetbalance2=@(G_pp,tau_d,D_pp,CapitalGainsTaxRevenue,CorpTaxRevenue) G_pp-tau_d*D_pp-CapitalGainsTaxRevenue-CorpTaxRevenue;
+    % GeneralEqmEqns_Transition.capitalmarket=@(r_pp,alpha_k,alpha_l,delta,K,L,ypp) r_pp-(alpha_k*(K^(alpha_k-1))*(L^(alpha_l))-((delta+1)^ypp-1)); % r=marginal product of capital
+    GeneralEqmEqns_Transition.labormarket=@(w,alpha_k,alpha_l,K,L_f) w-(alpha_l)*(K^alpha_k)*(L_f^(alpha_l-1)); % w=marginal product of labor
+    GeneralEqmEqns_Transition.firmdiscounting=GeneralEqmEqns.firmdiscounting;
+    GeneralEqmEqns_Transition.dividends=GeneralEqmEqns.dividends;
+    GeneralEqmEqns_Transition.ShareIssuance=GeneralEqmEqns.ShareIssuance;
+    GeneralEqmEqns_Transition.pensions=GeneralEqmEqns.pensions;
+    GeneralEqmEqns_Transition.govbudgetbalance=GeneralEqmEqns.govbudget;
     % Note: bequests are left in t-1 and received in t
-    GeneralEqmEqns_Transition.bequestsS_pp2 = @(AccidentalBeqSLeft_pp,AccidentBeqS_pp,n_pp) AccidentalBeqSLeft_pp_tminus1/(1+n_pp)-AccidentBeqS_pp; % Accidental share bequests received equal accidental share bequests left
+    GeneralEqmEqns_Transition.bequestsS_pp = @(BeqleftS_pp_tminus1,AccidentBeqS_pp,n_pp) BeqleftS_pp_tminus1/(1+n_pp)-AccidentBeqS_pp; % Accidental share bequests received equal accidental share bequests left
     if Params.scenario==3
-        GeneralEqmEqns_Transition.bequestsAH_pp2 = @(AccidentalBeqAHLeft_pp,AccidentBeqAH_pp,n_pp) AccidentalBeqAHLeft_pp_tminus1/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
+        GeneralEqmEqns_Transition.bequestsAH_pp = @(BeqleftAH_pp_tminus1,AccidentBeqAH_pp,n_pp) BeqleftAH_pp_tminus1/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
     end
+    
     % Note: in this example these are actually identical to the general eqm
     % eqns for the stationary general eqm, but that is not often the case.
     
@@ -739,15 +853,14 @@ if solve_GE
     transpathoptions.GEnewprice=3;
     % Need to explain to transpathoptions how to use the GeneralEqmEqns to update the general eqm transition prices (in PricePath).
     transpathoptions.GEnewprice3.howtoupdate=... % a row is: GEcondn, price, add, factor
-        {'labormarket','w',0,0.03;... % labormarket GE condition will be positive if w is too big, so subtract
-        'pensions','pension',0,0.03;... % pensions GE condition will be positive if pension is too big, so subtract
-        'govbudget','G_pp',0,0.03;... % govbudget GE condition will be positive if G_pp is too big, so subtract
-        'bequestsS_pp','AccidentBeqS_pp',1,0.03;... % bequests GE condition will be negative if BeqS_pp is too big, so add
-        'bequestsAH_pp','AccidentBeqAH_pp',1,0.03;... % bequests GE condition will be negative if BeqAH_pp is too big, so add
-        'firmdiscounting','firmbeta',0,0.03;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
-        'dividends','D_pp',0,0.03;... % dividends GE condition will be positive if D_pp is too big, so subtract
-        'ShareIssuance','P0',0,0.03;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
-        'CapitalOutputRatio','TargetKdivL',1,0.03;... % labormarket GE condition will be negative if TargetKdivL is too big, so add
+        {'labormarket','w',0,0.02;... % labormarket GE condition will be positive if w is too big, so subtract
+        'firmdiscounting','firmbeta',0,0.02;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
+        'dividends','D_pp',0,0.02;... % dividends GE condition will be positive if D_pp is too big, so subtract
+        'ShareIssuance','P0',0,0.02;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
+        'pensions','pension',0,0.02;... % pensions GE condition will be positive if pension is too big, so subtract
+        'govbudgetbalance','G_pp',0,0.02;... % govbudget GE condition will be positive if G_pp is too big, so subtract
+        'bequestsS_pp','AccidentBeqS_pp',1,0.02;... % bequests GE condition will be negative if BeqS_pp is too big, so add
+        'bequestsAH_pp','AccidentBeqAH_pp',1,0.02;... % bequests GE condition will be negative if BeqAH_pp is too big, so add
         };
     if Params.scenario<3
         mask=strcmp(transpathoptions.GEnewprice3.howtoupdate(:,1),'bequestsAH_pp');
@@ -769,9 +882,13 @@ if solve_GE
     
     % Running, it was about stuck iterating around 2 or 3*10^(-4) but had clearly solved. So
     transpathoptions.tolerance=4*10^(-3); % default is 10^(-4), which is a very demanding accuracy
+
+    %%
+    save tpathElectrifyC.mat
+    % load tpathElectrifyC.mat
     
     % And go!
-    [PricePath,GECondnsPath]=TransitionPath_Case1_FHorz_PType(PricePath0, ParamPath, T, V_final, AgentDist_init, jequaloneDist, n_d, n_a, n_z, N_j, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions);
+    [PricePath,GECondnsPath]=TransitionPath_Case1_FHorz_PType(PricePath0, ParamPath, T, V_final, AgentDist_init, jequaloneDist, n_d, n_a, n_z, N_j, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns_Transition, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions);
     
     %% Now calculate some things about the transition path (path for Value fn, Policy fn, Agent Distribution)
     % You can calculate the value and policy functions for the transition path
@@ -785,9 +902,9 @@ if solve_GE
     AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz_PType(FnsToEvaluate, AgentDistPath,PolicyPath, PricePath, ParamPath, Params, T, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, transpathoptions, simoptions);
     
     %%
-    save tpathElectrifyB.mat
-    % load tpathElectrifyB.mat
-    
+    save tpathElectrifyD.mat
+    % load tpathElectrifyD.mat
+
     %% Plot some paths
     figure(1)
     % Plot of K and w
@@ -809,7 +926,7 @@ if solve_GE
 end % Otherwise we can use initial guesses set for Params
 
 % Can just use the same FnsToEvaluate as before.
-AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
 
 if max(AgeConditionalStats.S.Maximum)==share_grid(end)
     warning("share_grid maximum reached")
@@ -858,50 +975,50 @@ saveas(figure_c,'./SavedOutput/Graphs/Electrify_LifeCycleProfiles','pdf')
 
 % Add consumption to the FnsToEvaluate
 if Params.scenario<3
-    FnsToEvaluate.Consumption.household=@( ...
+    FnsToEvaluate2.Consumption.household=@( ...
             labor,sprime,s,z,e, ...
             pension,AccidentBeqS_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp, r_r_wedge_pp,rentprice,energy_pct_cost ...
+            r_pp,cpi,rentprice,energy_pct_cost ...
         ) Electrify_HouseholdConsumptionFn( ...
             labor,0,sprime,0,0,s,0,0,0,z,e, ...
             pension,AccidentBeqS_pp,0,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_r_wedge_pp,0,rentprice,0,0,energy_pct_cost);
-    FnsToEvaluate.Income.household=@( ...
+            r_pp,0,cpi,rentprice,0,0,energy_pct_cost);
+    FnsToEvaluate2.Income.household=@( ...
             labor,sprime,s,z,e, ...
-            pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
+            pension,AccidentBeqS_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_r_wedge_pp,energy_pct_cost ...
+            r_pp,cpi,energy_pct_cost ...
         ) Electrify_HouseholdIncomeFn( ...
             labor,0,sprime,0,0,s,0,0,0,z,e, ...
             pension,AccidentBeqS_pp,0,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_r_wedge_pp,0,energy_pct_cost);
+            r_pp,cpi,energy_pct_cost);
 else
-    FnsToEvaluate.Consumption.household=@( ...
+    FnsToEvaluate2.Consumption.household=@( ...
             labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_r_wedge_pp,f_htc,rentprice,agej_pct_cost,pv_pct_cost,energy_pct_cost ...
+            r_pp,r_wedge_pp,f_htc,rentprice,cpi,pv_pct_cost,energy_pct_cost ...
         ) Electrify_HouseholdConsumptionFn( ...
             labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_r_wedge_pp,f_htc,rentprice,agej_pct_cost,pv_pct_cost,energy_pct_cost);
-    FnsToEvaluate.Income.household=@( ...
+            r_pp,r_wedge_pp,f_htc,rentprice,cpi,pv_pct_cost,energy_pct_cost);
+    FnsToEvaluate2.Income.household=@( ...
             labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_r_wedge_pp,agej_pct_cost,energy_pct_cost ...
+            r_pp,r_wedge_pp,cpi,energy_pct_cost ...
         ) Electrify_HouseholdIncomeFn( ...
             labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_r_wedge_pp,agej_pct_cost,energy_pct_cost);
+            r_pp,r_wedge_pp,cpi,energy_pct_cost);
 end
 
-AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
+AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
 
 Y=AggVars.Output.Mean;
 
@@ -1042,7 +1159,7 @@ for fhh_agej=1:5
         1,0,0,asset_grid(aprime_index_next),0,0,asset_grid(aprime_index_last),0,0,0,0, ...
         Params.pension,Params.AccidentBeqS_pp,Params.AccidentBeqAH_pp,Params.w,Params.P0,Params.D_pp, ...
         Params.kappa_j(fhh_agej),Params.tau_l,Params.tau_d,Params.tau_cg,Params.ypp,fhh_agej,Params.Jr, ...
-        Params.r_pp,Params.r_r_wedge_pp,Params.agej_pct_cost(fhh_agej),Params.energy_pct_cost);
+        Params.r_pp,Params.cpi,Params.energy_pct_cost);
     if income<0
         feasible=false;
         error("income negative")
@@ -1051,7 +1168,7 @@ for fhh_agej=1:5
         1,0,0,asset_grid(aprime_index_next),0,0,asset_grid(aprime_index_last),0,0,0,0, ...
         Params.pension,Params.AccidentBeqS_pp,Params.AccidentBeqAH_pp,Params.w,Params.P0,Params.D_pp, ...
         Params.kappa_j(fhh_agej),Params.tau_l,Params.tau_d,Params.tau_cg,Params.ypp,fhh_agej,Params.Jr, ...
-        Params.r_pp,Params.r_r_wedge_pp,Params.f_htc,Params.rentprice,Params.agej_pct_cost(fhh_agej),Params.pv_pct_cost,Params.energy_pct_cost);
+        Params.r_pp,Params.r_wedge_pp,Params.f_htc,Params.rentprice,Params.cpi,Params.pv_pct_cost,Params.energy_pct_cost);
     if consumption<0
         feasible=false;
         error("consumption negative")
@@ -1063,7 +1180,7 @@ for fhh_agej=1:5
             1,0,sprime,asset_grid(aprime_index_next),0,s,asset_grid(aprime_index_last),0,0,0,0, ...
             Params.pension,Params.AccidentBeqS_pp,Params.AccidentBeqAH_pp,Params.w,Params.P0,Params.D_pp, ...
             Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.kappa_j(fhh_agej),Params.tau_l,Params.tau_d,Params.tau_cg,Params.warmglow1,Params.warmglow2,Params.ypp,fhh_agej,Params.Jr,Params.J, ...
-            Params.scenario,Params.r_pp,Params.r_r_wedge_pp,Params.f_htc,Params.minhouse,Params.rentprice,Params.f_coll,Params.houseservices,Params.agej_pct_cost(fhh_agej),Params.pv_pct_cost,Params.energy_pct_cost);
+            Params.scenario,Params.r_pp,Params.r_wedge_pp,Params.f_htc,Params.minhouse,Params.rentprice,Params.f_coll,Params.houseservices,Params.cpi,Params.pv_pct_cost,Params.energy_pct_cost);
         if isfinite(F)
             fprintf("F = %.2f \n", F);
         else

@@ -2,7 +2,7 @@ function c=Electrify_HouseholdConsumptionFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-    r_pp,r_r_wedge_pp,f_htc,rentprice,agej_pct_cost,pv_pct_cost,energy_pct_cost)
+    r_pp,r_wedge_pp,f_htc,rentprice,agej_pct_cost,pv_pct_cost,energy_pct_cost)
 
 % Housing matters
 rentalcosts=0;
@@ -58,7 +58,7 @@ c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqS_pp+AccidentBeqAH_pp+(hc
 c=c+(1+agej_pct_cost)*energy_pct_cost*(solarpv/2)*ypp;
 if a<0
     % Subtract loan interest by adding a negative number
-    c=c+(1+r_r_wedge_pp)*a;
+    c=c+(1+r_pp+r_wedge_pp)*a;
 else
     % Add deposit interest
     c=c+(1+r_pp)*a;
