@@ -7,11 +7,12 @@
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
 
-solve_GE=true;
-solve_TPath=false;
+solve_GE=false;
+solve_TPath=true;
 % If true, shrink n_z down to 3 (the min for discretization)
 % and make e parameter always zero (no e_grid)
 small_z_no_e=false;
+solve_demographic_change=true;
 
 Names_i={'household','firm','energy'};
 PTypeDistParamNames={'ptypemass'};
@@ -87,7 +88,7 @@ else
 end
 
 %% Grids to use for firm
-n_d.firm=101; % Dividend payment
+n_d.firm=201; % Dividend payment
 n_a.firm=201; % Capital holdings
 if small_z_no_e
     n_z.firm=1;
@@ -232,6 +233,10 @@ sj_init(end)=0; % In the present model the last period (j=J) value of sj is actu
 sj_final=prod(1-reshape([dj(1:2:10), repelem(dj(11:15), 3), dj(16:Params.ypp*ceil(101/Params.ypp)-5)],[Params.ypp,ceil(101/Params.ypp)]),1);
 sj_final=sj_final(1+ceil(20/Params.ypp):ceil(20/Params.ypp)+N_j.household); % Just the ages we are using (20yo and up)
 sj_final(end)=0; % In the present model the last period (j=J) value of sj is actually irrelevant
+
+if ~solve_demographic_change
+    sj_final=sj_init;
+end
 
 %% Setup for sj and mewj transitions (T-by-N_j)
 % 40 years of changing demographics
@@ -522,8 +527,6 @@ vfoptions.divideandconquer.household = 1;
 vfoptions.gridinterplayer.firm       = 0;
 vfoptions.ngridinterp.firm           = 11;
 vfoptions.divideandconquer.firm      = 0;
-vfoptions.level1n.household          = 11;
-vfoptions.level1n.firm               = 11;
 simoptions.gridinterplayer = vfoptions.gridinterplayer;
 simoptions.ngridinterp     = vfoptions.ngridinterp;
 
@@ -605,6 +608,9 @@ FnsToEvaluate.Sissued.firm = @(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjco
     Electrify_FirmShareIssuance(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % Share issuance
 FnsToEvaluate.CorpTaxRevenue.firm = @(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
     Electrify_FirmCorporateTaxRevenue(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % revenue from the corporate profits tax
+
+% From energy -- there must be at least one
+FnsToEvaluate.Zero.energy = @(aprime,a,z) 0;
 
 % General Equilibrium conditions (these should evaluate to zero in general equilbrium)
 GeneralEqmEqns.sharemarket = @(S) S-1; % mass of all shares equals one
@@ -707,7 +713,7 @@ Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Para
 
 
 %% Solve for the General Equilibrium
-% if solve_GE
+if solve_GE
     % heteroagentoptions.fminalgo=4 % CMA-ES algorithm 
     
     heteroagentoptions.verbose=1;
@@ -715,7 +721,7 @@ Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Para
         heteroagentoptions.toleranceGEprices=10^(-4);
         heteroagentoptions.toleranceGEcondns=10^(-4); % This is the hard one
         if solve_TPath
-            heteroagentoptions.maxiter=200;
+            % heteroagentoptions.maxiter=200;
         end
     else
         heteroagentoptions.toleranceGEprices=10^(-2);
@@ -806,11 +812,37 @@ Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Para
     % Double-check that the general eqm is accurate before we start the
     % transition path, because if it is not then it won't solve
     GEcondns_final
-% end
 
     %%
+
     save tpathElectrifyB.mat
-    % load tpathElectrifyB.mat
+else
+    load tpathElectrifyB.mat
+end % solve_GE
+
+    if ~solve_demographic_change
+        % TESTING!  This resets our GEqm to initial rather than final state
+        p_eqm_final=p_eqm_init;
+        Params.pension=p_eqm_final.pension;
+        Params.AccidentBeqS_pp=p_eqm_final.AccidentBeqS_pp;
+        if Params.scenario==3
+            Params.AccidentBeqAH_pp=p_eqm_final.AccidentBeqAH_pp;
+        end
+        Params.G_pp=p_eqm_final.G_pp;
+        Params.w=p_eqm_final.w;
+        Params.firmbeta=p_eqm_final.firmbeta;
+        Params.D_pp=p_eqm_final.D_pp;
+        Params.P0=p_eqm_final.P0;
+    
+        % Evaluate the final stationary general eqm
+        [V_final, Policy_final]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
+        StationaryDist_final=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_final,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
+        % Calculate various stats
+        AllStats_final=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
+        % Calculate the life-cycle profiles
+        AgeConditionalStats_final=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_final,Policy_final, FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+    end
+
 if solve_TPath
     %% Setup for the transition path
     % T=100; % number of periods for transition path
@@ -853,14 +885,14 @@ if solve_TPath
     transpathoptions.GEnewprice=3;
     % Need to explain to transpathoptions how to use the GeneralEqmEqns to update the general eqm transition prices (in PricePath).
     transpathoptions.GEnewprice3.howtoupdate=... % a row is: GEcondn, price, add, factor
-        {'labormarket','w',0,0.02;... % labormarket GE condition will be positive if w is too big, so subtract
-        'firmdiscounting','firmbeta',0,0.02;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
-        'dividends','D_pp',0,0.02;... % dividends GE condition will be positive if D_pp is too big, so subtract
-        'ShareIssuance','P0',0,0.02;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
-        'pensions','pension',0,0.02;... % pensions GE condition will be positive if pension is too big, so subtract
-        'govbudgetbalance','G_pp',0,0.02;... % govbudget GE condition will be positive if G_pp is too big, so subtract
-        'bequestsS_pp','AccidentBeqS_pp',1,0.02;... % bequests GE condition will be negative if BeqS_pp is too big, so add
-        'bequestsAH_pp','AccidentBeqAH_pp',1,0.02;... % bequests GE condition will be negative if BeqAH_pp is too big, so add
+        {'labormarket','w',0,0.03;... % labormarket GE condition will be positive if w is too big, so subtract
+        'firmdiscounting','firmbeta',0,0.03;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
+        'dividends','D_pp',0,0.03;... % dividends GE condition will be positive if D_pp is too big, so subtract
+        'ShareIssuance','P0',0,0.03;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
+        'pensions','pension',0,0.03;... % pensions GE condition will be positive if pension is too big, so subtract
+        'govbudgetbalance','G_pp',0,0.03;... % govbudget GE condition will be positive if G_pp is too big, so subtract
+        'bequestsS_pp','AccidentBeqS_pp',1,0.01;... % bequests GE condition will be negative if BeqS_pp is too big, so add
+        'bequestsAH_pp','AccidentBeqAH_pp',1,0.01;... % bequests GE condition will be negative if BeqAH_pp is too big, so add
         };
     if Params.scenario<3
         mask=strcmp(transpathoptions.GEnewprice3.howtoupdate(:,1),'bequestsAH_pp');
@@ -871,12 +903,15 @@ if solve_TPath
     % Notice that this adds factor*GEcondn_value when add=1 and subtracts it what add=0
     % A small 'factor' will make the convergence to solution take longer, but too large a value will make it 
     % unstable (fail to converge). Technically this is the damping factor in a shooting algorithm.
+
+    % TESTING -- pensions doesn't depend on PType
+    % transpathoptions.GEptype={'pensions'};
     
     %% Solve the transition path
     % Setup the options relating to the transition path
     transpathoptions.verbose=1;
-    transpathoptions.maxiterations=25; % default is 1000
-    transpathoptions.fastOLG=1;
+    transpathoptions.maxiter=50; % default is 1000
+    transpathoptions.fastOLG=1; % PTypes will force this on `simoptions` so match that energy
     transpathoptions.graphpricepath=1; % plots of the ParamPath that get updated every interation
     transpathoptions.graphaggvarspath=1; % plots of the AggVarsPath that get updated every iteration
     
@@ -923,7 +958,7 @@ if solve_TPath
     title('Path of wage rate (w)')
 
 
-end % Otherwise we can use initial guesses set for Params
+end % solve_TPath
 
 % Can just use the same FnsToEvaluate as before.
 AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);

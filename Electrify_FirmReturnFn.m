@@ -38,7 +38,7 @@ s=dividend_pp+invest+capitaladjcost-(profit-tau_corp*T);
 if s>=0 % enforce that 'no share repurchases allowed'
     F=((1-tau_d)/(1-tau_cg))*dividend_pp-s;
     % Disfavor discrepencies between dividends paid and expected (D)
-    F=F-(D_pp-dividend_pp)^2;
+    F=F-10*(D_pp-dividend_pp)^2;
 end
 
 % Note: dividend payments cannot be negative is enforced by the grid on
