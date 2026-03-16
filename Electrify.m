@@ -7,8 +7,32 @@
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
 
-solve_GE=true;
-solve_TPath=false;
+%% Basic statistical abstract (NZD)
+% NZ GDP: $440B ($80K per capita, $152K per employed worker)
+% NZ Wages: $60K living, $70K median, $80K average * 2.9M workers = $232B wages
+% NZ Energy:    - 525 PJ/year
+%   Oil         - 270 PJ
+%   Electricity - 144 PJ
+%   Gas         -  58 PJ
+%   Biomass     -  40 PJ
+%   Coal        -  18 PJ
+% NZ Electricity retail: $350/MWh
+% NZ HH Energy: 20 kWh/day electricity =>  7 MWh/year =>  $2500/year => 3.5% wages
+% NZ HH Energy: 73 kWh/day overall     => 27 MWh/year => $10000/year => 14.0% wages
+% NZ Firm Energy retail: $150/MWh
+%   Transport    - 200 PJ
+%   Industrial   - 160 PJ
+%   Commercial   -  55 PJ
+%   Ag,Forest,Fish- 30 PJ
+%   Total: 445 PJ => 125 TWh => $20B energy costs => 4.5% of 440B GDP
+% Energy is 8.6% of Labor costs
+% Net capital stocks of NZ $1,329B less $690B real estate = $630B
+% K/L = $630B/232B = 2.72
+
+solve_GE_init=true;
+solve_GE_final=true;
+
+solve_TPath=true;
 % If true, shrink n_z down to 3 (the min for discretization)
 % and make e parameter always zero (no e_grid).firm
 small_z_no_e=true;
@@ -38,12 +62,16 @@ Params.J=ceil((max_age(Params.scenario)-Params.agejshifter)/Params.ypp); % =60/y
 N_j.household=Params.J; % Number of periods in finite horizon
 
 jpT=1; % Default: one transition period=1 time period; Could have multiple j's per T
-T=ceil(Params.J/jpT);
+T=ceil(Params.J*1.5/jpT);
+if T==Params.J
+    % The toolkit thinks that T and J must be different (T larger to reach equilibrium post J)
+    T=T+1;
+end
 
 % ParamPath on Ek (Energy Use) and ek (Energy Efficiency)
 % More transitions down in the demographics section
-ParamPath.Ek=linspace(1,0.5,T); Params.Ek=ParamPath.Ek(1);
-ParamPath.ek=linspace(1,2,T); Params.ek=ParamPath.ek(1);
+ParamPath.Ek=linspace(1,1.2,T); Params.Ek=ParamPath.Ek(1);
+ParamPath.ek=linspace(1,1.5,T); Params.ek=ParamPath.ek(1);
 
 % Model inflation as a series of 10-year supply-side shocks across 100 year transition period
 % These are shocks above "normal" cpi inflation
@@ -52,12 +80,18 @@ shock_years=(1+shock_period:shock_period:max_age(Params.scenario)+1);
 % Exponentially increasing every shock_period years from from ~2% to ~7% after initial shock-free period
 shock_pct=[zeros(1,shock_period), repelem(cumsum(exp((shock_years-(shock_period+1))/64)/50),1,shock_period)];
 
-% Translate shock years into transition periods
-ParamPath.cpi=shock_pct(1:jpT:Params.J);  Params.cpi=ParamPath.cpi(1);
+% Translate shock years into periods and periods into transition periods
+ParamPath.cpi=shock_pct(1:Params.ypp:Params.J*Params.ypp); % CPI per period j
+ParamPath.cpi(end+1:T*jpT)=ParamPath.cpi(end); % CPI extended to the jth period implied by final T
+ParamPath.cpi=ParamPath.cpi(1:jpT:T); % CPI on a per transition period basis
+Params.cpi=ParamPath.cpi(1);
 
 % Steady increase of fossil costs above "normal" cpi inflation
-energy_years=1.01.^((0:Params.J-1)*Params.ypp);
-ParamPath.cpi_energy=energy_years(ceil(size(energy_years,1)/2),:); Params.cpi_energy=ParamPath.cpi_energy(1);
+ParamPath.cpi_energy=1.01.^((0:Params.J-1)*Params.ypp); % Params.J periods of energy cost increases
+% Translate energy periods (j) into transition periods
+ParamPath.cpi_energy(end+1:T*jpT)=ParamPath.cpi_energy(end); % Energy cost increases extended to the jth period implied by final T
+ParamPath.cpi_energy=ParamPath.cpi_energy(1:jpT:T); % Energy cost increases on a per transition period basis
+Params.cpi_energy=ParamPath.cpi_energy(1);
 
 
 %% Grid sizes to use for household
@@ -96,7 +130,7 @@ if Params.scenario<4
     n_d.firm=101; % Dividend payment
     n_a.firm=201; % Capital holdings
 else
-    n_d.firm=101; % Electrification investment
+    n_d.firm=2; % Not Yet Used: Electrification investment
     n_a.firm=[51,51]; % Capital holdings and PV assets
 end
 if small_z_no_e
@@ -278,22 +312,11 @@ if ~solve_demographic_change
 end
 
 %% Setup for sj and mewj transitions (T-by-N_j)
-% 40 years of changing demographics
-% 60 years in final demographic state (to allow time to converge to final stationary general eqm)
-% Conditional survival probabilities
-ParamPath.sj=[sj_init+(sj_final-sj_init).*linspace(0,1,ceil(40/Params.ypp))'; sj_final.*ones(ceil(60/Params.ypp),1)];
-Params.sj=ParamPath.sj(1,:); % conditional survival probabilities (will be overwritten, just want it for setup)
-ParamPath.sj=ParamPath.sj(1:Params.J,:);
-% T-by-N_j (whether this or N_j-by_T, toolkit understands both)
-% Calculate the implied mewj from the sj
-ParamPath.mewj=cumprod([ones(T,1), ParamPath.sj(:,1:end-1)], 2); % mass of age jj is the mass of jj-1 that survive
-% Factor in population growth; In N_j dimension, older people are from earlier (smaller) populations
-% ...in the T dimension, we see overall population growth as T increases
-ParamPath.mewj=ParamPath.mewj./((1+Params.n_pp).^(Params.ypp*((1:Params.J)-1))); % Population shrinks in the N_j dimension
-ParamPath.mewj=ParamPath.mewj.*((1+Params.n_pp).^(Params.ypp*jpT*((1:T)-1)))'; % Population grows in the T dimension
-ParamPath.mewj=ParamPath.mewj./sum(ParamPath.mewj,2); % normalize age-masses to sum to one
-Params.mewj=ParamPath.mewj(1,:);
-% Looking at ParamPath.mewj you can see that as tt increases, the mass at older ages increases
+% We defer doing transition maths until we calculate GE final
+Params.sj=sj_init;
+Params.mewj=cumprod([1,Params.sj(1:end-1)],2); % mass of age jj is the mass of jj-1 that survive
+Params.mewj=Params.mewj./((1+Params.n_pp).^(Params.ypp*((1:Params.J)-1))); % Population shrinks in the N_j dimension
+Params.mewj=Params.mewj./sum(Params.mewj); % normalize age-masses to sum to one
 
 % Note: This is rather incomplete, as really you should also have
 % population growth rate n. But this does not change any thing in terms of
@@ -374,7 +397,12 @@ else
     
     % age20avgincome=Params.w*Params.kappa_j(1);
     % house_grid=[0; logspace(2*age20avgincome, 12*age20avgincome, 5)'];
-    house_grid=(0:1:n_a.household(4)-1)';
+    if Params.scenario<4
+        house_grid=(0:1:n_a.household(3)-1)';
+    else
+        house_grid=(0:1:n_a.household(4)-1)';
+    end
+
     % Note, we can see from w*kappa_j*z and the values of these, that average
     % income is going to be around one, so will just use this simpler house grid
     % [We can think about the values of the house_grid as being relative the average income (or specifically average at a given age)]
@@ -400,10 +428,18 @@ else
     %  3=keep house; no pv upgrade
     %  4=keep house; pv upgrade (if possible)
     %  5=testing (not used)
-    buyhouse_grid=(0:1:n_d.household(3)-1)';
+    if Params.scenario<4
+        buyhouse_grid=(0:1:n_d.household(2)-1)';
+    else
+        buyhouse_grid=(0:1:n_d.household(3)-1)';
+    end
     
     % kW of solar generation installed, 10 kW per grid element
-    solarpv_grid=(0:1:n_a.household(5)-1)';
+    if Params.scenario<4
+        solarpv_grid=(0:1:n_a.household(4)-1)';
+    else
+        solarpv_grid=(0:1:n_a.household(5)-1)';
+    end
     
     d_grid.household=[labor_grid; buycar_grid; buyhouse_grid];
     a_grid.household=[share_grid; asset_grid; car_grid; house_grid; solarpv_grid];
@@ -585,11 +621,11 @@ else
     ReturnFn.firm=@( ...
             electrification,kprime,pvprime,k,pv,z, ...
             w, ...
-            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg ...
+            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek ...
         ) Electrify_4FirmReturnFn( ...
             electrification,kprime,pvprime,k,pv,z, ...
             w, ...
-            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg ...
+            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek ...
         );
 end
 
@@ -733,16 +769,20 @@ else
     FnsToEvaluate.L_f.firm = @(electrification,kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) ...
         (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm, not scaled by ypp
     FnsToEvaluate.K.firm = @(electrification,kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) k; % physical capital
-    FnsToEvaluate.D_pp.firm = @(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
-        Electrify_4FirmDividend(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % dividend paid by firm
-    FnsToEvaluate.Sissued.firm = @(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
-        Electrify_4FirmShareIssuance(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % Share issuance
-    FnsToEvaluate.CorpTaxRevenue.firm = @(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
-        Electrify_4FirmCorporateTaxRevenue(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % revenue from the corporate profits tax
+    FnsToEvaluate.D_pp.firm = @(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek) ...
+        Electrify_4FirmDividend(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek); % dividend paid by firm
+    FnsToEvaluate.Sissued.firm = @(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek) ...
+        Electrify_4FirmShareIssuance(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek); % Share issuance
+    FnsToEvaluate.CorpTaxRevenue.firm = @(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek) ...
+        Electrify_4FirmCorporateTaxRevenue(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek); % revenue from the corporate profits tax
 end
 
 % From energy -- there must be at least one
-FnsToEvaluate.Zero.energy = @(invest,aprime,a,z) 0;
+if Params.scenario<4
+    FnsToEvaluate.Zero.energy = @(aprime,a,z) 0;
+else
+    FnsToEvaluate.Zero.energy = @(invest,aprime,a,z) 0;
+end
 
 % General Equilibrium conditions (these should evaluate to zero in general equilbrium)
 GeneralEqmEqns.sharemarket = @(S) S-1; % mass of all shares equals one
@@ -782,8 +822,11 @@ if Params.scenario<4
     FnsToEvaluate2.Output.firm = @(d,kprime,k,z,w,ypp,alpha_k,alpha_l) ...
         z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
 else
-    FnsToEvaluate2.Output.firm = @(electrification,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l) ...
-        z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
+    FnsToEvaluate2.PV.firm = @(electrification,kprime,pvprime,k,pv,z) pv;
+    FnsToEvaluate2.Output.firm = @(electrification,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek) ...
+        (Ek*ek)*z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
+    FnsToEvaluate2.EnergyCosts.firm = @(electrification,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek) ...
+        Electrify_4FirmEnergyCosts(electrification,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek);
 end
 
 % Note: I keep the FnsToEvaluate use in general eqm to a minimum (to reduce
@@ -894,7 +937,7 @@ Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Para
 
 
 %% Solve for the General Equilibrium
-if solve_GE
+if solve_GE_init
     % heteroagentoptions.fminalgo=4 % CMA-ES algorithm 
     
     heteroagentoptions.verbose=1;
@@ -958,14 +1001,37 @@ if solve_GE
        % initial agent distribution to be a stationary dist (it is in this
        % example, but does not need to be for transition paths)
     
+    % Just to see it...
+    GEcondns_init
+    
     %%
     save tpathElectrifyA.mat
     % load tpathElectrifyA.mat
+else
+    load tpathElectrifyA.mat
+    solve_GE_final=true;
+    solve_TPath=true;
+end
+
+if solve_GE_final
+    % 40 years of changing demographics
+    % 60 years in final demographic state (to allow time to converge to final stationary general eqm)
+    % Conditional survival probabilities
+    ParamPath.sj=[sj_init+(sj_final-sj_init).*linspace(0,1,ceil(40/(Params.ypp*jpT)))'; sj_final.*ones(T-ceil(40/(Params.ypp*jpT)),1)];
+    % T-by-N_j (whether this or N_j-by_T, toolkit understands both)
+    % Calculate the implied mewj from the sj
+    ParamPath.mewj=cumprod([ones(T,1), ParamPath.sj(:,1:end-1)], 2); % mass of age jj is the mass of jj-1 that survive
+    % Factor in population growth; In N_j dimension, older people are from earlier (smaller) populations
+    % ...in the T dimension, we see overall population growth as T increases
+    ParamPath.mewj=ParamPath.mewj./((1+Params.n_pp).^(Params.ypp*((1:Params.J)-1))); % Population shrinks in the N_j dimension
+    ParamPath.mewj=ParamPath.mewj.*((1+Params.n_pp).^(Params.ypp*jpT*((1:T)-1)))'; % Population grows in the T dimension
+    ParamPath.mewj=ParamPath.mewj./sum(ParamPath.mewj,2); % normalize age-masses to sum to one
+    % Looking at ParamPath.mewj you can see that as tt increases, the mass at older ages increases
 
     %% Solve for final stationary general eqm with Params at time T
     Params.Ek=ParamPath.Ek(T);
     Params.ek=ParamPath.ek(T);
-    Params.sj=ParamPath.sj(T,:);
+    Params.sj=ParamPath.sj(T,:); % conditional survival probabilities
     Params.mewj=ParamPath.mewj(T,:);
     Params.cpi=ParamPath.cpi(T);
     Params.cpi_energy=ParamPath.cpi_energy(T);
@@ -1004,6 +1070,7 @@ if solve_GE
     save tpathElectrifyB.mat
 else
     load tpathElectrifyB.mat
+    solve_TPath=true;
 end % solve_GE
 
     if ~solve_demographic_change

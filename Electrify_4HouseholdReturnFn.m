@@ -5,12 +5,17 @@ function F=Electrify_4HouseholdReturnFn( ...
     scenario,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi_cost,pv_pct_cost,energy_pct_cost ...
     )
 % Get rid of progressive taxes
+% Implement depreciation model:
+%   Car services A(t) = (1-delta_a)*A(t-1) + I(a,t)
+%   Housing services H(t) = (1-delta_h)*H(t-1) + I(h,t)
+%   delta_a is high depreciation; delta_h is low depreciation
 
 % Note: experienceasset, so first inputs are (d,a,z,e,...)
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
 F=-Inf;
 
+%% Housing matters
 if buyhouse==0
     if hprime~=0
         % Forbid owning house when buyhouse=0
@@ -23,7 +28,6 @@ elseif buyhouse>=3
     end
 end
 
-% Housing matters
 rentalcosts=rentprice*ypp;
 hs=1; % Housing services (based on housing stock)
 htc=0; % house transaction cost
@@ -68,6 +72,41 @@ if (sprime-s>0 && aprime+hprimecost<0 ...             % Cannot buy shares with n
     return 
 end
 
+%% Car matters
+% buycar decisions
+    %  0=no car
+    %  1=buy petrol car
+    %  2=buy EV
+    %  3=keep car
+if buycar==0
+    if cprime~=0
+        % Forbid trying to owning a car when buycar=0
+        return
+    end
+elseif buycar==3
+    if cprime==0 || cprime~=car
+        % Forbid selling/changing car we say we are keeping
+        return
+    end
+end
+sigma_c=sigma_h/3;
+% Car costs 50% annual wage, or can trade at 25% annual wage
+if cprime==0
+    if car>0
+        carcost=-0.25*(1+cpi_cost);
+    else
+        carcost=0;
+    end
+elseif cprime==3
+    carcost=3;
+else
+    if car==0
+        carcost=0.5*(1+cpi_cost);
+    else
+        carcost=0.25*(1+cpi_cost);
+    end
+end
+
 % We can get P (share price) from the equation that defines r as the return to the mutual fund
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
 % We are looking at stationary general eqm, so
@@ -98,8 +137,16 @@ end
 c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation, and scaled energy costs
 c=c-htc-rentalcosts-hcost*0.02*ypp-pvinstallcost-(1+cpi_cost)*energy_pct_cost*max(h^1.5,1)*ypp;
+% ...subtract car costs (purchase, sale, and/or maintenance)
+if carcost~=0
+    c=c-carcost;
+if cprime>0
+    % annual insurance, maintenance, WOF, fuel etc.
+    % TODO: sort petrol vs. electric
+    c=c-0.10*ypp;
+end
 
-% If we are aiming for a starter loan, what loan can we afford?
+% If we are aiming for a starter loan, what loan can we afford?  Car not included
 net_worth_prime=P*sprime+aprime+hprimecost;
 if aprime<0 && agej*ypp<11
     maxloan=-0.5*((10+ypp)-agej*ypp)/10;
@@ -117,7 +164,7 @@ if aprime<0 && agej*ypp<11
 end
 
 if c>0
-    F=(((c^(1-sigma_h))*(hs^sigma_h))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
+    F=(((c^(1-sigma_h-sigma_c))*(hs^sigma_h)*(carservices_j^sigma_c))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
 end
 
 % Warm-glow bequest; must handle aprime<0
