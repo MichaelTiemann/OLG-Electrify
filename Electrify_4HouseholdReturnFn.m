@@ -1,5 +1,5 @@
 function F=Electrify_4HouseholdReturnFn( ...
-    labor,buycar,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
+    labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
     scenario,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi_cost,pv_pct_cost,energy_pct_cost ...
@@ -73,22 +73,6 @@ if (sprime-s>0 && aprime+hprimecost<0 ...             % Cannot buy shares with n
 end
 
 %% Car matters
-% buycar decisions
-    %  0=no car
-    %  1=buy petrol car
-    %  2=buy EV
-    %  3=keep car
-if buycar==0
-    if cprime~=0
-        % Forbid trying to owning a car when buycar=0
-        return
-    end
-elseif buycar==3
-    if cprime==0 || cprime~=car
-        % Forbid selling/changing car we say we are keeping
-        return
-    end
-end
 sigma_c=sigma_h/3;
 % Car costs 50% annual wage, or can trade at 25% annual wage
 if cprime==0
