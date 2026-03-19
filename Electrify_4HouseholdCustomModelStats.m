@@ -15,6 +15,10 @@ CFnsToEvaluate.H3sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,s
 CFnsToEvaluate.H4sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && h==4;
 CFnsToEvaluate.H_u = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (h>0); % Unit house holdings
 CFnsToEvaluate.PV_u = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (solarpv>0); % Unit solarpv holdings
+CFnsToEvaluate.no_car = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (car==0);
+CFnsToEvaluate.petrol_car = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (car==1);
+CFnsToEvaluate.ev_car = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (car==2);
+CFnsToEvaluate.error_car = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (car>2);
 
 AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,CFnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
 
@@ -32,6 +36,10 @@ hdemand_total=sum(hdemand);
 CustomStats.hbuyers_total=sum(sum(round(hbuyers),2).*hunits);
 CustomStats.hsellers_total=sum(sum(round(hsellers),2).*hunits);
 CustomStats.hdemand_total=hdemand_total;
+CustomStats.no_car=sum(1000*AgeConditionalStats.no_car.Mean.*Parameters.mewj);
+CustomStats.petrol_car=sum(1000*AgeConditionalStats.petrol_car.Mean.*Parameters.mewj);
+CustomStats.ev_car=sum(1000*AgeConditionalStats.ev_car.Mean.*Parameters.mewj);
+CustomStats.error_car=sum(1000*AgeConditionalStats.error_car.Mean.*Parameters.mewj);
 
 if false
     pvals=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions);

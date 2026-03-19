@@ -29,14 +29,17 @@ addpath(genpath('./MatlabToolkits/'))
 % Net capital stocks of NZ $1,329B less $690B real estate = $630B
 % K/L = $630B/232B = 2.72
 
+solve_setup=true;
 solve_GE_init=true;
 solve_GE_final=true;
 
 solve_TPath=true;
 % If true, shrink n_z down to 3 (the min for discretization)
 % and make e parameter always zero (no e_grid).firm
-small_z_no_e=true;
+small_z_no_e=false;
 solve_demographic_change=true;
+
+if solve_setup
 
 Names_i={'firm','household','energy'};
 PTypeDistParamNames={'ptypemass'};
@@ -53,7 +56,7 @@ Params.scenario=4;
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
 % Discounting parameters (beta_pp and sj) defined in terms of ypp
-Params.ypp=5; % model period, in years (just used this to modify some parameters from annual to model period)
+Params.ypp=6; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
 max_age=[100,100,100,100];
@@ -62,7 +65,7 @@ Params.J=ceil((max_age(Params.scenario)-Params.agejshifter)/Params.ypp); % =60/y
 N_j.household=Params.J; % Number of periods in finite horizon
 
 jpT=1; % Default: one transition period=1 time period; Could have multiple j's per T
-T=ceil(Params.J*1.5/jpT);
+T=ceil(Params.J*1.1/jpT);
 if T==Params.J
     % The toolkit thinks that T and J must be different (T larger to reach equilibrium post J)
     T=T+1;
@@ -105,9 +108,9 @@ else
     if Params.scenario<4
         % 21,33,4,5 => labor strike
         % 15,23,4,5 => ok
-        n_a.household=[5,31,4,5]; % Endogenous shares, assets (>=6), housing (>=2), and solarpv (5) assets (0-60 kW generation)
+        n_a.household=[5,31,4,5]; % Endogenous shares, assets (>=6), housing (>=2), and solarpv (>=2) assets (0-60 kW generation)
     else
-        n_a.household=[5,31,3,4,5]; % Endogenous shares, assets (>=6), car (3), housing (>=2), and solarpv (5) assets (0-60 kW generation)
+        n_a.household=[5,31,3,4,3]; % Endogenous shares, assets (>=6), car (3), housing (>=2), and solarpv (>=2) assets (0-60 kW generation)
     end
     n_z.household=1+2*floor(1.2*log(min(Params.J,60))); % AR(1) with age-dependent params = 7 with 60 periods
     if Params.scenario<4
@@ -742,7 +745,7 @@ else
     FnsToEvaluate.BeqleftS_pp.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,sj) ...
         sprime*(1-sj); % Accidental share bequests left by people who die
     % AccidentalBeqAHLeft is zero (if in debt) or accidental asset+house bequests left by people who die
-    FnsToEvaluate.BeqleftAH_pp.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,cara,h,solarpv,z,e,scenario,sj,cpi) ...
+    FnsToEvaluate.BeqleftAH_pp.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) ...
         max(0,(aprime+(1+cpi)*hprime)*(1-sj));
     % BadDebt is the debt somebody accidentally leaves behind, or zero if net worth is positive
 end
@@ -794,19 +797,28 @@ end
 % For analysing the model
 FnsToEvaluate2=FnsToEvaluate;
 if Params.scenario<3
-    FnsToEvaluate2.earnings.household=@(labor,aprime,a,z,w,kappa_j,Lhscale) w*kappa_j*labor*exp(z)*Lhscale; % w*kappa_j is the labor earnings
+    FnsToEvaluate2.earnings.household=@(labor,aprime,a,z,e,w,kappa_j,Lhscale) w*kappa_j*labor*exp(z+e)*Lhscale; % w*kappa_j is the labor earnings
+    FnsToEvaluate2.A.household=@(labor,aprime,a,z,e,w,kappa_j,Lhscale) a; % w*kappa_j is the labor earnings
+    FnsToEvaluate2.BeqleftS_pp.household = @(labor,aprime,a,z,e,sj) aprime*(1-sj); % Accidental asset bequests left by people who die
 elseif Params.scenario<4
-    FnsToEvaluate2.earnings.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,w,kappa_j,Lhscale) w*kappa_j*labor*exp(z)*Lhscale; % w*kappa_j is the labor earnings
+    FnsToEvaluate2.earnings.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,w,kappa_j,Lhscale) w*kappa_j*labor*exp(z+e)*Lhscale; % w*kappa_j is the labor earnings
     FnsToEvaluate2.A.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) a; % Aggregate asset/mortgage holdings
+    FnsToEvaluate2.S.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) s; % Aggregate share holdings
     FnsToEvaluate2.H.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) h; % Aggregate house holdings
     FnsToEvaluate2.PV.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings
+    FnsToEvaluate2.BeqleftS_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj) sprime*(1-sj); % Accidental share bequests left by people who die
+    FnsToEvaluate2.BeqleftAH_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,cpi) max(0,(aprime+(1+cpi)*hprime)*(1-sj));
     FnsToEvaluate2.BadDebt_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,cpi) ...
         min(0,(aprime+(1+cpi)*hprime)*(1-sj));
 else
-    FnsToEvaluate2.earnings.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,w,kappa_j,Lhscale) w*kappa_j*labor*exp(z)*Lhscale; % w*kappa_j is the labor earnings
+    FnsToEvaluate2.earnings.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,w,kappa_j,Lhscale) w*kappa_j*labor*exp(z+e)*Lhscale; % w*kappa_j is the labor earnings
     FnsToEvaluate2.A.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) a; % Aggregate asset/mortgage holdings
+    FnsToEvaluate2.S.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) s; % Aggregate share holdings
+    FnsToEvaluate2.Car.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) car; % Aggregate house holdings
     FnsToEvaluate2.H.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h; % Aggregate house holdings
     FnsToEvaluate2.PV.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings
+    FnsToEvaluate2.BeqleftS_pp.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,sj) sprime*(1-sj); % Accidental share bequests left by people who die
+    FnsToEvaluate2.BeqleftAH_pp.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) max(0,(aprime+(1+cpi)*hprime)*(1-sj));
     FnsToEvaluate2.BadDebt_pp.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) ...
         min(0,(aprime+(1+cpi)*hprime)*(1-sj));
 end
@@ -823,6 +835,8 @@ end
 
 % Note: I keep the FnsToEvaluate use in general eqm to a minimum (to reduce
 % runtimes) and then use FnsToEvaluate2 to analyse model with more stats.
+% Note: FnsToEvaluate may need 'e' grids, but AggVars and other stats use a
+% a joint ze grid (which reads as z in their parameter lists).
 
 %% Now solve the value function iteration problem, just to check that things are working before we go to General Equilbrium
 disp('Test ValueFnIter')
@@ -927,6 +941,7 @@ end
 fprintf('Check: ShareIssuance GE condition \n')
 Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Params.r_pp-Params.tau_cg))-AggVars.S.Mean)
 
+end % solve_setup
 
 %% Solve for the General Equilibrium
 if solve_GE_init
@@ -997,12 +1012,24 @@ if solve_GE_init
     GEcondns_init
     
     %%
-    save tpathElectrifyA.mat
+    if solve_TPath
+        clear solve_TPath
+        save tpathElectrifyA.mat
+        solve_TPath=true;
+    else
+        clear solve_TPath
+        save tpathElectrifyA.mat
+        solve_TPath=false;
+    end
     % load tpathElectrifyA.mat
 else
-    load tpathElectrifyA.mat
-    solve_GE_final=true;
-    solve_TPath=true;
+    if solve_GE_final
+        load tpathElectrifyA.mat
+        solve_GE_final=true;
+    else
+        load tpathElectrifyA.mat
+        solve_GE_final=false;
+    end
 end
 
 if solve_GE_final
@@ -1061,8 +1088,13 @@ if solve_GE_final
 
     save tpathElectrifyB.mat
 else
-    load tpathElectrifyB.mat
-    solve_TPath=true;
+    if solve_TPath
+        load tpathElectrifyB.mat
+        solve_TPath=true;
+    else
+        load tpathElectrifyB.mat
+        solve_TPath=false;
+    end
 end % solve_GE
 
     if ~solve_demographic_change
@@ -1153,7 +1185,7 @@ if solve_TPath
     % Setup the options relating to the transition path
     transpathoptions.verbose=1;
     transpathoptions.maxiter=100; % default is 1000
-    transpathoptions.fastOLG=1; % PTypes will force this on `simoptions` so match that energy
+    transpathoptions.fastOLG=0; % PTypes will force this on `simoptions`; must we match that energy?
     transpathoptions.graphpricepath=1; % plots of the ParamPath that get updated every interation
     transpathoptions.graphaggvarspath=1; % plots of the AggVarsPath that get updated every iteration
     
@@ -1164,8 +1196,8 @@ if solve_TPath
     save tpathElectrifyC.mat
     % load tpathElectrifyC.mat
     
-    % And go!
-    [PricePath,GECondnsPath]=TransitionPath_Case1_FHorz_PType(PricePath0, ParamPath, T, V_final, AgentDist_init, jequaloneDist, n_d, n_a, n_z, N_j, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate, GeneralEqmEqns_Transition, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions);
+    % And go! (with FnsToEvaluate2)
+    [PricePath,GECondnsPath]=TransitionPath_Case1_FHorz_PType(PricePath0, ParamPath, T, V_final, AgentDist_init, jequaloneDist, n_d, n_a, n_z, N_j, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate2, GeneralEqmEqns_Transition, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions);
     
     %%
     save tpathElectrifyD.mat
@@ -1202,7 +1234,7 @@ if solve_TPath
 
 end % solve_TPath
 
-% Can just use the same FnsToEvaluate as before.
+% Can just use the same FnsToEvaluate as before (which might use e).  There is no 'e' in AggVars (or AgeConditionalStats).
 AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
 
 if max(AgeConditionalStats.S.Maximum)==share_grid(end)

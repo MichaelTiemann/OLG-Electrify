@@ -45,6 +45,9 @@ elseif dividend_pp<=0.2
     % We will issue new shares and provide a full dividend
     s=0.2-dividend_pp;
 % else we don't need to issue any new shares
+else
+    %% TESTING
+    s=1.2345;
 end
 
 end
