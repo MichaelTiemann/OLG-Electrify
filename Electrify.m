@@ -589,12 +589,12 @@ else
             labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
-            scenario,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi,pv_pct_cost,energy_pct_cost ...
+            r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi,pv_pct_cost,energy_pct_cost ...
         ) Electrify_4HouseholdReturnFn( ...
             labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
-            scenario,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi,pv_pct_cost,energy_pct_cost ...
+            r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi,pv_pct_cost,energy_pct_cost ...
         );
 end
 
@@ -679,6 +679,8 @@ Params.G_pp=0.1*Params.ypp; % Government expenditure
 
 % And some initial values/guesses for AggVar values that will be calculated while calculating the general eqm
 Params.D_pp=(1+0.10)^Params.ypp-1; % The dividends paid by the firm per period
+Params.EnergyCosts_h=0.3; % Energy used by households
+Params.EnergyCosts_f=0.7; % Energy used by firms
 
 %% General eqm variables
 if Params.scenario<3
@@ -705,93 +707,97 @@ heteroagentoptions.constrainpositive=GEPriceParamNames;
 
 % Stationary Distribution Aggregates from households (important that ordering of Names and Functions is the same)
 if Params.scenario<3
-    FnsToEvaluate.L_h.household = @(labor,sprime,s,z,e,kappa_j,Lhscale) ...
+    FnsToEvaluate.L_h.household=@(labor,sprime,s,z,e,kappa_j,Lhscale) ...
         labor*kappa_j*exp(z+e)*Lhscale;  % Aggregate labour supply in efficiency units, not scaled by ypp
-    FnsToEvaluate.S.household = @(labor,sprime,s,z,e) s; % Aggregate share holdings
-    FnsToEvaluate.PensionSpending.household = @(labor,sprime,s,z,e,pension,ypp,agej,Jr) ...
+    FnsToEvaluate.S.household=@(labor,sprime,s,z,e) s; % Aggregate share holdings
+    FnsToEvaluate.PensionSpending.household=@(labor,sprime,s,z,e,pension,ypp,agej,Jr) ...
         (agej>=Jr)*pension*ypp; % Total spending on pensions
-    FnsToEvaluate.PayrollTaxRevenue.household = @(labor,sprime,s,z,e,ypp,agej,Jr,tau_l,w,kappa_j,Lhscale) ...
+    FnsToEvaluate.PayrollTaxRevenue.household=@(labor,sprime,s,z,e,ypp,agej,Jr,tau_l,w,kappa_j,Lhscale) ...
         (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*ypp*Lhscale; % Total spending on payroll taxes
-    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,sprime,s,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
+    FnsToEvaluate.CapitalGainsTaxRevenue.household=@(labor,sprime,s,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
         tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg)))*s; % tau_cg*(P0-Plag)*s, but substitute P=Plag, and then substitute for P
-    FnsToEvaluate.BeqleftS_pp.household = @(labor,sprime,s,z,e,sj) ...
+    FnsToEvaluate.BeqleftS_pp.household=@(labor,sprime,s,z,e,sj) ...
         sprime*(1-sj); % Accidental share bequests left by people who die
 elseif Params.scenario<4
-    FnsToEvaluate.L_h.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,kappa_j,Lhscale) ...
+    FnsToEvaluate.L_h.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,kappa_j,Lhscale) ...
         labor*kappa_j*exp(z+e)*Lhscale;  % Aggregate labour supply in efficiency units, not scaled by ypp
-    FnsToEvaluate.S.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) s; % Aggregate share holdings
-    FnsToEvaluate.PensionSpending.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,pension,ypp,agej,Jr) ...
+    FnsToEvaluate.S.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) s; % Aggregate share holdings
+    FnsToEvaluate.PensionSpending.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,pension,ypp,agej,Jr) ...
         (agej>=Jr)*pension*ypp; % Total spending on pensions
-    FnsToEvaluate.PayrollTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,ypp,agej,Jr,tau_l,w,kappa_j,Lhscale) ...
+    FnsToEvaluate.PayrollTaxRevenue.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,ypp,agej,Jr,tau_l,w,kappa_j,Lhscale) ...
         (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*Lhscale*ypp; % Total spending on payroll taxes
-    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
+    FnsToEvaluate.CapitalGainsTaxRevenue.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
         tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg)))*s+(1-tau_d)*r_pp*max(a,0); % tau_cg*(P0-Plag)*s + deposit interest, but substitute P=Plag, and then substitute for P
-    FnsToEvaluate.BeqleftS_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj) ...
+    FnsToEvaluate.BeqleftS_pp.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj) ...
         sprime*(1-sj); % Accidental share bequests left by people who die
     % AccidentalBeqAHLeft is zero (if in debt) or accidental asset+house bequests left by people who die
-    FnsToEvaluate.BeqleftAH_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,cpi) ...
+    FnsToEvaluate.BeqleftAH_pp.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,cpi) ...
         max(0,(aprime+(1+cpi)*hprime)*(1-sj));
     % BadDebt is the debt somebody accidentally leaves behind, or zero if net worth is positive
 else
-    FnsToEvaluate.L_h.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,kappa_j,Lhscale) ...
+    FnsToEvaluate.L_h.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,kappa_j,Lhscale) ...
         labor*kappa_j*exp(z+e)*Lhscale;  % Aggregate labour supply in efficiency units, not scaled by ypp
-    FnsToEvaluate.S.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) s; % Aggregate share holdings
-    FnsToEvaluate.PensionSpending.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,pension,ypp,agej,Jr) ...
+    FnsToEvaluate.S.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) s; % Aggregate share holdings
+    FnsToEvaluate.PensionSpending.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,pension,ypp,agej,Jr) ...
         (agej>=Jr)*pension*ypp; % Total spending on pensions
-    FnsToEvaluate.PayrollTaxRevenue.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,ypp,agej,Jr,tau_l,w,kappa_j,Lhscale) ...
+    FnsToEvaluate.PayrollTaxRevenue.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,ypp,agej,Jr,tau_l,w,kappa_j,Lhscale) ...
         (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e)*Lhscale*ypp; % Total spending on payroll taxes
-    FnsToEvaluate.CapitalGainsTaxRevenue.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
+    FnsToEvaluate.CapitalGainsTaxRevenue.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
         tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg)))*s+(1-tau_d)*r_pp*max(a,0); % tau_cg*(P0-Plag)*s + deposit interest, but substitute P=Plag, and then substitute for P
-    FnsToEvaluate.BeqleftS_pp.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,sj) ...
+    FnsToEvaluate.BeqleftS_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,sj) ...
         sprime*(1-sj); % Accidental share bequests left by people who die
     % AccidentalBeqAHLeft is zero (if in debt) or accidental asset+house bequests left by people who die
-    FnsToEvaluate.BeqleftAH_pp.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) ...
+    FnsToEvaluate.BeqleftAH_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) ...
         max(0,(aprime+(1+cpi)*hprime)*(1-sj));
     % BadDebt is the debt somebody accidentally leaves behind, or zero if net worth is positive
+    FnsToEvaluate.EnergyCosts_h.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,w,ypp,cpi,energy_pct_cost) ...
+        Electrify_4HouseholdEnergyCosts(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,w,ypp,cpi,energy_pct_cost);
 end
 
 % From firms
 if Params.scenario<4
-    FnsToEvaluate.L_f.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) ...
+    FnsToEvaluate.L_f.firm=@(d,kprime,k,z,w,alpha_k,alpha_l) ...
         (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm, not scaled by ypp
-    FnsToEvaluate.K.firm = @(d,kprime,k,z,w,alpha_k,alpha_l) k; % physical capital
-    FnsToEvaluate.D_pp.firm = @(d,kprime,k,z,ypp) (1+d)^ypp-1; % dividend paid by firm
-    FnsToEvaluate.Sissued.firm = @(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
+    FnsToEvaluate.K.firm=@(d,kprime,k,z,w,alpha_k,alpha_l) k; % physical capital
+    FnsToEvaluate.D_pp.firm=@(d,kprime,k,z,ypp) (1+d)^ypp-1; % dividend paid by firm
+    FnsToEvaluate.Sissued.firm=@(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
         Electrify_FirmShareIssuance(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % Share issuance
-    FnsToEvaluate.CorpTaxRevenue.firm = @(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
+    FnsToEvaluate.CorpTaxRevenue.firm=@(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
         Electrify_FirmCorporateTaxRevenue(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % revenue from the corporate profits tax
 else
-    FnsToEvaluate.L_f.firm = @(kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) ...
+    FnsToEvaluate.L_f.firm=@(kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) ...
         (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm, not scaled by ypp
-    FnsToEvaluate.K.firm = @(kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) k; % physical capital
-    FnsToEvaluate.D_pp.firm = @(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek) ...
+    FnsToEvaluate.K.firm=@(kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) k; % physical capital
+    FnsToEvaluate.D_pp.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek) ...
         Electrify_4FirmDividend(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek); % dividend paid by firm
-    FnsToEvaluate.Sissued.firm = @(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek) ...
+    FnsToEvaluate.Sissued.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek) ...
         Electrify_4FirmShareIssuance(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek); % Share issuance
-    FnsToEvaluate.CorpTaxRevenue.firm = @(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek) ...
+    FnsToEvaluate.CorpTaxRevenue.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek) ...
         Electrify_4FirmCorporateTaxRevenue(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek); % revenue from the corporate profits tax
+    FnsToEvaluate.EnergyCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek) ...
+        Electrify_4FirmEnergyCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek);
 end
 
 % From energy -- there must be at least one
 if Params.scenario<4
-    FnsToEvaluate.Zero.energy = @(aprime,a,z) 0;
+    FnsToEvaluate.Revenue.energy=@(aprime,a,z) 0;
 else
-    FnsToEvaluate.Zero.energy = @(invest,aprime,a,z) 0;
+    FnsToEvaluate.Revenue.energy=@(invest,aprime,a,z,EnergyCosts_h,EnergyCosts_f) EnergyCosts_h+EnergyCosts_f;
 end
 
 % General Equilibrium conditions (these should evaluate to zero in general equilbrium)
-GeneralEqmEqns.sharemarket = @(S) S-1; % mass of all shares equals one
-GeneralEqmEqns.labormarket = @(L_h,L_f) (Params.scenario+1)*(L_h-L_f)*Params.ypp; % labor supply of households equals labor demand of firms (scaled by ypp)
-GeneralEqmEqns.pensions = @(PensionSpending,PayrollTaxRevenue) PensionSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue: pension*fractionretired-tau*w*H
-GeneralEqmEqns.govbudget = @(G_pp,tau_d,D_pp,CapitalGainsTaxRevenue,CorpTaxRevenue) G_pp-tau_d*D_pp-CapitalGainsTaxRevenue-CorpTaxRevenue; % G is equal to the target, GdivYtarget*Y
-GeneralEqmEqns.firmdiscounting = @(firmbeta,r_pp,tau_cg) firmbeta-1/(1+r_pp/(1-tau_cg)); % Firms discount rate is related to market return rate
-% GeneralEqmEqns.dividends = @(D_pp,D_pp) (Params.scenario+1)*(D_pp-D_pp); % That the dividend households receive equals that which firms give
-GeneralEqmEqns.ShareIssuance = @(Sissued,P0,D_pp,tau_cg,tau_d,r_pp) ...
+GeneralEqmEqns.sharemarket=@(S) S-1; % mass of all shares equals one
+GeneralEqmEqns.labormarket=@(L_h,L_f) (Params.scenario+1)*(L_h-L_f)*Params.ypp; % labor supply of households equals labor demand of firms (scaled by ypp)
+GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue) PensionSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue: pension*fractionretired-tau*w*H
+GeneralEqmEqns.govbudget=@(G_pp,tau_d,D_pp,CapitalGainsTaxRevenue,CorpTaxRevenue) G_pp-tau_d*D_pp-CapitalGainsTaxRevenue-CorpTaxRevenue; % G is equal to the target, GdivYtarget*Y
+GeneralEqmEqns.firmdiscounting=@(firmbeta,r_pp,tau_cg) firmbeta-1/(1+r_pp/(1-tau_cg)); % Firms discount rate is related to market return rate
+% GeneralEqmEqns.dividends=@(D_pp,D_pp) (Params.scenario+1)*(D_pp-D_pp); % That the dividend households receive equals that which firms give
+GeneralEqmEqns.ShareIssuance=@(Sissued,P0,D_pp,tau_cg,tau_d,r_pp) ...
     P0-((((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
-GeneralEqmEqns.CapitalOutputRatio = @(K,L_f,TargetKdivL) (K/L_f-TargetKdivL)/100; % Ratio not based on ypp
-GeneralEqmEqns.bequestsS_pp = @(BeqleftS_pp,AccidentBeqS_pp,n_pp) BeqleftS_pp/(1+n_pp)-AccidentBeqS_pp; % Accidental share bequests received equal accidental share bequests left
+GeneralEqmEqns.CapitalOutputRatio=@(K,L_f,TargetKdivL) (K/L_f-TargetKdivL)/100; % Ratio not based on ypp
+GeneralEqmEqns.bequestsS_pp=@(BeqleftS_pp,AccidentBeqS_pp,n_pp) BeqleftS_pp/(1+n_pp)-AccidentBeqS_pp; % Accidental share bequests received equal accidental share bequests left
 if Params.scenario>2
-    GeneralEqmEqns.bequestsAH_pp = @(BeqleftAH_pp,AccidentBeqAH_pp,n_pp) BeqleftAH_pp/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
+    GeneralEqmEqns.bequestsAH_pp=@(BeqleftAH_pp,AccidentBeqAH_pp,n_pp) BeqleftAH_pp/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
 end
 
 % For analysing the model
@@ -799,38 +805,36 @@ FnsToEvaluate2=FnsToEvaluate;
 if Params.scenario<3
     FnsToEvaluate2.earnings.household=@(labor,aprime,a,z,e,w,kappa_j,Lhscale) w*kappa_j*labor*exp(z+e)*Lhscale; % w*kappa_j is the labor earnings
     FnsToEvaluate2.A.household=@(labor,aprime,a,z,e,w,kappa_j,Lhscale) a; % w*kappa_j is the labor earnings
-    FnsToEvaluate2.BeqleftS_pp.household = @(labor,aprime,a,z,e,sj) aprime*(1-sj); % Accidental asset bequests left by people who die
+    FnsToEvaluate2.BeqleftS_pp.household=@(labor,aprime,a,z,e,sj) aprime*(1-sj); % Accidental asset bequests left by people who die
 elseif Params.scenario<4
     FnsToEvaluate2.earnings.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,w,kappa_j,Lhscale) w*kappa_j*labor*exp(z+e)*Lhscale; % w*kappa_j is the labor earnings
-    FnsToEvaluate2.A.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) a; % Aggregate asset/mortgage holdings
-    FnsToEvaluate2.S.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) s; % Aggregate share holdings
-    FnsToEvaluate2.H.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) h; % Aggregate house holdings
-    FnsToEvaluate2.PV.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings
-    FnsToEvaluate2.BeqleftS_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj) sprime*(1-sj); % Accidental share bequests left by people who die
-    FnsToEvaluate2.BeqleftAH_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,cpi) max(0,(aprime+(1+cpi)*hprime)*(1-sj));
-    FnsToEvaluate2.BadDebt_pp.household = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,cpi) ...
+    FnsToEvaluate2.A.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) a; % Aggregate asset/mortgage holdings
+    FnsToEvaluate2.S.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) s; % Aggregate share holdings
+    FnsToEvaluate2.H.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) h; % Aggregate house holdings
+    FnsToEvaluate2.PV.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings
+    FnsToEvaluate2.BeqleftS_pp.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,sj) sprime*(1-sj); % Accidental share bequests left by people who die
+    FnsToEvaluate2.BeqleftAH_pp.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,cpi) max(0,(aprime+(1+cpi)*hprime)*(1-sj));
+    FnsToEvaluate2.BadDebt_pp.household=@(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e,scenario,sj,cpi) ...
         min(0,(aprime+(1+cpi)*hprime)*(1-sj));
 else
     FnsToEvaluate2.earnings.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,w,kappa_j,Lhscale) w*kappa_j*labor*exp(z+e)*Lhscale; % w*kappa_j is the labor earnings
-    FnsToEvaluate2.A.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) a; % Aggregate asset/mortgage holdings
-    FnsToEvaluate2.S.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) s; % Aggregate share holdings
-    FnsToEvaluate2.Car.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) car; % Aggregate house holdings
-    FnsToEvaluate2.H.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h; % Aggregate house holdings
-    FnsToEvaluate2.PV.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings
-    FnsToEvaluate2.BeqleftS_pp.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,sj) sprime*(1-sj); % Accidental share bequests left by people who die
-    FnsToEvaluate2.BeqleftAH_pp.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) max(0,(aprime+(1+cpi)*hprime)*(1-sj));
-    FnsToEvaluate2.BadDebt_pp.household = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) ...
+    FnsToEvaluate2.A.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) a; % Aggregate asset/mortgage holdings
+    FnsToEvaluate2.S.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) s; % Aggregate share holdings
+    FnsToEvaluate2.Car.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) car; % Aggregate house holdings
+    FnsToEvaluate2.H.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h; % Aggregate house holdings
+    FnsToEvaluate2.PV.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings
+    FnsToEvaluate2.BeqleftS_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,sj) sprime*(1-sj); % Accidental share bequests left by people who die
+    FnsToEvaluate2.BeqleftAH_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) max(0,(aprime+(1+cpi)*hprime)*(1-sj));
+    FnsToEvaluate2.BadDebt_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) ...
         min(0,(aprime+(1+cpi)*hprime)*(1-sj));
 end
 if Params.scenario<4
-    FnsToEvaluate2.Output.firm = @(d,kprime,k,z,w,ypp,alpha_k,alpha_l) ...
+    FnsToEvaluate2.Output.firm=@(d,kprime,k,z,w,ypp,alpha_k,alpha_l) ...
         z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
 else
-    FnsToEvaluate2.PV.firm = @(kprime,pvprime,k,pv,z) pv;
-    FnsToEvaluate2.Output.firm = @(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek) ...
+    FnsToEvaluate2.PV.firm=@(kprime,pvprime,k,pv,z) pv;
+    FnsToEvaluate2.Output.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek) ...
         (Ek*ek)*z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
-    FnsToEvaluate2.EnergyCosts.firm = @(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek) ...
-        Electrify_4FirmEnergyCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek);
 end
 
 % Note: I keep the FnsToEvaluate use in general eqm to a minimum (to reduce
@@ -1148,9 +1152,9 @@ if solve_TPath
     GeneralEqmEqns_Transition.pensions=GeneralEqmEqns.pensions;
     GeneralEqmEqns_Transition.govbudgetbalance=GeneralEqmEqns.govbudget;
     % Note: bequests are left in t-1 and received in t
-    GeneralEqmEqns_Transition.bequestsS_pp = @(BeqleftS_pp_tminus1,AccidentBeqS_pp,n_pp) BeqleftS_pp_tminus1/(1+n_pp)-AccidentBeqS_pp; % Accidental share bequests received equal accidental share bequests left
+    GeneralEqmEqns_Transition.bequestsS_pp=@(BeqleftS_pp_tminus1,AccidentBeqS_pp,n_pp) BeqleftS_pp_tminus1/(1+n_pp)-AccidentBeqS_pp; % Accidental share bequests received equal accidental share bequests left
     if Params.scenario>2
-        GeneralEqmEqns_Transition.bequestsAH_pp = @(BeqleftAH_pp_tminus1,AccidentBeqAH_pp,n_pp) BeqleftAH_pp_tminus1/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
+        GeneralEqmEqns_Transition.bequestsAH_pp=@(BeqleftAH_pp_tminus1,AccidentBeqAH_pp,n_pp) BeqleftAH_pp_tminus1/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
     end
     
     % Note: in this example these are actually identical to the general eqm
@@ -1234,7 +1238,7 @@ if solve_TPath
 
 end % solve_TPath
 
-% Can just use the same FnsToEvaluate as before (which might use e).  There is no 'e' in AggVars (or AgeConditionalStats).
+% Can just use the same FnsToEvaluate as before
 AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
 
 if max(AgeConditionalStats.S.Maximum)==share_grid(end)
@@ -1282,7 +1286,7 @@ saveas(figure_c,'./SavedOutput/Graphs/Electrify_LifeCycleProfiles','pdf')
 
 %% Calculate some aggregates and print findings about them
 
-% Add consumption to the FnsToEvaluate
+% Add consumption to FnsToEvaluate2
 if Params.scenario<3
     FnsToEvaluate2.Consumption.household=@( ...
             labor,sprime,s,z,e, ...

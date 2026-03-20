@@ -8,8 +8,8 @@ hcost=0;
 hprimecost=0;
 if h+hprime>0
     % Houses start at 4x annual wage
-    hcost=4*h*(1+cpi_cost);
-    hprimecost=4*hprime*(1+cpi_cost);
+    hcost=3*h*w;
+    hprimecost=3*hprime*w;
 end
 
 % We can get P from the equation that defines r as the return to the mutual fund

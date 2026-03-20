@@ -2,22 +2,35 @@ function c=Electrify_4HouseholdConsumptionFn( ...
     labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-    r_pp,r_wedge_pp,f_htc,rentprice,agej_pct_cost,pv_pct_cost,energy_pct_cost)
+    r_pp,r_wedge_pp,f_htc,rentprice,cpi_cost,pv_pct_cost,energy_pct_cost)
 
-% Housing matters
-rentalcosts=0;
+% Implement depreciation model:
+%   Car services A(t) = (1-delta_a)*A(t-1) + I(a,t)
+%   Housing services H(t) = (1-delta_h)*H(t-1) + I(h,t)
+%   delta_a is high depreciation; delta_h is low depreciation
+
+% Note: experienceasset, so first inputs are (d,a,z,e,...)
+% vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
+
+carcost=0;
+rentalcosts=rentprice*w*ypp;
+hs=1; % Housing services (based on housing stock)
 htc=0; % house transaction cost
 hcost=0;
 hprimecost=0;
 pvinstallcost=0;
-if h+hprime>0
-    % Houses start at 2x annual wage
-    hcost=2*h*(1+agej_pct_cost);
-    hprimecost=2*hprime*(1+agej_pct_cost);
-elseif h==0
-    rentalcosts=rentprice*ypp;
-end
+% A Tally of energy costs, which will be deducted at the end
+energy_cost=0;
 
+if h==0
+    hs=0.5*houseservices*minhouse;
+else
+    hs=houseservices*h;
+    rentalcosts=0;
+end
+% Houses start at 3x annual wage
+hcost=3*h*w;
+hprimecost=3*hprime*w;
 % Make buying/selling a house costly/illiquid
 if hprime~=h
     htc=f_htc*(hcost+hprimecost);
@@ -30,14 +43,30 @@ if buyhouse==2 || buyhouse==4
         pvinstallcost=Inf;
     elseif h==hprime
         % Pay the retrofit penalty
-        pvinstallcost=1.1*pv_pct_cost*(1+agej_pct_cost)*h;
+        pvinstallcost=1.1*pv_pct_cost*hcost;
     else % Changing house
         % PV costs approximately 5% of new house ($30K system for $600K house)
-        pvinstallcost=pv_pct_cost*(1+agej_pct_cost)*hprime;
+        pvinstallcost=pv_pct_cost*hprimecost;
     end
 end
 
-% We can get P from the equation that defines r as the return to the mutual fund
+%% Car matters
+% Car costs 50% annual wage, or can trade at 25% annual wage
+if cprime==0
+    if car>0
+        carcost=-0.25*w; % Selling a car: get back 1/2 of what was paid for it
+    end
+else
+    if car==0
+        carcost=0.5*w; % Buying from scratch; pay full price (50% of w)
+    elseif cprime~=car
+        carcost=0.25*w; % Trading up; pay half price with trade-in
+    end
+    % annual insurance, maintenance, WOF, etc.
+    carcost=carcost+0.05*w*ypp;
+end
+
+% We can get P (share price) from the equation that defines r as the return to the mutual fund
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
 % We are looking at stationary general eqm, so
 % Plag=P;
@@ -52,20 +81,40 @@ if agej<Jr % If working age
 else % Retirement
     c=pension*ypp;
 end
-% Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
+% Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + net housing assets
 c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqS_pp+AccidentBeqAH_pp+(hcost-hprimecost);
-% PV generation: 30kW (2 solar units) meets h==1 energy needs
-c=c+(1+agej_pct_cost)*energy_pct_cost*(solarpv/2)*ypp;
-if a<0
-    % Subtract loan interest by adding a negative number
+if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
+    % Subtract loan interest by adding diminishing assets
     c=c+(1+r_pp+r_wedge_pp)*a;
 else
-    % Add deposit interest
+    % Deposit interest included in augmented assets
     c=c+(1+r_pp)*a;
 end
 % ...subtract capital gains tax and next period share, asset holdings
 c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
-% ...subtract housing-related costs:  pv installation/upgrade, house transaction costs, rental or home maintenance costs, and scaled energy costs
-c=c-htc-rentalcosts-hcost*0.02*ypp-pvinstallcost-(1+agej_pct_cost)*energy_pct_cost*max(h^1.5,1)*ypp;
+% ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation
+c=c-htc-rentalcosts-hcost*0.02*ypp-pvinstallcost;
+
+% ...subtract car costs (purchase, sale, and/or maintenance)
+if carcost~=0
+    c=c-carcost;
+    % Energy costs...
+    if car==1
+        energy_cost=energy_cost+0.05*w*ypp;
+    else
+        if solarpv>0.5
+            solarpv=solarpv-0.5;
+        else
+            energy_pct_cost=energy_pct_cost+0.02;
+        end
+    end
+end
+% Add cost of housing
+energy_cost=energy_cost+(1+cpi_cost)*energy_pct_cost*max(h^1.5,1)*ypp;
+% PV generation: 30kW (2 solar units) meets h==1 energy needs
+energy_cost=energy_cost-(1+cpi_cost)*energy_pct_cost*(solarpv/2)*ypp;
+
+c=c-energy_cost;
+
 
 end
