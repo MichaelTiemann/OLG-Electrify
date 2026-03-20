@@ -21,7 +21,7 @@ y_energy_cost=0.045*y; % Assume energy cost is 4.5% of firm production
 pv_cost_offset=pv*1/21000;
 
 % 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$630B = 0.00035
-new_pv_cost=(pvprime-pv)*1/3000;
+new_pv_cost=(pvprime-pv)*1000/3000;
 
 % Profit
 profit_pp=y-w*l*ypp-y_energy_cost+pv_cost_offset*ypp;
@@ -40,13 +40,20 @@ T=profit_pp-delta_pp*k-phi*capitaladjcost_pp;
 
 % This is the marginal dividend payable without allocating new shares
 s=0;
+mid_dividend_pp=1.2^ypp-1;
 dividend_pp=s+(profit_pp-tau_corp*T)-invest_pp-capitaladjcost_pp;
 if dividend_pp<0
     % We will issue new shares and provide a discounted dividend
-    dividend_pp=0.1;
+    low_dividend_pp=1.1^ypp-1;
+    s=low_dividend_pp-dividend_pp;
+    dividend_pp=low_dividend_pp;
 elseif dividend_pp<=0.2
     % We will issue new shares and provide a full dividend
-    dividend_pp=0.2;
+    s=mid_dividend_pp-dividend_pp;
+    dividend_pp=mid_dividend_pp;
+else
+    % We don't need to issue shares and can pay rich dividend
 end
+
 
 end

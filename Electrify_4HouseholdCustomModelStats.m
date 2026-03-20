@@ -13,12 +13,14 @@ CFnsToEvaluate.H1sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,s
 CFnsToEvaluate.H2sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && h==2;
 CFnsToEvaluate.H3sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && h==3;
 CFnsToEvaluate.H4sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && h==4;
+CFnsToEvaluate.H1 = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h==1; % Unit house holdings
+CFnsToEvaluate.H2 = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h==2; % Unit house holdings
+CFnsToEvaluate.H3 = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h==3; % Unit house holdings
 CFnsToEvaluate.H_u = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (h>0); % Unit house holdings
+CFnsToEvaluate.PV_h = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) solarpv; % total solarpv holdings
 CFnsToEvaluate.PV_u = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (solarpv>0); % Unit solarpv holdings
-CFnsToEvaluate.no_car = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (car==0);
 CFnsToEvaluate.petrol_car = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (car==1);
 CFnsToEvaluate.ev_car = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (car==2);
-CFnsToEvaluate.error_car = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (car>2);
 
 AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,CFnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
 
@@ -36,10 +38,12 @@ hdemand_total=sum(hdemand);
 CustomStats.hbuyers_total=sum(sum(round(hbuyers),2).*hunits);
 CustomStats.hsellers_total=sum(sum(round(hsellers),2).*hunits);
 CustomStats.hdemand_total=hdemand_total;
-CustomStats.no_car=sum(1000*AgeConditionalStats.no_car.Mean.*Parameters.mewj);
+CustomStats.H1=sum(1000*AgeConditionalStats.H1.Mean.*Parameters.mewj);
+CustomStats.H2=sum(1000*AgeConditionalStats.H2.Mean.*Parameters.mewj);
+CustomStats.H3=sum(1000*AgeConditionalStats.H3.Mean.*Parameters.mewj);
+CustomStats.PV_h=sum(1000*AgeConditionalStats.PV_h.Mean.*Parameters.mewj);
 CustomStats.petrol_car=sum(1000*AgeConditionalStats.petrol_car.Mean.*Parameters.mewj);
 CustomStats.ev_car=sum(1000*AgeConditionalStats.ev_car.Mean.*Parameters.mewj);
-CustomStats.error_car=sum(1000*AgeConditionalStats.error_car.Mean.*Parameters.mewj);
 
 if false
     pvals=PolicyInd2Val_FHorz(Policy,n_d,n_a,n_z,N_j,d_grid,a_grid,vfoptions);

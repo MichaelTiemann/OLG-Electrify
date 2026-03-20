@@ -18,7 +18,7 @@ y_energy_cost=0.045*y; % Assume energy cost is 4.5% of firm production
 pv_cost_offset=pv*1/21000;
 
 % 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$630B = 0.00035
-new_pv_cost=(pvprime-pv)*1/3000;
+new_pv_cost=(pvprime-pv)*1000/3000;
 
 % Profit
 profit_pp=y-w*l*ypp-y_energy_cost+pv_cost_offset*ypp;

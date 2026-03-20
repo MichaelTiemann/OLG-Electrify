@@ -36,7 +36,7 @@ solve_GE_final=true;
 solve_TPath=true;
 % If true, shrink n_z down to 3 (the min for discretization)
 % and make e parameter always zero (no e_grid).firm
-small_z_no_e=false;
+small_z_no_e=true;
 solve_demographic_change=true;
 
 if solve_setup
@@ -56,7 +56,7 @@ Params.scenario=4;
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
 % Discounting parameters (beta_pp and sj) defined in terms of ypp
-Params.ypp=6; % model period, in years (just used this to modify some parameters from annual to model period)
+Params.ypp=5; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
 max_age=[100,100,100,100];
@@ -65,7 +65,7 @@ Params.J=ceil((max_age(Params.scenario)-Params.agejshifter)/Params.ypp); % =60/y
 N_j.household=Params.J; % Number of periods in finite horizon
 
 jpT=1; % Default: one transition period=1 time period; Could have multiple j's per T
-T=ceil(Params.J*1.1/jpT);
+T=ceil(Params.J*1.4/jpT);
 if T==Params.J
     % The toolkit thinks that T and J must be different (T larger to reach equilibrium post J)
     T=T+1;
@@ -90,7 +90,7 @@ ParamPath.cpi=ParamPath.cpi(1:jpT:T); % CPI on a per transition period basis
 Params.cpi=ParamPath.cpi(1);
 
 % Steady increase of fossil costs above "normal" cpi inflation
-ParamPath.cpi_energy=1.01.^((0:Params.J-1)*Params.ypp); % Params.J periods of energy cost increases
+ParamPath.cpi_energy=1.01.^((0:Params.J-1)*Params.ypp)-1; % Params.J periods of energy cost increases
 % Translate energy periods (j) into transition periods
 ParamPath.cpi_energy(end+1:T*jpT)=ParamPath.cpi_energy(end); % Energy cost increases extended to the jth period implied by final T
 ParamPath.cpi_energy=ParamPath.cpi_energy(1:jpT:T); % Energy cost increases on a per transition period basis
@@ -198,7 +198,7 @@ rentprice=[0,0.3,0.3,0.3]; % I figured setting rent a decent fraction of income 
 Params.rentprice=rentprice(Params.scenario);
 houseservices=[0,0.5,0.5,0.5]; % housing services as a fraction of house value
 Params.houseservices=houseservices(Params.scenario);
-energy_pct_cost=[0,0.07,0.07,0.07]; % Electricity: 3%; Gas: 1-2%; Petrol: 1-2%
+energy_pct_cost=[0,0.07,0.07,0.05]; % Electricity: 3%; Gas: 1-2%; Petrol: 1-2%; Scenario 4 disaggregates petrol from this cost
 Params.energy_pct_cost=energy_pct_cost(Params.scenario);
 if Params.scenario>2
     Params.f_htc=0.05; % transaction cost of buying/selling house (is a percent of h+hprime)
@@ -523,7 +523,8 @@ else
     k_max=6+ceil(log(Params.ypp));
     k_grid_cubed=linspace(0,1,ceil(n_a.firm(1)/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
     k_grid_linear=linspace(1,k_max,floor(n_a.firm(1)/2)+1);
-    a_grid.firm=[[k_grid_cubed, k_grid_linear(2:end)]'; linspace(0,10,n_a.firm(2))'];
+    firm_pv_grid=linspace(0,20,n_a.firm(2));
+    a_grid.firm=[[k_grid_cubed, k_grid_linear(2:end)]'; firm_pv_grid'];
 end
 
 if n_z.firm==1
@@ -768,6 +769,7 @@ else
     FnsToEvaluate.L_f.firm=@(kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) ...
         (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm, not scaled by ypp
     FnsToEvaluate.K.firm=@(kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) k; % physical capital
+    FnsToEvaluate.PV_f.firm=@(kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) pv; % firm's solarPV generation capacity
     FnsToEvaluate.D_pp.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek) ...
         Electrify_4FirmDividend(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek); % dividend paid by firm
     FnsToEvaluate.Sissued.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek) ...
@@ -822,7 +824,7 @@ else
     FnsToEvaluate2.S.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) s; % Aggregate share holdings
     FnsToEvaluate2.Car.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) car; % Aggregate house holdings
     FnsToEvaluate2.H.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h; % Aggregate house holdings
-    FnsToEvaluate2.PV.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings
+    FnsToEvaluate2.PV_h.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings
     FnsToEvaluate2.BeqleftS_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,sj) sprime*(1-sj); % Accidental share bequests left by people who die
     FnsToEvaluate2.BeqleftAH_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) max(0,(aprime+(1+cpi)*hprime)*(1-sj));
     FnsToEvaluate2.BadDebt_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) ...
@@ -832,7 +834,6 @@ if Params.scenario<4
     FnsToEvaluate2.Output.firm=@(d,kprime,k,z,w,ypp,alpha_k,alpha_l) ...
         z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
 else
-    FnsToEvaluate2.PV.firm=@(kprime,pvprime,k,pv,z) pv;
     FnsToEvaluate2.Output.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek) ...
         (Ek*ek)*z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
 end
@@ -936,11 +937,11 @@ fprintf('Check: L_h, L_f, K \n')
 fprintf('Check: K/L_f (should be about 2.03) \n')
 AggVars.K.Mean/AggVars.L_f.Mean
 if Params.scenario<3
-    fprintf('Check: S \n')
-    [AggVars.S.Mean]
+    fprintf('Check: S, D_pp \n')
+    [AggVars.S.Mean,AggVars.D_pp.Mean]
 else
-    fprintf('Check: S, A, H, PV \n')
-    [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV.Mean]
+    fprintf('Check: S, A, H, PV_h, PV_f \n')
+    [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean,AggVars.PV_f.Mean]
 end
 fprintf('Check: ShareIssuance GE condition \n')
 Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Params.r_pp-Params.tau_cg))-AggVars.S.Mean)
@@ -1251,7 +1252,7 @@ if Params.scenario>2
     if max(AgeConditionalStats.H.Maximum)==house_grid(end)
         warning("house_grid maximum reached")
     end
-    if max(AgeConditionalStats.PV.Maximum)==solarpv_grid(end)
+    if max(AgeConditionalStats.PV_h.Maximum)==solarpv_grid(end)
         warning("solarpv_grid maximum reached")
     end
 end

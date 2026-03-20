@@ -44,7 +44,7 @@ hs=1; % Housing services (based on housing stock)
 htc=0; % house transaction cost
 pvinstallcost=0;
 % A Tally of energy costs, which will be deducted at the end
-energy_cost=0;
+energy_cost_pp=0;
 
 if h==0
     hs=0.5*houseservices*minhouse;
@@ -122,7 +122,7 @@ if carcost~=0
     c=c-carcost;
     % Energy costs...
     if car==1
-        energy_cost=energy_cost+0.05*w*ypp;
+        energy_cost_pp=energy_cost_pp+0.05*w*ypp;
     else
         if solarpv>0.5
             solarpv=solarpv-0.5;
@@ -131,12 +131,10 @@ if carcost~=0
         end
     end
 end
-% Add cost of housing
-energy_cost=energy_cost+(1+cpi_cost)*energy_pct_cost*max(h^1.5,1)*ypp;
-% PV generation: 30kW (2 solar units) meets h==1 energy needs
-energy_cost=energy_cost-(1+cpi_cost)*energy_pct_cost*(solarpv/2)*ypp;
+% Add cost of housing energy; PV generation: 30kW (2 solar units) meets h==1 energy needs
+energy_cost_pp=energy_cost_pp+(1+cpi_cost)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
 
-c=c-energy_cost;
+c=c-energy_cost_pp;
 
 % If we are aiming for a starter loan, what loan can we afford?  Car not included
 net_worth_prime=P*sprime+aprime+hprimecost;
