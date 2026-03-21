@@ -1,7 +1,7 @@
 function F=Electrify_4FirmReturnFn( ...
     electrification,kprime,pvprime,k,pv,z, ...
     w, ...
-    ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek)
+    ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,carbon_tax)
 % Whether we set it up so that dividends or equity issuance is the decision
 % variable is unimportant, here I use dividends as the decision variable.
 
@@ -9,39 +9,41 @@ function F=Electrify_4FirmReturnFn( ...
 
 F=-Inf;
 
-% Cannot uninstall PVs
-if pvprime < pv || pvprime-pv > 2
-    return
-end
+% Cannot uninstall PVs; disregard negative PVs so we can trim the grid
+% if pvprime < pv || pv<0
+%     return
+% end
 
 % We can solve a static problem to get the firm labor input
 l=(w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % This is just w=Marg. Prod. Labor, but rearranged
 
 % Output.  See https://profstevekeen.substack.com/p/the-role-of-energy-in-economics
 % We could use (Ek*ek)^alpha_k or (Ek*ek) as part of the TFP multiplier
-y=(Ek*ek)*z*(k^alpha_k)*(l^alpha_l)*ypp;
+y_pp=(Ek*ek)*z*(k^alpha_k)*(l^alpha_l)*ypp;
 
-% If Y is full GDP ($440B), then Ek=125 TWh and ek=$440B/125TWh=$3.52/kWh
+% If Y is full GDP ($440B), then Ek=125 TWh and ek=$440B/125TWh=$3.52 GDP/kWh
 % 69 TWh to be electrified (56 TWh already renewable); need 46,000 MW generation
-y_energy_cost=0.045*y; % Assume energy cost is 4.5% of firm production
-% 200GWh PV/year * 1000 MWh/GWh * $150/MWh = $30M PV/year (vs $630B)
-pv_cost_offset=pv*1/21000;
+y_carbon_tax=76.4e6*carbon_tax/440e9; % Energy sector emitted 76.4 Mt CO2e; social cost of carbon = NZD $2450 / tCO2e
+y_energy_cost_pp=0.045*y_pp; % Assume energy cost is 4.5% of firm production
+% 200GWh PV/year * 1000 MWh/GWh * $150/MWh = $30M/PV/year (vs $440B)
+% 69 TWh to electrify = $10350M total costs
+pv_cost_offset_pp=min(pv*ypp*30/10350,y_energy_cost_pp);
 
-% 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$630B = 0.00035
-new_pv_cost=(pvprime-pv)*1000/3000;
+% 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$440B = 0.0005 max GDP
+new_pv_cost=(pvprime-pv)*1/2000;
 
 % Profit
-profit_pp=y-w*l*ypp-y_energy_cost+pv_cost_offset*ypp;
+profit_pp=y_pp-w*l*ypp-y_energy_cost_pp+pv_cost_offset_pp-new_pv_cost-y_carbon_tax;
 
 % Investment
 delta_pp=(1+delta)^ypp-1;
-invest_pp=kprime-(1-delta)^ypp*k+new_pv_cost;
+invest_pp=kprime-(1-delta)^ypp*k;
 
 % Capital-adjustment costs
 capitaladjcost_pp=(capadjconstant/2)*((invest_pp/(k*ypp)-delta_pp)^2) *(k*ypp); 
 
 % Taxable corporate income
-T=profit_pp-delta_pp*k-phi*capitaladjcost_pp;
+T=max(profit_pp-delta_pp*k-phi*capitaladjcost_pp,0);
 % -delta_pp*k: investment expensing
 % phi is the fraction of capitaladjcost that can be deducted from corporate taxes
 
@@ -58,7 +60,7 @@ if dividend_pp<0
     low_dividend_pp=1.1^ypp-1;
     s=low_dividend_pp-dividend_pp;
     dividend_pp=low_dividend_pp;
-elseif dividend_pp<=0.2
+elseif dividend_pp<mid_dividend_pp
     % We will issue new shares and provide a full dividend
     s=mid_dividend_pp-dividend_pp;
     dividend_pp=mid_dividend_pp;
@@ -70,7 +72,7 @@ end
 if s>=0 % enforce that 'no share repurchases allowed'
     % When tau_d==tau_cg, F=profit-invest-capitaladjcost-tau_corp*(profit-delta_pp*k-phi*capitaladjcost)
     % Add term to prefer greater Y and dividends closer to 20%
-    F=(((1-tau_d)/(1-tau_cg))*dividend_pp-s)+y*(1-(dividend_pp-mid_dividend_pp)^2)/10;
+    F=(((1-tau_d)/(1-tau_cg))*dividend_pp-s)+y_pp*(1-(dividend_pp-mid_dividend_pp)^2)/10;
 end
 
 % Note: dividend payments cannot be negative is enforced by the grid on

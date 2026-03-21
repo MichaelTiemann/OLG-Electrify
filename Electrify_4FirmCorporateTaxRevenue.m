@@ -1,4 +1,4 @@
-function revenue=Electrify_4FirmCorporateTaxRevenue(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek)
+function revenue=Electrify_4FirmCorporateTaxRevenue(electrification,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,carbon_tax)
 % Whether we set it up so that dividends or equity issuance is the decision
 % variable is unimportant, here I use dividends as the decision variable.
 
@@ -9,19 +9,21 @@ l=(w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % This is just w=Marg. Prod. Labo
 
 % Output.  See https://profstevekeen.substack.com/p/the-role-of-energy-in-economics
 % We could use (Ek*ek)^alpha_k or (Ek*ek) as part of the TFP multiplier
-y=(Ek*ek)*z*(k^alpha_k)*(l^alpha_l)*ypp;
+y_pp=(Ek*ek)*z*(k^alpha_k)*(l^alpha_l)*ypp;
 
-% If Y is full GDP ($440B), then Ek=125 TWh and ek=$440B/125TWh=$3.52/kWh
+% If Y is full GDP ($440B), then Ek=125 TWh and ek=$440B/125TWh=$3.52 GDP/kWh
 % 69 TWh to be electrified (56 TWh already renewable); need 46,000 MW generation
-y_energy_cost=0.045*y; % Assume energy cost is 4.5% of firm production
-% 200GWh PV/year * 1000 MWh/GWh * $150/MWh = $30M PV/year (vs $630B)
-pv_cost_offset=pv*1/21000;
+y_carbon_tax=76.4e6*carbon_tax/440e9; % Energy sector emitted 76.4 Mt CO2e; social cost of carbon = NZD $2450 / tCO2e
+y_energy_cost_pp=(0.045+y_carbon_tax)*y_pp; % Assume energy cost is 4.5% of firm production
+% 200GWh PV/year * 1000 MWh/GWh * $150/MWh = $30M PV/year (vs $440B)
+% 69 TWh to electrify = $10350M total costs
+pv_cost_offset_pp=min(pv*ypp*30/10350,y_energy_cost_pp);
 
-% 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$630B = 0.00035
-new_pv_cost=(pvprime-pv)*1000/3000;
+% 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$440B = 0.0005 max GDP
+new_pv_cost=(pvprime-pv)*1/2000;
 
 % Profit
-profit_pp=y-w*l*ypp-y_energy_cost+pv_cost_offset*ypp;
+profit_pp=y_pp-w*l*ypp-y_energy_cost_pp+pv_cost_offset_pp-new_pv_cost;
 
 % Investment
 delta_pp=(1+delta)^ypp-1;

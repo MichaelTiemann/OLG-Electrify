@@ -2,7 +2,7 @@ function F=Electrify_HouseholdReturnFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
-    scenario,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,cpi_cost,pv_pct_cost,energy_pct_cost ...
+    scenario,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,cpi,pv_pct_cost,energy_pct_cost ...
     )
 % Get rid of progressive taxes
 
@@ -38,8 +38,8 @@ if scenario==3
         rentalcosts=0;
     end
     % Houses start at 2x annual wage
-    hcost=2*h*(1+cpi_cost);
-    hprimecost=2*hprime*(1+cpi_cost);
+    hcost=2*h*(1+cpi);
+    hprimecost=2*hprime*(1+cpi);
     % Make buying/selling a house costly/illiquid
     if hprime~=h
         htc=f_htc*(hcost+hprimecost);
@@ -86,7 +86,7 @@ end
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
 c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqS_pp+AccidentBeqAH_pp+(hcost-hprimecost);
 % PV generation: 30kW (2 solar units) meets h==1 energy needs
-c=c+(1+cpi_cost)*energy_pct_cost*(solarpv/2)*ypp;
+c=c+(1+cpi)*energy_pct_cost*(solarpv/2)*ypp;
 if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
     % Subtract loan interest by adding diminishing assets
     c=c+(1+r_pp+r_wedge_pp)*a;
@@ -97,7 +97,7 @@ end
 % ...subtract capital gains tax and next period share, asset holdings
 c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation, and scaled energy costs
-c=c-htc-rentalcosts-hcost*0.02*ypp-pvinstallcost-(1+cpi_cost)*energy_pct_cost*max(h^1.5,1)*ypp;
+c=c-htc-rentalcosts-hcost*0.02*ypp-pvinstallcost-(1+cpi)*energy_pct_cost*max(h^1.5,1)*ypp;
 
 % If we are aiming for a starter loan, what loan can we afford?
 net_worth_prime=P*sprime+aprime+hprimecost;

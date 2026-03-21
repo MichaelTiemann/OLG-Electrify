@@ -1,7 +1,7 @@
-function energy_cost_pp=Electrify_4FirmEnergyCosts( ...
+function y_energy_cost_pp=Electrify_4FirmEnergyCosts( ...
     electrification,kprime,pvprime,k,pv,z, ...
     w, ...
-    ypp,alpha_k,alpha_l,Ek,ek)
+    ypp,alpha_k,alpha_l,Ek,ek,carbon_tax)
 % Ek is the energy required by capital allocation k
 % ek is the energy efficiency (more is better, like TPF)
 
@@ -14,6 +14,7 @@ y_pp=(Ek*ek)*z*(k^alpha_k)*(l^alpha_l)*ypp;
 
 % If Y is full GDP ($440B), then Ek=125 TWh and ek=$440B/125TWh=$3.52/kWh
 % 69 TWh to be electrified (56 TWh already renewable); need 46,000 MW generation
-energy_cost_pp=0.045*y_pp; % Assume energy cost is 4.5% of firm production
+y_carbon_tax=76.4e6*carbon_tax/440e9; % Energy sector emitted 76.4 Mt CO2e; social cost of carbon = NZD $2450 / tCO2e
+y_energy_cost_pp=(0.045+y_carbon_tax)*y_pp; % Assume energy cost is 4.5% of firm production
 
 end

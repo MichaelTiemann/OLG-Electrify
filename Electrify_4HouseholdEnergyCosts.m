@@ -17,7 +17,7 @@ energy_cost_pp=0;
 if car>0
     % Energy costs...
     if car==1
-        energy_cost_pp=energy_cost_pp+0.05*w*ypp;
+        energy_cost_pp=energy_cost_pp+0.02*w*ypp;
     else
         if solarpv>0.5
             solarpv=solarpv-0.5;
@@ -26,8 +26,15 @@ if car>0
         end
     end
 end
+
 % Add cost of housing
 energy_cost_pp=energy_cost_pp+(1+cpi_cost)*energy_pct_cost*max(h^1.5,1)*ypp;
+
+if car~=2
+    % car batteries make solarpv more effective...
+    solarpv=solarpv/2;
+end
+
 % PV generation: 30kW (2 solar units) meets h==1 energy needs
 energy_cost_pp=energy_cost_pp-(1+cpi_cost)*energy_pct_cost*(solarpv/2)*ypp;
 

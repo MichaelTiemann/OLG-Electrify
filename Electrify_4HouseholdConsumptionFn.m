@@ -2,7 +2,7 @@ function c=Electrify_4HouseholdConsumptionFn( ...
     labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-    r_pp,r_wedge_pp,f_htc,rentprice,cpi_cost,pv_pct_cost,energy_pct_cost)
+    r_pp,r_wedge_pp,f_htc,rentprice,energy_cpi_cost,pv_pct_cost,energy_pct_cost)
 
 % Implement depreciation model:
 %   Car services A(t) = (1-delta_a)*A(t-1) + I(a,t)
@@ -14,23 +14,21 @@ function c=Electrify_4HouseholdConsumptionFn( ...
 
 carcost=0;
 rentalcosts=rentprice*w*ypp;
-hs=1; % Housing services (based on housing stock)
 htc=0; % house transaction cost
-hcost=0;
-hprimecost=0;
 pvinstallcost=0;
 % A Tally of energy costs, which will be deducted at the end
 energy_cost_pp=0;
 
+% Housing services (based on housing stock)
 if h==0
     hs=0.5*houseservices*minhouse;
 else
     hs=houseservices*h;
     rentalcosts=0;
 end
-% Houses start at 3x annual wage
-hcost=3*h*w;
-hprimecost=3*hprime*w;
+% Houses start at 4x annual wage
+hcost=4*h*w;
+hprimecost=4*hprime*w;
 % Make buying/selling a house costly/illiquid
 if hprime~=h
     htc=f_htc*(hcost+hprimecost);
@@ -58,12 +56,16 @@ if cprime==0
     end
 else
     if car==0
-        carcost=0.5*w; % Buying from scratch; pay full price (50% of w)
+        if cprime==1
+            carcost=0.25*w; % Buying from scratch; cheap petrol car
+        else
+            carcost=0.5*w; % Buying from scratch; pay full price (50% of w)
+        end
     elseif cprime~=car
-        carcost=0.25*w; % Trading up; pay half price with trade-in
+        carcost=0.25*w; % Trading cars; pay half price (25%) with trade-in
     end
     % annual insurance, maintenance, WOF, etc.
-    carcost=carcost+0.05*w*ypp;
+    carcost=carcost+0.02*w*ypp;
 end
 
 % We can get P (share price) from the equation that defines r as the return to the mutual fund
@@ -100,7 +102,7 @@ if carcost~=0
     c=c-carcost;
     % Energy costs...
     if car==1
-        energy_cost_pp=energy_cost_pp+0.05*w*ypp;
+        energy_cost_pp=energy_cost_pp+0.02*w*ypp;
     else
         if solarpv>0.5
             solarpv=solarpv-0.5;
@@ -108,11 +110,21 @@ if carcost~=0
             energy_pct_cost=energy_pct_cost+0.02;
         end
     end
+else
+    % Public transportation cost...
+    c=c-0.2*w;
 end
+
 % Add cost of housing
-energy_cost_pp=energy_cost_pp+(1+cpi_cost)*energy_pct_cost*max(h^1.5,1)*ypp;
+energy_cost_pp=energy_cost_pp+(1+energy_cpi_cost)*energy_pct_cost*max(h^1.5,1)*ypp;
+
+if car~=2
+    % car batteries make solarpv more effective...
+    solarpv=solarpv/2;
+end
+
 % PV generation: 30kW (2 solar units) meets h==1 energy needs
-energy_cost_pp=energy_cost_pp-(1+cpi_cost)*energy_pct_cost*(solarpv/2)*ypp;
+energy_cost_pp=energy_cost_pp-(1+energy_cpi_cost)*energy_pct_cost*(solarpv/2)*ypp;
 
 c=c-energy_cost_pp;
 
