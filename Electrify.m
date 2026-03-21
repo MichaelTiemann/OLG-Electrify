@@ -29,8 +29,8 @@ addpath(genpath('./MatlabToolkits/'))
 % Net capital stocks of NZ $1,329B less $690B real estate = $630B
 % K/L = $630B/232B = 2.72
 
-solve_setup=true;
-solve_GE_init=true;
+solve_setup=false;
+solve_GE_init=false;
 solve_GE_final=true;
 
 solve_TPath=true;
@@ -625,11 +625,11 @@ else
     ReturnFn.firm=@( ...
             kprime,pvprime,k,pv,z, ...
             w, ...
-            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,carbon_tax ...
+            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max,carbon_tax ...
         ) Electrify_4FirmReturnFn( ...
             0,kprime,pvprime,k,pv,z, ...
             w, ...
-            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,carbon_tax ...
+            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max,carbon_tax ...
         );
 end
 
@@ -676,6 +676,7 @@ simoptions.gridinterplayer = vfoptions.gridinterplayer;
 % Steering GE
 Params.TargetKdivL=2.03;
 Params.r_pp=(1+r)^Params.ypp-1;
+Params.pv_max=firm_pv_grid(end);
 
 % Solved by GE
 
@@ -778,14 +779,14 @@ else
         (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm, not scaled by ypp
     FnsToEvaluate.K.firm=@(kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) k; % physical capital
     FnsToEvaluate.PV_f.firm=@(kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) pv; % firm's solarPV generation capacity
-    FnsToEvaluate.D_pp.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,carbon_tax) ...
-        Electrify_4FirmDividend(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,carbon_tax); % dividend paid by firm
-    FnsToEvaluate.Sissued.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,carbon_tax) ...
-        Electrify_4FirmShareIssuance(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,carbon_tax); % Share issuance
-    FnsToEvaluate.CorpTaxRevenue.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,carbon_tax) ...
-        Electrify_4FirmCorporateTaxRevenue(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,carbon_tax); % revenue from the corporate profits tax
-    FnsToEvaluate.EnergyCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,carbon_tax) ...
-        Electrify_4FirmEnergyCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,carbon_tax);
+    FnsToEvaluate.D_pp.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax) ...
+        Electrify_4FirmDividend(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax); % dividend paid by firm
+    FnsToEvaluate.Sissued.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax) ...
+        Electrify_4FirmShareIssuance(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax); % Share issuance
+    FnsToEvaluate.CorpTaxRevenue.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax) ...
+        Electrify_4FirmCorporateTaxRevenue(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax); % revenue from the corporate profits tax
+    FnsToEvaluate.EnergyCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax) ...
+        Electrify_4FirmEnergyCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax);
 end
 
 % From energy -- there must be at least one
@@ -844,6 +845,8 @@ if Params.scenario<4
 else
     FnsToEvaluate2.Output.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek) ...
         (Ek*ek)*z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
+    FnsToEvaluate2.CarbonCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax) ...
+        Electrify_4FirmCarbonCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax);
 end
 
 % Note: I keep the FnsToEvaluate use in general eqm to a minimum (to reduce
@@ -959,6 +962,9 @@ AggVars.K.Mean/AggVars.L_f.Mean
 if Params.scenario<3
     fprintf('Check: S, D_pp \n')
     [AggVars.S.Mean,AggVars.D_pp.Mean]
+elseif Params.scenario<4
+    fprintf('Check: S, A, H, PV_h\n')
+    [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean]
 else
     fprintf('Check: S, A, H, PV_h, PV_f \n')
     [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean,AggVars.PV_f.Mean]
@@ -1051,6 +1057,31 @@ else
     if solve_GE_final
         load tpathElectrifyA.mat
         solve_GE_final=true;
+
+        Params.pv_max=firm_pv_grid(end);
+        ReturnFn.firm=@( ...
+            kprime,pvprime,k,pv,z, ...
+            w, ...
+            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max,carbon_tax ...
+        ) Electrify_4FirmReturnFn( ...
+            0,kprime,pvprime,k,pv,z, ...
+            w, ...
+            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max,carbon_tax ...
+        );
+        FnsToEvaluate.D_pp.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax) ...
+            Electrify_4FirmDividend(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax); % dividend paid by firm
+        FnsToEvaluate.Sissued.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax) ...
+            Electrify_4FirmShareIssuance(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax); % Share issuance
+        FnsToEvaluate.CorpTaxRevenue.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax) ...
+            Electrify_4FirmCorporateTaxRevenue(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax); % revenue from the corporate profits tax
+        FnsToEvaluate.EnergyCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax) ...
+            Electrify_4FirmEnergyCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax);
+        FnsToEvaluate2.D_pp.firm=FnsToEvaluate.D_pp.firm;
+        FnsToEvaluate2.Sissued.firm=FnsToEvaluate.Sissued.firm;
+        FnsToEvaluate2.CorpTaxRevenue.firm=FnsToEvaluate.CorpTaxRevenue.firm;
+        FnsToEvaluate2.EnergyCosts_f.firm=FnsToEvaluate.EnergyCosts_f.firm;
+        FnsToEvaluate2.CarbonCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax) ...
+            Electrify_4FirmCarbonCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax);
     else
         load tpathElectrifyA.mat
         solve_GE_final=false;
@@ -1081,6 +1112,57 @@ if solve_GE_final
     Params.cpi=ParamPath.cpi(T);
     Params.cpi_energy=ParamPath.cpi_energy(T);
 
+if true
+    ParamPath.Ek=linspace(1,1.2,T); Params.Ek=ParamPath.Ek(1);
+    ParamPath.ek=linspace(1,1.2,T); Params.ek=ParamPath.ek(1);
+    Tx=T;
+    Params.ek=ParamPath.ek(Tx);
+    Params.carbon_tax=ParamPath.carbon_tax(Tx);
+    Params.sj=ParamPath.sj(Tx,:); % conditional survival probabilities
+    Params.mewj=ParamPath.mewj(Tx,:);
+    Params.cpi=ParamPath.cpi(Tx);
+    Params.cpi_energy=ParamPath.cpi_energy(Tx);
+    [V_f, Policy_f]=ValueFnIter_Case1_PType(n_d,n_a,n_z, {'firm'}, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
+    % We can plot V as a 3d plot (surf is matlab command for 3d plot)
+    figure(1)
+    subplot(2,1,1);
+    % Plot F as K vs PV
+    surf(firm_pv_grid,k_grid,V_f.firm(:,:,4))
+    title('Value function: F as K vs PV')
+    xlabel('PV')
+    ylabel('K')
+end
+
+    %% Let's take a quick look at what we have calculated, namely V and Policy
+
+    % Evaluate the final stationary general eqm
+    disp('Test ValueFnIter')
+    [V_final, Policy_final]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
+    disp('Test StationaryDist')
+    StationaryDist_final=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_final,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
+    disp('Test AggVars')
+    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j,Names_i, d_grid, a_grid, z_grid,simoptions);
+
+    % Next few lines were used to try a few parameter values so as to get a
+    % decent initial guess before actually solving the general equilbrium
+    fprintf('Check: L_h, L_f, K \n')
+    [AggVars.L_h.Mean,AggVars.L_f.Mean,AggVars.K.Mean]
+    fprintf('Check: K/L_f (should be about 2.03) \n')
+    AggVars.K.Mean/AggVars.L_f.Mean
+    if Params.scenario<3
+        fprintf('Check: S, D_pp \n')
+        [AggVars.S.Mean,AggVars.D_pp.Mean]
+    elseif Params.scenario<4
+        fprintf('Check: S, A, H, PV_h\n')
+        [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean]
+    else
+        fprintf('Check: S, A, H, PV_h, PV_f \n')
+        [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean,AggVars.PV_f.Mean]
+    end
+    fprintf('Check: ShareIssuance GE condition \n')
+    Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Params.r_pp-Params.tau_cg))-AggVars.S.Mean)
+
+    % And now, the GE for the final conditions!
     [p_eqm_final,GEcondns_final]=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,[],pi_z,d_grid,a_grid,z_grid,jequaloneDist,ReturnFn,FnsToEvaluate,GeneralEqmEqns,Params,DiscountFactorParamNames,AgeWeightsParamNames,PTypeDistParamNames,GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
     % Done, the general eqm prices are in p_eqm
     % GEcondns tells us the values of the GeneralEqmEqns, should be near zero
@@ -1094,9 +1176,6 @@ if solve_GE_final
     Params.firmbeta=p_eqm_final.firmbeta;
     Params.P0=p_eqm_final.P0;
 
-    % Evaluate the final stationary general eqm
-    [V_final, Policy_final]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
-    StationaryDist_final=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_final,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
     % Calculate various stats
     AllStats_final=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
     % Calculate the life-cycle profiles
@@ -1121,7 +1200,7 @@ else
         load tpathElectrifyB.mat
         solve_TPath=false;
     end
-end % solve_GE
+end % solve_GE_final
 
     if ~solve_demographic_change
         % TESTING!  This resets our GEqm to initial rather than final state
@@ -1197,6 +1276,10 @@ if solve_TPath
     if Params.scenario<3
         mask=strcmp(transpathoptions.GEnewprice3.howtoupdate(:,1),'bequestsAH_pp');
         transpathoptions.GEnewprice3.howtoupdate(mask,:)=[];
+    elseif Params.scenario==4
+        for pp=1:size(transpathoptions.GEnewprice3.howtoupdate,1)
+            transpathoptions.GEnewprice3.howtoupdate{pp,4}=0.01;
+        end
     end
 
     % Note: the update is essentially new_price=price+factor*add*GEcondn_value-factor*(1-add)*GEcondn_value

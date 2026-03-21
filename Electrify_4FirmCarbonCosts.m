@@ -1,4 +1,4 @@
-function y_energy_cost_pp=Electrify_4FirmEnergyCosts( ...
+function y_carbon_cost_pp=Electrify_4FirmCarbonCosts( ...
     electrification,kprime,pvprime,k,pv,z, ...
     w, ...
     ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax)
@@ -12,8 +12,9 @@ l=(w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % This is just w=Marg. Prod. Labo
 % We could use (Ek*ek)^alpha_k or (Ek*ek) as part of the TFP multiplier
 y_pp=(Ek*ek)*z*(k^alpha_k)*(l^alpha_l)*ypp;
 
-% If Y is full GDP ($440B), then Ek=125 TWh and ek=$440B/125TWh=$3.52/kWh
+% If Y is full GDP ($440B), then Ek=125 TWh and ek=$440B/125TWh=$3.52 GDP/kWh
 % 69 TWh to be electrified (56 TWh already renewable); need 46,000 MW generation
-y_energy_cost_pp=0.045*y_pp; % Assume energy cost is 4.5% of firm production
+y_carbon_tax=76.4e6*carbon_tax/440e9; % Energy sector emitted 76.4 Mt CO2e; cost of carbon = NZD $35-$2450 / tCO2e
+y_carbon_cost_pp=y_carbon_tax*(1-pv/pv_max)*y_pp;
 
 end
