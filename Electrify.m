@@ -36,7 +36,7 @@ solve_GE_final=true;
 solve_TPath=true;
 % If true, shrink n_z down to 3 (the min for discretization)
 % and make e parameter always zero (no e_grid).firm
-small_z_no_e=true;
+small_z_no_e=false;
 solve_demographic_change=true;
 
 if solve_setup
@@ -183,9 +183,9 @@ if Params.scenario>2 && Params.ypp>1
     end
     if Params.scenario==4 && Params.ypp==5
         if small_z_no_e
-            % Lhscale(4)=1.3;
+            Lhscale(4)=1.3;
         else
-            % Lhscale(4)=1.6;
+            Lhscale(4)=0.5;
         end
     end
 end
@@ -616,7 +616,7 @@ else
 end
 
 % For firms
-DiscountFactorParamNames.firm={}; % 'firmbeta'
+DiscountFactorParamNames.firm={'firmbeta'};
 if Params.scenario<4
     % Notice we use 'Electrify_FirmReturnFn'
     ReturnFn.firm=@( ...
