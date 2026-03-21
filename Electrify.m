@@ -29,14 +29,14 @@ addpath(genpath('./MatlabToolkits/'))
 % Net capital stocks of NZ $1,329B less $690B real estate = $630B
 % K/L = $630B/232B = 2.72
 
-solve_setup=false;
-solve_GE_init=false;
+solve_setup=true;
+solve_GE_init=true;
 solve_GE_final=true;
 
 solve_TPath=true;
 % If true, shrink n_z down to 3 (the min for discretization)
 % and make e parameter always zero (no e_grid).firm
-small_z_no_e=false;
+small_z_no_e=true;
 solve_demographic_change=true;
 
 if solve_setup
@@ -76,6 +76,7 @@ end
 ParamPath.Ek=linspace(1,1.2,T); Params.Ek=ParamPath.Ek(1);
 ParamPath.ek=linspace(1,1.5,T); Params.ek=ParamPath.ek(1);
 ParamPath.carbon_tax=linspace(35,2450,T); Params.carbon_tax=ParamPath.carbon_tax(1);
+ParamPath.energy_pct_brown=linspace(80,20,T); Params.energy_pct_brown=ParamPath.carbon_tax(1);
 
 % Model inflation as a series of 10-year supply-side shocks across 100 year transition period
 % These are shocks above "normal" cpi inflation
@@ -96,7 +97,6 @@ ParamPath.cpi_energy=1.01.^((0:Params.J-1)*Params.ypp)-1; % Params.J periods of 
 ParamPath.cpi_energy(end+1:T*jpT)=ParamPath.cpi_energy(end); % Energy cost increases extended to the jth period implied by final T
 ParamPath.cpi_energy=ParamPath.cpi_energy(1:jpT:T); % Energy cost increases on a per transition period basis
 Params.cpi_energy=ParamPath.cpi_energy(1);
-
 
 %% Grid sizes to use for household
 if Params.scenario<3
@@ -154,7 +154,7 @@ if Params.scenario<4
     n_a.energy=1; % What assets?
 else
     n_d.energy=101; % Invest in PV
-    n_a.energy=101; % PV assets
+    n_a.energy=202; % PV assets
 end
 if small_z_no_e
     n_z.energy=1;
@@ -181,11 +181,17 @@ if Params.scenario>2 && Params.ypp>1
     else
         Lhscale(3:4)=0.23*ones(1,2);
     end
-    if Params.scenario==4 && Params.ypp==5 && small_z_no_e
-        Lhscale(3:4)=1.3*ones(1,2);
+    if Params.scenario==4 && Params.ypp==5
+        if small_z_no_e
+            % Lhscale(4)=1.3;
+        else
+            % Lhscale(4)=1.6;
+        end
     end
 end
-Params.Lhscale=Lhscale(Params.scenario);
+
+ParamPath.Lhscale=linspace(Lhscale(Params.scenario),2,T);
+Params.Lhscale=ParamPath.Lhscale(1);
 
 %% Parameters for households
 % Discount rate; Changed to get S to increase nearer to 1 given r=0.05
@@ -374,7 +380,7 @@ Params.rho_z_energy=0.767;
 Params.sigma_z_e_energy=0.211;
 
 % Set the firm discount factor below (as it is determined in general eqm)
-% Params.firmbeta=1/(1+Params.r_pp)/(1-Params.tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
+% Params.firmbeta=1/(1+Params.r_pp/(1-Params.tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
 
 %% Remaining Parameters will be set in GE below
 
@@ -436,13 +442,13 @@ else
     
     % kW of solar generation installed, 10 kW per grid element
     if Params.scenario<4
-        solarpv_grid=(0:1:n_a.household(4)-1)';
+        pv_grid_hh=(0:1:n_a.household(4)-1)';
     else
-        solarpv_grid=(0:1:n_a.household(5)-1)';
+        pv_grid_hh=(0:1:n_a.household(5)-1)';
     end
     
     d_grid.household=[labor_grid; buyhouse_grid];
-    a_grid.household=[share_grid; asset_grid; car_grid; house_grid; solarpv_grid];
+    a_grid.household=[share_grid; asset_grid; car_grid; house_grid; pv_grid_hh];
     
     %% Solar PV is an experience asset
     vfoptions.experienceasset.household=1;
@@ -518,7 +524,7 @@ end
 if Params.scenario<4
     d_grid.firm=linspace(0,1+floor(log(Params.ypp)),n_d.firm)'; % Notice that it is imposing the d>=0 condition implicitly
     % k_max=10 replicates OLGModel14; K>4=infeasible when ypp=1, but need more as ypp increases
-    k_max=[10,6+ceil(log(Params.ypp)),10+ceil(log(Params.ypp)),6+ceil(log(Params.ypp))];
+    k_max=[10,6+ceil(log(Params.ypp)),10+ceil(log(Params.ypp)),10+ceil(log(Params.ypp))];
     k_grid_cubed=linspace(0,1,ceil(n_a.firm/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
     k_grid_linear=linspace(1,k_max(Params.scenario),floor(n_a.firm/2)+1);
     k_grid=[k_grid_cubed, k_grid_linear(2:end)];
@@ -531,8 +537,8 @@ else
     k_grid_linear=linspace(1,k_max,floor(n_a.firm(1)/2)+1);
     k_grid=[k_grid_cubed, k_grid_linear(2:end)];
     % 300 * 200GWh PV = 60 TWh solar generation of 69 TWh current fossil sources
-    firm_pv_grid=linspace(0,100*(1+1/(n_a.firm(2)-1)),n_a.firm(2))-100/(n_a.firm(2)-1);
-    a_grid.firm=[k_grid'; firm_pv_grid'];
+    pv_grid_firm=linspace(0,100*(1+1/(n_a.firm(2)-1)),n_a.firm(2))-100/(n_a.firm(2)-1);
+    a_grid.firm=[k_grid'; pv_grid_firm'];
 end
 
 if n_z.firm==1
@@ -550,7 +556,9 @@ if Params.scenario < 4
     a_grid.energy=linspace(0,1,n_a.energy)'; % Nothing in particular
 else
     d_grid.energy=linspace(0,1,n_d.energy)'; % Notice that it is imposing the d>=0 condition implicitly
-    a_grid.energy=linspace(0,1,n_a.energy)'; % PV assets
+    % 300 * 200GWh PV = 60 TWh solar generation of 69 TWh current fossil sources
+    pv_grid_energy=linspace(0,200*(1+1/(n_a.energy-1)),n_a.energy)-100/(n_a.energy-1);
+    a_grid.energy=pv_grid_energy'; % PV assets
 end
 
 if small_z_no_e
@@ -598,17 +606,17 @@ else
             labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             sigma,psi,eta,sigma_h,sigma_c,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
-            r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi_energy,pv_pct_cost,energy_pct_cost ...
+            r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax ...
         ) Electrify_4HouseholdReturnFn( ...
             labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             sigma,psi,eta,sigma_h,sigma_c,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
-            r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi_energy,pv_pct_cost,energy_pct_cost ...
+            r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax ...
         );
 end
 
 % For firms
-DiscountFactorParamNames.firm={'firmbeta'};
+DiscountFactorParamNames.firm={}; % 'firmbeta'
 if Params.scenario<4
     % Notice we use 'Electrify_FirmReturnFn'
     ReturnFn.firm=@( ...
@@ -625,11 +633,11 @@ else
     ReturnFn.firm=@( ...
             kprime,pvprime,k,pv,z, ...
             w, ...
-            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max,carbon_tax ...
+            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max_firm,carbon_tax ...
         ) Electrify_4FirmReturnFn( ...
             0,kprime,pvprime,k,pv,z, ...
             w, ...
-            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max,carbon_tax ...
+            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max_firm,carbon_tax ...
         );
 end
 
@@ -676,13 +684,13 @@ simoptions.gridinterplayer = vfoptions.gridinterplayer;
 % Steering GE
 Params.TargetKdivL=2.03;
 Params.r_pp=(1+r)^Params.ypp-1;
-Params.pv_max=firm_pv_grid(end);
+Params.pv_max_firm=pv_grid_firm(end);
+Params.firmbeta=1/(1+Params.r_pp/(1-Params.tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
 
 % Solved by GE
 
 % Some initial values/guesses for variables that will be determined in general eqm
 Params.P0=1;
-Params.firmbeta=1/(1+Params.r_pp/(1-Params.tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
 Params.w=1;
 Params.pension=0.4; % Initial guess (this will be determined in general eqm)
 Params.G_pp=0.1*Params.ypp; % Government expenditure
@@ -691,14 +699,16 @@ Params.G_pp=0.1*Params.ypp; % Government expenditure
 Params.D_pp=(1+0.10)^Params.ypp-1; % The dividends paid by the firm per period
 Params.EnergyCosts_h=0.3; % Energy used by households
 Params.EnergyCosts_f=0.7; % Energy used by firms
+Params.CarbonCosts_h=0.05; % Carbon tax paid by households
+Params.CarbonCosts_f=0.3; % Cabron tax by firms
 
 %% General eqm variables
 if Params.scenario<3
-    GEPriceParamNames={'w','firmbeta','P0','pension','G_pp','AccidentBeqS_pp'};
+    GEPriceParamNames={'w','P0','pension','G_pp','AccidentBeqS_pp'};
 elseif Params.scenario<4
-    GEPriceParamNames={'w','firmbeta','P0','pension','G_pp','AccidentBeqS_pp','AccidentBeqAH_pp'};
+    GEPriceParamNames={'w','P0','pension','G_pp','AccidentBeqS_pp','AccidentBeqAH_pp'};
 else
-    GEPriceParamNames={'w','firmbeta','P0','pension','G_pp','AccidentBeqS_pp','AccidentBeqAH_pp'};
+    GEPriceParamNames={'w','P0','pension','G_pp','AccidentBeqS_pp','AccidentBeqAH_pp'};
 end
 heteroagentoptions.constrainpositive=GEPriceParamNames;
 
@@ -760,8 +770,10 @@ else
     FnsToEvaluate.BeqleftAH_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) ...
         max(0,(aprime+(1+cpi)*hprime)*(1-sj));
     % BadDebt is the debt somebody accidentally leaves behind, or zero if net worth is positive
-    FnsToEvaluate.EnergyCosts_h.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,w,ypp,cpi_energy,energy_pct_cost) ...
-        Electrify_4HouseholdEnergyCosts(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,w,ypp,cpi_energy,energy_pct_cost);
+    FnsToEvaluate.EnergyCosts_h.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,w,ypp,cpi_energy,energy_pct_cost,energy_pct_brown,carbon_tax) ...
+        Electrify_4HouseholdEnergyCosts(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,w,ypp,cpi_energy,energy_pct_cost,energy_pct_brown,carbon_tax);
+    FnsToEvaluate.CarbonCosts_h.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,w,ypp,cpi_energy,energy_pct_cost,energy_pct_brown,carbon_tax) ...
+        Electrify_4HouseholdCarbonCosts(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,w,ypp,cpi_energy,energy_pct_cost,energy_pct_brown,carbon_tax);
 end
 
 % From firms
@@ -779,14 +791,16 @@ else
         (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm, not scaled by ypp
     FnsToEvaluate.K.firm=@(kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) k; % physical capital
     FnsToEvaluate.PV_f.firm=@(kprime,pvprime,k,pv,z,w,alpha_k,alpha_l) pv; % firm's solarPV generation capacity
-    FnsToEvaluate.D_pp.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax) ...
-        Electrify_4FirmDividend(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax); % dividend paid by firm
-    FnsToEvaluate.Sissued.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax) ...
-        Electrify_4FirmShareIssuance(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax); % Share issuance
-    FnsToEvaluate.CorpTaxRevenue.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax) ...
-        Electrify_4FirmCorporateTaxRevenue(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax); % revenue from the corporate profits tax
-    FnsToEvaluate.EnergyCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax) ...
-        Electrify_4FirmEnergyCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax);
+    FnsToEvaluate.D_pp.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max_firm,carbon_tax) ...
+        Electrify_4FirmDividend(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max_firm,carbon_tax); % dividend paid by firm
+    FnsToEvaluate.Sissued.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max_firm,carbon_tax) ...
+        Electrify_4FirmShareIssuance(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max_firm,carbon_tax); % Share issuance
+    FnsToEvaluate.CorpTaxRevenue.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max_firm,carbon_tax) ...
+        Electrify_4FirmCorporateTaxRevenue(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max_firm,carbon_tax); % revenue from the corporate profits tax
+    FnsToEvaluate.EnergyCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max_firm,carbon_tax) ...
+        Electrify_4FirmEnergyCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max_firm,carbon_tax);
+    FnsToEvaluate.CarbonCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max_firm,carbon_tax) ...
+        Electrify_4FirmCarbonCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max_firm,carbon_tax);
 end
 
 % From energy -- there must be at least one
@@ -794,6 +808,7 @@ if Params.scenario<4
     FnsToEvaluate.EnergyRevenue.energy=@(aprime,a,z) 0;
 else
     FnsToEvaluate.EnergyRevenue.energy=@(invest,aprime,a,z,EnergyCosts_h,EnergyCosts_f) EnergyCosts_h+EnergyCosts_f;
+    FnsToEvaluate.TransitionInvestment.energy=@(invest,aprime,a,z,CarbonCosts_h,CarbonCosts_f) CarbonCosts_h+CarbonCosts_f;
 end
 
 % General Equilibrium conditions (these should evaluate to zero in general equilbrium)
@@ -801,7 +816,7 @@ GeneralEqmEqns.sharemarket=@(S) S-1; % mass of all shares equals one
 GeneralEqmEqns.labormarket=@(L_h,L_f) (Params.scenario+1)*(L_h-L_f)*Params.ypp; % labor supply of households equals labor demand of firms (scaled by ypp)
 GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue) PensionSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue: pension*fractionretired-tau*w*H
 GeneralEqmEqns.govbudget=@(G_pp,tau_d,D_pp,CapitalGainsTaxRevenue,CorpTaxRevenue) G_pp-tau_d*D_pp-CapitalGainsTaxRevenue-CorpTaxRevenue; % G is equal to the target, GdivYtarget*Y
-GeneralEqmEqns.firmdiscounting=@(firmbeta,r_pp,tau_cg) firmbeta-1/(1+r_pp/(1-tau_cg)); % Firms discount rate is related to market return rate
+% GeneralEqmEqns.firmdiscounting=@(firmbeta,r_pp,tau_cg) firmbeta-1/(1+r_pp/(1-tau_cg)); % Firms discount rate is related to market return rate
 % GeneralEqmEqns.dividends=@(D_pp,D_pp) (Params.scenario+1)*(D_pp-D_pp); % That the dividend households receive equals that which firms give
 GeneralEqmEqns.ShareIssuance=@(Sissued,P0,D_pp,tau_cg,tau_d,r_pp) ...
     P0-((((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
@@ -845,8 +860,8 @@ if Params.scenario<4
 else
     FnsToEvaluate2.Output.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek) ...
         (Ek*ek)*z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
-    FnsToEvaluate2.CarbonCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax) ...
-        Electrify_4FirmCarbonCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax);
+    FnsToEvaluate2.CarbonCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max_firm,carbon_tax) ...
+        Electrify_4FirmCarbonCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max_firm,carbon_tax);
 end
 
 % Note: I keep the FnsToEvaluate use in general eqm to a minimum (to reduce
@@ -860,7 +875,11 @@ if true
     figure(1)
     subplot(2,1,1);
     % Plot F as K vs PV
-    surf(firm_pv_grid,k_grid,V_f.firm(:,:,4))
+    if small_z_no_e
+        surf(pv_grid_firm,k_grid,V_f.firm)
+    else
+        surf(pv_grid_firm,k_grid,V_f.firm(:,:,4))
+    end
     title('Value function: F as K vs PV')
     xlabel('PV')
     ylabel('K')
@@ -1020,7 +1039,7 @@ if solve_GE_init
     end
     Params.G_pp=p_eqm_init.G_pp;
     Params.w=p_eqm_init.w;
-    Params.firmbeta=p_eqm_init.firmbeta;
+    % Params.firmbeta=p_eqm_init.firmbeta;
     Params.P0=p_eqm_init.P0;
 
     % Re-Calculate a few things related to the general equilibrium.
@@ -1057,31 +1076,6 @@ else
     if solve_GE_final
         load tpathElectrifyA.mat
         solve_GE_final=true;
-
-        Params.pv_max=firm_pv_grid(end);
-        ReturnFn.firm=@( ...
-            kprime,pvprime,k,pv,z, ...
-            w, ...
-            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max,carbon_tax ...
-        ) Electrify_4FirmReturnFn( ...
-            0,kprime,pvprime,k,pv,z, ...
-            w, ...
-            ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max,carbon_tax ...
-        );
-        FnsToEvaluate.D_pp.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax) ...
-            Electrify_4FirmDividend(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax); % dividend paid by firm
-        FnsToEvaluate.Sissued.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax) ...
-            Electrify_4FirmShareIssuance(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax); % Share issuance
-        FnsToEvaluate.CorpTaxRevenue.firm=@(kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax) ...
-            Electrify_4FirmCorporateTaxRevenue(0,kprime,pvprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max,carbon_tax); % revenue from the corporate profits tax
-        FnsToEvaluate.EnergyCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax) ...
-            Electrify_4FirmEnergyCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax);
-        FnsToEvaluate2.D_pp.firm=FnsToEvaluate.D_pp.firm;
-        FnsToEvaluate2.Sissued.firm=FnsToEvaluate.Sissued.firm;
-        FnsToEvaluate2.CorpTaxRevenue.firm=FnsToEvaluate.CorpTaxRevenue.firm;
-        FnsToEvaluate2.EnergyCosts_f.firm=FnsToEvaluate.EnergyCosts_f.firm;
-        FnsToEvaluate2.CarbonCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax) ...
-            Electrify_4FirmCarbonCosts(0,kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max,carbon_tax);
     else
         load tpathElectrifyA.mat
         solve_GE_final=false;
@@ -1107,10 +1101,12 @@ if solve_GE_final
     Params.Ek=ParamPath.Ek(T);
     Params.ek=ParamPath.ek(T);
     Params.carbon_tax=ParamPath.carbon_tax(T);
+    Params.energy_pct_brown=ParamPath.energy_pct_brown(T);
     Params.sj=ParamPath.sj(T,:); % conditional survival probabilities
     Params.mewj=ParamPath.mewj(T,:);
     Params.cpi=ParamPath.cpi(T);
     Params.cpi_energy=ParamPath.cpi_energy(T);
+    Params.Lhscale=ParamPth.Lhscale(T);
 
 if true
     ParamPath.Ek=linspace(1,1.2,T); Params.Ek=ParamPath.Ek(1);
@@ -1118,6 +1114,7 @@ if true
     Tx=T;
     Params.ek=ParamPath.ek(Tx);
     Params.carbon_tax=ParamPath.carbon_tax(Tx);
+    Params.energy_pct_brown=ParamPath.energy_pct_brown(Tx);
     Params.sj=ParamPath.sj(Tx,:); % conditional survival probabilities
     Params.mewj=ParamPath.mewj(Tx,:);
     Params.cpi=ParamPath.cpi(Tx);
@@ -1127,7 +1124,11 @@ if true
     figure(1)
     subplot(2,1,1);
     % Plot F as K vs PV
-    surf(firm_pv_grid,k_grid,V_f.firm(:,:,4))
+    if small_z_no_e
+        surf(pv_grid_firm,k_grid,V_f.firm)
+    else
+        surf(pv_grid_firm,k_grid,V_f.firm(:,:,4))
+    end
     title('Value function: F as K vs PV')
     xlabel('PV')
     ylabel('K')
@@ -1173,7 +1174,7 @@ end
     end
     Params.G_pp=p_eqm_final.G_pp;
     Params.w=p_eqm_final.w;
-    Params.firmbeta=p_eqm_final.firmbeta;
+    % Params.firmbeta=p_eqm_final.firmbeta;
     Params.P0=p_eqm_final.P0;
 
     % Calculate various stats
@@ -1212,7 +1213,7 @@ end % solve_GE_final
         end
         Params.G_pp=p_eqm_final.G_pp;
         Params.w=p_eqm_final.w;
-        Params.firmbeta=p_eqm_final.firmbeta;
+        % Params.firmbeta=p_eqm_final.firmbeta;
         Params.P0=p_eqm_final.P0;
     
         % Evaluate the final stationary general eqm
@@ -1233,7 +1234,7 @@ if solve_TPath
     % Initial guess for general eqm parameters
     T_eq=ceil(T/2); % Demographic change has stopped and T_eq begins period of transition equilibrium-finding
     PricePath0.w=[linspace(p_eqm_init.w, p_eqm_final.w,T_eq), p_eqm_final.w*ones(1,T-T_eq)];
-    PricePath0.firmbeta=[linspace(p_eqm_init.firmbeta, p_eqm_final.firmbeta,T_eq), p_eqm_final.firmbeta*ones(1,T-T_eq)];
+    % PricePath0.firmbeta=[linspace(p_eqm_init.firmbeta, p_eqm_final.firmbeta,T_eq), p_eqm_final.firmbeta*ones(1,T-T_eq)];
     PricePath0.P0=[linspace(p_eqm_init.P0, p_eqm_final.P0,T_eq), p_eqm_final.P0*ones(1,T-T_eq)];
     PricePath0.pension=[linspace(p_eqm_init.pension, p_eqm_final.pension,T_eq), p_eqm_final.pension*ones(1,T-T_eq)];
     PricePath0.AccidentBeqS_pp=[linspace(p_eqm_init.AccidentBeqS_pp,p_eqm_final.AccidentBeqS_pp,T_eq), p_eqm_final.AccidentBeqS_pp*ones(1,T-T_eq)];
@@ -1266,7 +1267,7 @@ if solve_TPath
     % Need to explain to transpathoptions how to use the GeneralEqmEqns to update the general eqm transition prices (in PricePath).
     transpathoptions.GEnewprice3.howtoupdate=... % a row is: GEcondn, price, add, factor
         {'labormarket','w',0,0.03;... % labormarket GE condition will be positive if w is too big, so subtract
-        'firmdiscounting','firmbeta',0,0.03;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
+        ... % 'firmdiscounting','firmbeta',0,0.03;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
         'ShareIssuance','P0',0,0.03;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
         'pensions','pension',0,0.03;... % pensions GE condition will be positive if pension is too big, so subtract
         'govbudgetbalance','G_pp',0,0.03;... % govbudget GE condition will be positive if G_pp is too big, so subtract
@@ -1356,8 +1357,8 @@ if Params.scenario>2
     if max(AgeConditionalStats.H.Maximum)==house_grid(end)
         warning("house_grid maximum reached")
     end
-    if max(AgeConditionalStats.PV_h.Maximum)==solarpv_grid(end)
-        warning("solarpv_grid maximum reached")
+    if max(AgeConditionalStats.PV_h.Maximum)==pv_grid_hh(end)
+        warning("pv_grid_hh maximum reached")
     end
 end
 
@@ -1439,22 +1440,22 @@ else
             labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_wedge_pp,f_htc,rentprice,cpi_energy,pv_pct_cost,energy_pct_cost ...
+            r_pp,r_wedge_pp,f_htc,rentprice,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax ...
         ) Electrify_4HouseholdConsumptionFn( ...
             labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,r_wedge_pp,f_htc,rentprice,cpi_energy,pv_pct_cost,energy_pct_cost);
+            r_pp,r_wedge_pp,f_htc,rentprice,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax);
     FnsToEvaluate2.Income.household=@( ...
             labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,cpi_energy,energy_pct_cost ...
+            r_pp,cpi_energy,energy_pct_cost,energy_pct_brown,carbon_tax ...
         ) Electrify_4HouseholdIncomeFn( ...
             labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
             pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
             kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-            r_pp,cpi_energy,energy_pct_cost);
+            r_pp,cpi_energy,energy_pct_cost,energy_pct_brown,carbon_tax);
 end
 
 AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);

@@ -2,7 +2,7 @@ function F=Electrify_4HouseholdReturnFn( ...
     labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     sigma,psi,eta,sigma_h,sigma_c,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
-    r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,energy_cpi_cost,pv_pct_cost,energy_pct_cost ...
+    r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,energy_cpi,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax ...
     )
 % Implement depreciation model:
 %   Car services A(t) = (1-delta_a)*A(t-1) + I(a,t)
@@ -144,9 +144,10 @@ if car~=2
 end
 
 % Add cost of housing energy; PV generation: 30kW (2 solar units) meets h==1 energy needs
-energy_cost_pp=energy_cost_pp+(1+energy_cpi_cost)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
+energy_cost_pp=energy_cost_pp+(1+energy_cpi)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
+carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/1000;
 
-c=c-energy_cost_pp;
+c=c-energy_cost_pp-carbon_tax_pp;
 
 % If we are aiming for a starter loan, what loan can we afford?  Car not included
 net_worth_prime=P*sprime+aprime+hprimecost;
