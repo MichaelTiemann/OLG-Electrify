@@ -118,7 +118,7 @@ end
 % ...subtract capital gains tax and next period share, asset holdings
 c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation
-c=c-htc-rentalcosts-hcost*0.02*ypp-pvinstallcost;
+c=c-htc-rentalcosts-hcost*0.01*ypp-pvinstallcost;
 
 % ...subtract car costs (purchase, sale, and/or maintenance)
 if carcost~=0
@@ -145,7 +145,7 @@ end
 
 % Add cost of housing energy; PV generation: 30kW (2 solar units) meets h==1 energy needs
 energy_cost_pp=energy_cost_pp+(1+energy_cpi)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
-carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/2000;
+carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/3500;
 
 c=c-energy_cost_pp-carbon_tax_pp;
 

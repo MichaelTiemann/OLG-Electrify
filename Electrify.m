@@ -185,12 +185,12 @@ if Params.scenario>2 && Params.ypp>1
         if small_z_no_e
             Lhscale(4)=1.3;
         else
-            Lhscale(4)=0.5;
+            Lhscale(4)=0.6;
         end
     end
 end
 
-ParamPath.Lhscale=linspace(Lhscale(Params.scenario),2,T);
+ParamPath.Lhscale=linspace(Lhscale(Params.scenario),1.8,T);
 Params.Lhscale=ParamPath.Lhscale(1);
 
 %% Parameters for households
@@ -332,7 +332,7 @@ end
 % We defer doing transition maths until we calculate GE final
 Params.sj=sj_init;
 Params.mewj=cumprod([1,Params.sj(1:end-1)],2); % mass of age jj is the mass of jj-1 that survive
-Params.mewj=Params.mewj./((1+Params.n_pp).^(Params.ypp*((1:Params.J)-1))); % Population shrinks in the N_j dimension
+Params.mewj=Params.mewj./((1+Params.n_pp).^((1:Params.J)-1)); % Population shrinks in the N_j dimension
 Params.mewj=Params.mewj./sum(Params.mewj); % normalize age-masses to sum to one
 
 % Note: This is rather incomplete, as really you should also have
@@ -1092,8 +1092,8 @@ if solve_GE_final
     ParamPath.mewj=cumprod([ones(T,1), ParamPath.sj(:,1:end-1)], 2); % mass of age jj is the mass of jj-1 that survive
     % Factor in population growth; In N_j dimension, older people are from earlier (smaller) populations
     % ...in the T dimension, we see overall population growth as T increases
-    ParamPath.mewj=ParamPath.mewj./((1+Params.n_pp).^(Params.ypp*((1:Params.J)-1))); % Population shrinks in the N_j dimension
-    ParamPath.mewj=ParamPath.mewj.*((1+Params.n_pp).^(Params.ypp*jpT*((1:T)-1)))'; % Population grows in the T dimension
+    ParamPath.mewj=ParamPath.mewj./((1+Params.n_pp).^((1:Params.J)-1)); % Population shrinks in the N_j dimension
+    ParamPath.mewj=ParamPath.mewj.*((1+Params.n_pp).^(jpT*((1:T)-1)))'; % Population grows in the T dimension
     ParamPath.mewj=ParamPath.mewj./sum(ParamPath.mewj,2); % normalize age-masses to sum to one
     % Looking at ParamPath.mewj you can see that as tt increases, the mass at older ages increases
 
@@ -1106,7 +1106,7 @@ if solve_GE_final
     Params.mewj=ParamPath.mewj(T,:);
     Params.cpi=ParamPath.cpi(T);
     Params.cpi_energy=ParamPath.cpi_energy(T);
-    Params.Lhscale=ParamPth.Lhscale(T);
+    Params.Lhscale=ParamPath.Lhscale(T);
 
 if true
     ParamPath.Ek=linspace(1,1.2,T); Params.Ek=ParamPath.Ek(1);
@@ -1248,7 +1248,7 @@ if solve_TPath
     % General eqm eqns, same idea as with the stationary general eqm
     % GeneralEqmEqns_Transition.capitalmarket=@(r_pp,alpha_k,alpha_l,delta,K,L,ypp) r_pp-(alpha_k*(K^(alpha_k-1))*(L^(alpha_l))-((delta+1)^ypp-1)); % r=marginal product of capital
     GeneralEqmEqns_Transition.labormarket=@(w,alpha_k,alpha_l,K,L_f) w-(alpha_l)*(K^alpha_k)*(L_f^(alpha_l-1)); % w=marginal product of labor
-    GeneralEqmEqns_Transition.firmdiscounting=GeneralEqmEqns.firmdiscounting;
+    % GeneralEqmEqns_Transition.firmdiscounting=GeneralEqmEqns.firmdiscounting;
     % GeneralEqmEqns_Transition.dividends=GeneralEqmEqns.dividends;
     GeneralEqmEqns_Transition.ShareIssuance=GeneralEqmEqns.ShareIssuance;
     GeneralEqmEqns_Transition.pensions=GeneralEqmEqns.pensions;
