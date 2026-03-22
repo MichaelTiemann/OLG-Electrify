@@ -127,7 +127,7 @@ In our model, each time the firm prices its dividend, households can see and act
 
 The energy sector of the model is mostly a sketch at this point.  It receives revenues from households and firms, and it sees the carbon taxes that households and firms pay.
 
-The revenues received by sector can be translated to energy demand based on per-sector pricing (households pay nearly 3x the firm rate).
+The revenues received by sector can be translated to energy demand based on per-sector pricing (households pay more than 2x the firm rate).
 
 The energy supplier can also make transition investment decisions, buying renewable generators in time to meet demand forecasts.
 In time, it will be the energy sector's transition speed that will govern *brown_energy_pct* that is presently just a model parameter.
@@ -145,3 +145,30 @@ As tempting as it would be to put a parlimentary budget negotiation into the mod
 * capital gains and dividend taxes pay for government services
 * carbon taxes pay for energy transition
 
+## Statistical References and Data
+
+The following are data collected informally for parameterizing the model.  Better sources and methods gladly accepted!
+
+```
+%% Basic statistical abstract (NZD)
+% NZ GDP: $440B ($80K per capita, $152K per employed worker)
+% NZ Wages: $55K living, $70K median, $80K average * 2.9M workers = $232B wages
+% NZ Energy:    - 525 PJ/year
+%   Oil         - 270 PJ
+%   Electricity - 144 PJ
+%   Gas         -  58 PJ
+%   Biomass     -  40 PJ
+%   Coal        -  18 PJ
+% NZ Electricity retail: $350/MWh
+% NZ HH Energy: 20 kWh/day electricity =>  7 MWh/year =>  $2500/year => 3.5% wages
+% NZ HH Energy: 73 kWh/day overall     => 27 MWh/year => $10000/year => 14.0% wages
+% NZ Firm Energy retail: $150/MWh
+%   Transport    - 200 PJ
+%   Industrial   - 160 PJ
+%   Commercial   -  55 PJ
+%   Ag,Forest,Fish- 30 PJ
+%   Total: 445 PJ => 125 TWh => $20B energy costs => 4.5% of 440B GDP
+% Energy is 8.6% of Labor costs
+% Net capital stocks of NZ $1,329B less $690B real estate = $630B
+% K/L = $630B/232B = 2.72
+```
