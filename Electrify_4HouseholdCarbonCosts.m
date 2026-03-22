@@ -36,7 +36,7 @@ if car~=2
 end
 
 % PV generation: 30kW (2 solar units) meets h==1 energy needs
-carbon_cost_pp=energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp*energy_pct_brown*carbon_tax/1000;
+carbon_cost_pp=energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp*energy_pct_brown*carbon_tax/2000;
 
 
 end

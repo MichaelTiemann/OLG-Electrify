@@ -76,7 +76,7 @@ end
 ParamPath.Ek=linspace(1,1.2,T); Params.Ek=ParamPath.Ek(1);
 ParamPath.ek=linspace(1,1.5,T); Params.ek=ParamPath.ek(1);
 ParamPath.carbon_tax=linspace(35,2450,T); Params.carbon_tax=ParamPath.carbon_tax(1);
-ParamPath.energy_pct_brown=linspace(80,20,T); Params.energy_pct_brown=ParamPath.carbon_tax(1);
+ParamPath.energy_pct_brown=linspace(0.80,0.05,T); Params.energy_pct_brown=ParamPath.carbon_tax(1);
 
 % Model inflation as a series of 10-year supply-side shocks across 100 year transition period
 % These are shocks above "normal" cpi inflation
