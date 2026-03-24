@@ -26,10 +26,10 @@ y_pp=(Ek*ek)*z*(k^alpha_k)*(l^alpha_l)*ypp;
 y_carbon_tax=76.4e6*carbon_tax/440e9; % Energy sector emitted 76.4 Mt CO2e; cost of carbon = NZD $35-$2450 / tCO2e
 y_energy_cost_pp=0.045*y_pp; % Assume energy cost is 4.5% of firm production
 % 200GWh PV/year * 1000 MWh/GWh * $150/MWh = $30M/PV/year (vs $440B)
-% 69 TWh to electrify = $10350M total costs
-pv_cost_offset_pp=min(pv*ypp*30/10350,y_energy_cost_pp);
+% 69 TWh to electrify = $75900M total costs
+pv_cost_offset_pp=min(pv*ypp*30/75900,y_energy_cost_pp);
 
-% 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$440B = 0.0005 max GDP
+% 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$440B = 0.0005 max GDP per PV
 new_pv_cost=(pvprime-pv)*1/2000;
 
 % Profit

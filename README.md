@@ -33,11 +33,12 @@ We now present the three major model components: households, firms, the energy s
 
 ## Households
 
-Households in the model make up two "decisions":
-* buying/selling houses (including options to upsize/downsize between several size choices).
-* if they own/buy a house, whether or not to install, retrofit, or upgrade the solar solarPV system (with multiple size choices)
+Households in the model make two fundamental "decisions":
+* their labor participation rate (from 0% to 100%)
+* buying/selling houses (including options to upsize/downsize between several size choices)
 
-They can also make asset allocations that cover:
+They can also make asset allocation choices that cover:
+* if they own or buy a house, whether or not to install, retrofit, or upgrade the solar solarPV system (with multiple size choices)
 * whether to buy/sell/trade a car, with options for petrol-based or EV
 * investing savings into shares of firms (described below), keeping them at a bank (which pays interest on deposits)
 * taking out loans collateralized by houses.
@@ -49,13 +50,14 @@ solarPV systems degrade, albeit slowly (1% per year).
 Examples from VFIToolkit repositories (linked above, and also even more [here](https://github.com/vfitoolkit/VFItoolkit-matlab-examples)) give rich example
  of many other household questions that can be studied:
 * labor participation differences between single male, single female, and married households
-* housing purchases based on both risk appetite/aversion and exogenous shocks
+* housing purchases and risky asset purchases based on both risk appetite/aversion and exogenous shocks
 * the choice to pursue higher education, have children, or both
-* precautionary saving for medical expenses
+* investments in personal health, and precautionary saving for medical expenses
+* tracking the unpaid labor of childcare and elder care
 
 Alas, while these and many other problems are very interesting, we believe the aspects most salient to energy transition must focus on the elements that are most affected by energy, which come down to powering personal transport, household combustion, and household electricity use.
 
-Rough parameterization:
+### Rough parameterization:
 
 Households earn a "standard" wage of 1, which is influenced in the usual way by "work experience" (abbreviated as $`\kappa_j`$), ranging from 0.5 to 2.0,
 and also influenced by exogenous $`z`$ and idiosyncratic $`e`$ shocks.  We note that there are three parameterizations to consider for linking this abstract wage to realities in New Zealand:
@@ -170,5 +172,24 @@ The following are data collected informally for parameterizing the model.  Bette
 %   Total: 445 PJ => 125 TWh => $20B energy costs => 4.5% of 440B GDP
 % Energy is 8.6% of Labor costs
 % Net capital stocks of NZ $1,329B less $690B real estate = $630B
-% K/L = $630B/232B = 2.72
+% K/L = $440B/232B = 1.9
 ```
+
+### Energy cost and supply allocations
+
+Just as we imagine households able to use their own roofs to generate power (offsetting costs and potentially generating additional income),
+we imagine firms able to use their facilities for locally sourcing electricity.  The model contemplates virtually complete electrification (including transportation),
+but it allows firms (which may include transport companies) to purchase power from the energy sector rather than being forced to install their own PVs.
+Depending on the settings, there may be a role for energy suppliers to generate and sell electricity, or it may be that every energy consumer prefers to be self-reliant.
+
+```
+% If Y is full GDP ($440B), then Ek=125 TWh and ek=$440B/125TWh=$3.52 GDP/kWh
+% NZ emissions from energy sector: 76.4 Mt CO2e
+% 69 TWh to be electrified (56 TWh already renewable); need 46,000 MW generation
+% Choosing unit industrial PV to be 200GWh/year generation...
+% 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$440B = 0.0005 max GDP
+% 200GWh PV/year * 1000 MWh/GWh * $150/MWh = Firm PV Energy Cost Offset $30M/PV/year (vs $440B)
+% 69 TWh/year to electrify = 345*200GWh/year * $220M/200GWh/year = $75900M cost of 100% conversion
+```
+
+At present we allocate firms with the choice of installing 0-100 industry-scale PVs, and the energy sector to install the remaining 245 as a choice between 0-300 industry-scale PVs.

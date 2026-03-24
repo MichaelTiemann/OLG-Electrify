@@ -29,11 +29,11 @@ addpath(genpath('./MatlabToolkits/'))
 % Net capital stocks of NZ $1,329B less $690B real estate = $630B
 % K/L = $630B/232B = 2.72
 
-solve_setup=false;
+solve_setup=true;
 solve_GE_init=true;
-solve_GE_final=false;
+solve_GE_final=true;
 
-solve_TPath=false;
+solve_TPath=true;
 % If true, shrink n_z down to 3 (the min for discretization)
 % and make e parameter always zero (no e_grid).firm
 small_z_no_e=false;
@@ -173,6 +173,7 @@ r=0.05; % We will discover risk-free rate of return per period in GE
 r_wedge=0.05; Params.r_wedge_pp=(1+r_wedge)^Params.ypp-1;
 
 Lhscale=[0.25,0.25,0.21,0.21]; % Scaling the household labor supply; we scale model and GE finds its own equilibrium
+ParamPath.Lhscale=linspace(Lhscale(Params.scenario),2,T);
 if Params.scenario>2 && Params.ypp>1
     if Params.ypp<8
         Lhscale(3:4)=0.38*ones(1,2);
@@ -181,16 +182,18 @@ if Params.scenario>2 && Params.ypp>1
     else
         Lhscale(3:4)=0.23*ones(1,2);
     end
+    ParamPath.Lhscale=linspace(Lhscale(Params.scenario),2,T);
     if Params.scenario==4 && Params.ypp==5
         if small_z_no_e
-            Lhscale(4)=1.3;
+            Lhscale(4)=1.9;
+            ParamPath.Lhscale=linspace(Lhscale(Params.scenario),3,T);
         else
             Lhscale(4)=0.6;
+            ParamPath.Lhscale=linspace(Lhscale(Params.scenario),2,T);
         end
     end
 end
 
-ParamPath.Lhscale=linspace(Lhscale(Params.scenario),2,T);
 Params.Lhscale=ParamPath.Lhscale(1);
 
 %% Parameters for households
@@ -992,7 +995,25 @@ fprintf('Check: ShareIssuance GE condition \n')
 Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Params.r_pp-Params.tau_cg))-AggVars.S.Mean)
 save tpathElectrify0.mat
 else
-    load tpathElectrify0.mat
+    if solve_GE_init
+        if solve_GE_final
+            load tpathElectrify0.mat
+            solve_GE_final=true;
+        else
+            load tpathElectrify0.mat
+            solve_GE_final=false;
+        end
+        solve_GE_init=true;
+    else
+        if solve_GE_final
+            load tpathElectrify0.mat
+            solve_GE_final=true;
+        else
+            load tpathElectrify0.mat
+            solve_GE_final=false;
+        end
+        solve_GE_init=false;
+    end
 end % solve_setup
 
 %% Solve for the General Equilibrium
