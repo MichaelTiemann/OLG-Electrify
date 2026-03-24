@@ -1,5 +1,4 @@
-function CustomStats=Electrify_HouseholdCustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate, ...
-        n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,heteroagentoptions,vfoptions,simoptions)
+function CustomStats=Electrify_CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions)
 CustomStats=struct();
 % Just use the median values; 1st is mean; 5th is min/max
 simoptions.whichstats=zeros(1,7);
@@ -16,7 +15,8 @@ CFnsToEvaluate.H4sell = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e)
 CFnsToEvaluate.H_u = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) (h>0); % Unit house holdings
 CFnsToEvaluate.PV_u = @(labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e) (solarpv>0); % Unit solarpv holdings
 
-AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,CFnsToEvaluate,Parameters,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,simoptions);
+[~,ii] = find(strcmp(Names_i, 'household'));
+AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist.household,Policy.household,CFnsToEvaluate,Parameters,[],n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,z_grid.household,PType_Options(simoptions,Names_i,ii));
 
 mean_buyers=[AgeConditionalStats.H1buy.Mean; AgeConditionalStats.H2buy.Mean; AgeConditionalStats.H3buy.Mean; AgeConditionalStats.H4buy.Mean];
 mean_sellers=[AgeConditionalStats.H1sell.Mean; AgeConditionalStats.H2sell.Mean; AgeConditionalStats.H3sell.Mean; AgeConditionalStats.H4sell.Mean];

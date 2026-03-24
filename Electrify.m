@@ -29,11 +29,11 @@ addpath(genpath('./MatlabToolkits/'))
 % Net capital stocks of NZ $1,329B less $690B real estate = $630B
 % K/L = $630B/232B = 2.72
 
-solve_setup=true;
+solve_setup=false;
 solve_GE_init=true;
-solve_GE_final=true;
+solve_GE_final=false;
 
-solve_TPath=true;
+solve_TPath=false;
 % If true, shrink n_z down to 3 (the min for discretization)
 % and make e parameter always zero (no e_grid).firm
 small_z_no_e=false;
@@ -190,7 +190,7 @@ if Params.scenario>2 && Params.ypp>1
     end
 end
 
-ParamPath.Lhscale=linspace(Lhscale(Params.scenario),1.8,T);
+ParamPath.Lhscale=linspace(Lhscale(Params.scenario),2,T);
 Params.Lhscale=ParamPath.Lhscale(1);
 
 %% Parameters for households
@@ -990,7 +990,9 @@ else
 end
 fprintf('Check: ShareIssuance GE condition \n')
 Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Params.r_pp-Params.tau_cg))-AggVars.S.Mean)
-
+save tpathElectrify0.mat
+else
+    load tpathElectrify0.mat
 end % solve_setup
 
 %% Solve for the General Equilibrium
@@ -1008,23 +1010,16 @@ if solve_GE_init
         heteroagentoptions.toleranceGEprices=10^(-2);
         heteroagentoptions.toleranceGEcondns=10^(-1); % This is the hard one
         heteroagentoptions.maxiter=50;                % About 3 hours for 35 iterations
+
+        if Params.scenario<4
+            heteroagentoptions.CustomModelStats=@(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions) ...
+                Electrify_CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions);
+        else
+            heteroagentoptions.CustomModelStats=@(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions) ...
+                Electrify_4CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions);
+        end
     end
-    if Params.scenario>3
-        % heteroagentoptions.useCustomModelStats=1;
-        heteroagentoptions.household.CustomModelStats=@( ...
-            V,Policy,StationaryDist,Parameters,FnsToEvaluate, ...
-            n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,heteroagentoptions,vfoptions,simoptions ...
-            ) Electrify_4HouseholdCustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate, ...
-            n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,heteroagentoptions,vfoptions,simoptions);
-    elseif Params.scenario>2
-        % heteroagentoptions.useCustomModelStats=1;
-        heteroagentoptions.household.CustomModelStats=@( ...
-            V,Policy,StationaryDist,Parameters,FnsToEvaluate, ...
-            n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,heteroagentoptions,vfoptions,simoptions ...
-            ) Electrify_HouseholdCustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate, ...
-            n_d,n_a,n_z,N_j,d_grid,a_grid,z_gridvals_J,pi_z_J,heteroagentoptions,vfoptions,simoptions);
-    end
-        
+
     [p_eqm_init,GEcondns_init]=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j,Names_i,[],pi_z,d_grid,a_grid,z_grid,jequaloneDist,ReturnFn,FnsToEvaluate,GeneralEqmEqns,Params,DiscountFactorParamNames,AgeWeightsParamNames,PTypeDistParamNames,GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
     % p_eqm contains the general equilibrium parameter values
     % Put this into Params so we can calculate things about the initial equilibrium
@@ -1308,10 +1303,12 @@ if solve_TPath
     
     % And go! (with FnsToEvaluate2)
     [PricePath,GECondnsPath]=TransitionPath_Case1_FHorz_PType(PricePath0, ParamPath, T, V_final, AgentDist_init, jequaloneDist, n_d, n_a, n_z, N_j, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate2, GeneralEqmEqns_Transition, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions);
-    
+
     %%
     save tpathElectrifyD.mat
-    % load tpathElectrifyD.mat
+else
+    load tpathElectrifyD.mat
+end % solve_TPath
 
     %% Now calculate some things about the transition path (path for Value fn, Policy fn, Agent Distribution)
     % You can calculate the value and policy functions for the transition path
@@ -1340,9 +1337,6 @@ if solve_TPath
     hold off
     xlim([-3,T])
     title('Path of wage rate (w)')
-
-
-end % solve_TPath
 
 % Can just use the same FnsToEvaluate as before
 AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
