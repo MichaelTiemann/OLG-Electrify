@@ -4,19 +4,24 @@ function F=Electrify_HouseholdReturnFn( ...
     sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
     scenario,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,cpi,pv_pct_cost,energy_pct_cost ...
     )
-% Get rid of progressive taxes
 
 % Note: experienceasset, so first inputs are (d,a,z,e,...)
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
-F=-Inf;
+F=-100;
 
+% buyhouse decisions
+%  0=no house/sell house
+%  1=buy house w/o pv this period
+%  2=keep house; no pv upgrade
+%  3=buy house w/ pv this period
+%  4=keep house; pv upgrade (if possible)
 if buyhouse==0
     if hprime~=0
         % Forbid owning house when buyhouse=0
         return
     end
-elseif buyhouse>=3
+elseif mod(buyhouse,2)==0
     if hprime==0 || hprime~=h
         % Forbid selling/changing house we say we are keeping
         return
@@ -24,29 +29,30 @@ elseif buyhouse>=3
 end
 
 % Housing matters
-rentalcosts=rentprice*ypp;
+rentalcosts_pp=0; % Overwrite if housing in scenario
 hs=1; % Housing services (based on housing stock)
 htc=0; % house transaction cost
 hcost=0;
 hprimecost=0;
 pvinstallcost=0;
 if scenario==3
+    rentalcosts_pp=rentprice*sqrt(kappa_j)*ypp;
     if h==0
         hs=0.5*houseservices*minhouse;
     else
         hs=houseservices*h;
-        rentalcosts=0;
+        rentalcosts_pp=0;
     end
-    % Houses start at 2x annual wage
-    hcost=2*h*(1+cpi);
-    hprimecost=2*hprime*(1+cpi);
+    % Houses start at 4x annual wage
+    hcost=4*h*(1+cpi);
+    hprimecost=4*hprime*(1+cpi);
     % Make buying/selling a house costly/illiquid
     if hprime~=h
         htc=f_htc*(hcost+hprimecost);
     end
     
-    % buyhouse 2 and 4 are install/upgrade PV options
-    if buyhouse==2 || buyhouse==4
+    % buyhouse 3 and 4 are install/upgrade PV options
+    if buyhouse==3 || buyhouse==4
         if (h+hprime)==0
             % No house -> no solar
             pvinstallcost=Inf;
@@ -84,9 +90,9 @@ else % Retirement
     c=pension*ypp;
 end
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
-c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqS_pp+AccidentBeqAH_pp+(hcost-hprimecost);
+c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqAH_pp+(hcost-hprimecost);
 % PV generation: 30kW (2 solar units) meets h==1 energy needs
-c=c+(1+cpi)*energy_pct_cost*(solarpv/2)*ypp;
+%%% WTF c=c+(1+cpi)*energy_pct_cost*(solarpv/2)*ypp;
 if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
     % Subtract loan interest by adding diminishing assets
     c=c+(1+r_pp+r_wedge_pp)*a;
@@ -97,7 +103,7 @@ end
 % ...subtract capital gains tax and next period share, asset holdings
 c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation, and scaled energy costs
-c=c-htc-rentalcosts-hcost*0.02*ypp-pvinstallcost-(1+cpi)*energy_pct_cost*max(h^1.5,1)*ypp;
+c=c-htc-rentalcosts_pp-hcost*0.02*ypp-pvinstallcost-(1+cpi)*energy_pct_cost*max(h^1.5,1)*ypp;
 
 % If we are aiming for a starter loan, what loan can we afford?
 net_worth_prime=P*sprime+aprime+hprimecost;
@@ -124,7 +130,7 @@ end
 if agej==J % Final period
     if net_worth_prime<0
         % Died too far in debt...shouldn't happen
-        F=-Inf;
+        F=-100;
     else
         % Our warmglow includes selling our next period house assets
         warmglow=warmglow1*(net_worth_prime^(1-warmglow2))/(1-warmglow2);

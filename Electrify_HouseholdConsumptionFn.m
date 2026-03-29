@@ -11,9 +11,9 @@ hcost=0;
 hprimecost=0;
 pvinstallcost=0;
 if h+hprime>0
-    % Houses start at 2x annual wage
-    hcost=2*h*(1+cpi);
-    hprimecost=2*hprime*(1+cpi);
+    % Houses start at 4x annual wage
+    hcost=4*h*(1+cpi);
+    hprimecost=4*hprime*(1+cpi);
 elseif h==0
     rentalcosts=rentprice*ypp;
 end
@@ -23,8 +23,8 @@ if hprime~=h
     htc=f_htc*(hcost+hprimecost);
 end
 
-% buyhouse 2 and 4 are install/upgrade PV options
-if buyhouse==2 || buyhouse==4
+% buyhouse 3 and 4 are install/upgrade PV options
+if buyhouse==3 || buyhouse==4
     if (h+hprime)==0
         % No house -> no solar
         pvinstallcost=Inf;

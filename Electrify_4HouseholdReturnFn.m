@@ -15,12 +15,18 @@ function F=Electrify_4HouseholdReturnFn( ...
 F=-Inf;
 
 %% Housing matters
+% buyhouse decisions
+%  0=no house/sell house
+%  1=buy house w/o pv this period
+%  2=keep house; no pv upgrade
+%  3=buy house w/ pv this period
+%  4=keep house; pv upgrade (if possible)
 if buyhouse==0
     if hprime~=0
         % Forbid owning house when buyhouse=0
         return
     end
-elseif buyhouse>=3
+elseif mod(buyhouse,2)==0
     if hprime==0 || hprime~=h
         % Forbid selling/changing house we say we are keeping
         return
@@ -39,7 +45,7 @@ if (sprime-s>0 && aprime+hprimecost<0 ...             % Cannot buy shares with n
 end
 
 carcost=0;
-rentalcosts=rentprice*w*ypp;
+rentalcosts=rentprice*sqrt(kappa_j)*ypp;
 htc=0; % house transaction cost
 pvinstallcost=0;
 % A Tally of energy costs, which will be deducted at the end
@@ -57,8 +63,8 @@ if hprime~=h
     htc=f_htc*(hcost+hprimecost);
 end
 
-% buyhouse 2 and 4 are install/upgrade PV options
-if buyhouse==2 || buyhouse==4
+% buyhouse 3 and 4 are install/upgrade PV options
+if buyhouse==3 || buyhouse==4
     if (h+hprime)==0
         % No house -> no solar
         pvinstallcost=Inf;

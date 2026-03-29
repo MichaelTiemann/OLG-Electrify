@@ -44,8 +44,8 @@ They can also make asset allocation choices that cover:
 * taking out loans collateralized by houses.
 
 Buying and selling houses incur housing transaction costs, and borrowing money exposes a credit wedge between loan and deposit rates.
-Households that do not own houses rent.  Renters cannot install their own solarPV systems, but house owners may (with 0, 15kW, 30kW, 45kW and 60kW generation options).
-solarPV systems degrade, albeit slowly (1% per year).
+Households that do not own houses rent.  Renters cannot install their own solarPV systems, but house owners may (with 0, 5kW, 10kW, 15kW and 20kW generation options).
+solarPV systems degrade, albeit slowly (1% per year).  Note that daily generation is approx 4 kWh per day for each kW of generation capacity.
 
 Examples from VFIToolkit repositories (linked above, and also even more [here](https://github.com/vfitoolkit/VFItoolkit-matlab-examples)) give rich example
  of many other household questions that can be studied:

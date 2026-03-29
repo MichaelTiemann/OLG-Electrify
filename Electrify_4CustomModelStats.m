@@ -12,9 +12,9 @@ CFnsToEvaluate.H1sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,s
 CFnsToEvaluate.H2sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && h==2;
 CFnsToEvaluate.H3sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && h==3;
 CFnsToEvaluate.H4sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && h==4;
-CFnsToEvaluate.H1 = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h==1; % Unit house holdings
-CFnsToEvaluate.H2 = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h==2; % Unit house holdings
-CFnsToEvaluate.H3 = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h==3; % Unit house holdings
+CFnsToEvaluate.H1 = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h==1; % Total H1 house holdings
+CFnsToEvaluate.H2 = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h==2; % Total H2 house holdings
+CFnsToEvaluate.H3 = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h==3; % Total H3 house holdings
 CFnsToEvaluate.H_u = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (h>0); % Unit house holdings
 CFnsToEvaluate.PV_h = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) solarpv; % total solarpv holdings
 CFnsToEvaluate.PV_u = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (solarpv>0); % Unit solarpv holdings

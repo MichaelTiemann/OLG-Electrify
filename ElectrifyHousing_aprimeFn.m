@@ -1,4 +1,4 @@
-function solarpv_prime=ElectrifyHousing_aprimeFn(buyhouse,solarpv)
+function solarpv_prime=ElectrifyHousing_aprimeFn(buyhouse,solarpv,ypp)
 % Because we use vfoptions.refine_d, the decision variables for aprimeFn must follow the ordering d2,d3
 % Also, experience assets must be listed last in aprimeFn
 
@@ -18,7 +18,7 @@ switch buyhouse
         solarpv_prime = randi([1,5]);
     case 3
         % Keep house, experience the slow degradation of solarpv capacity
-        solarpv_prime=solarpv * 0.99;
+        solarpv_prime=solarpv * 0.99^ypp;
     case 4
         % Keep house, install more solarpv if we can
         if solarpv<=4

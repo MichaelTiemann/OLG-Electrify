@@ -34,8 +34,8 @@ if hprime~=h
     htc=f_htc*(hcost+hprimecost);
 end
 
-% buyhouse 2 and 4 are install/upgrade PV options
-if buyhouse==2 || buyhouse==4
+% buyhouse 3 and 4 are install/upgrade PV options
+if buyhouse==3 || buyhouse==4
     if (h+hprime)==0
         % No house -> no solar
         pvinstallcost=Inf;
