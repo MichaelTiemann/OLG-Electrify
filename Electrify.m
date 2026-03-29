@@ -9,7 +9,7 @@
 addpath(genpath('./MatlabToolkits/'))
 
 solve_setup=true;
-test_Lhscale=true;
+test_Lhscale=false;
 solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=false;
 small_z_no_e=true; % n_z=1; n_e=0
@@ -27,12 +27,12 @@ Params.ptypemass=[1,1,1]; % Mass of households and firms are each equal to one
 % Scenario 2: add rental+energy costs, but no housing/assets/inflation
 % Scenario 3: add housing/assets/pv/inflation
 % Scenario 4: add cars/detailed energy
-Params.scenario=1;
+Params.scenario=4;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
 % Discounting parameters (beta_pp and sj) defined in terms of ypp
-Params.ypp=2; % model period, in years (just used this to modify some parameters from annual to model period)
+Params.ypp=5; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
 max_age=100;
@@ -112,7 +112,7 @@ Params.phi=0.5; % Fraction of capital adjustment costs that can be deducted from
 Params.tau_d=0.2; % Tax rate on dividends
 Params.tau_cg=0.2; % Tax rate on capital gains
 
-Params=Scenario_YPP_Setup(Params,Params.scenario,Params.ypp,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
+Params=Electrify_Scenario_YPP_Setup(Params,Params.scenario,Params.ypp,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
 
 % Housing (ignored/overwritten if no housing in scenario)
 % Params.minhouse % set below, is the minimum value of house that can be purchased
@@ -595,7 +595,7 @@ if test_Lhscale
         end
         for ypp=1:12
             Params_Lh.ypp=ypp;
-            Params_Lh=Scenario_YPP_Setup(Params_Lh,scenario,ypp,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
+            Params_Lh=Electrify_Scenario_YPP_Setup(Params_Lh,scenario,ypp,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
             [n_d_Lh,n_a_Lh,n_z_Lh,N_j_Lh,Params_Lh.e,vfoptions_Lh]=Electrify_GridSizeSetup(scenario, Params_Lh.J, small_z_no_e, small_model, vfoptions_Lh);
             [d_grid_Lh,a_grid_Lh,z_grid_Lh,pi_z_Lh,jequaloneDist,~,~,~,Params_Lh,vfoptions_Lh,simoptions_Lh]=Electrify_GridSetup(scenario, n_d_Lh, n_a_Lh, n_z_Lh, small_z_no_e, Params_Lh, vfoptions_Lh, simoptions_Lh);
             if ypp<=size(Lhscale,1)

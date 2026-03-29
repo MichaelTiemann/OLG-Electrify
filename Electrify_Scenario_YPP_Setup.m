@@ -1,4 +1,4 @@
-function [Params]=Scenario_YPP_Setup(Params,scenario,ypp,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH)
+function [Params]=Electrify_Scenario_YPP_Setup(Params,scenario,ypp,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH)
 
 Params.J=ceil((max_age-agejshifter)/ypp); % =60/ypp, Number of period in life-cycle
 Params.Jr=round((65-agejshifter)/ypp); % Age 65 (period 10 is ages 65-69 in the 5 year case)
@@ -101,11 +101,6 @@ Params.mewj=Params.mewj./sum(Params.mewj); % normalize age-masses to sum to one
 % the population growth, and this just means you get a 'n' appearing in
 % some equations below. But other than 'n' in some equations, the way you
 % do this with the toolkit does not change.
-
-% Warm glow of bequest
-Params.warmglow1=0.3; % (relative) importance of bequests
-Params.warmglow2=3; % bliss point of bequests (essentially, the target amount)
-Params.warmglow3=Params.sigma; % By using the same curvature as the utility of consumption it makes it much easier to guess appropraite parameter values for the warm glow
 
 % The warmglow parameters will help us find the GE solution to actual bequest rates/values
 Params.AccidentBeqS_pp=AccidentBeqS(scenario)*ypp;
