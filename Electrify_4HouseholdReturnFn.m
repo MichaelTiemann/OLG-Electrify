@@ -36,11 +36,12 @@ end
 % Houses start at 4x annual wage
 hcost=4*h*w;
 hprimecost=4*hprime*w;
+
 %% Allow/Disallow some trivial agent decisions
-if (sprime-s>0 && aprime+hprimecost<0 ...             % Cannot buy shares with negative net worth
+if (sprime-s>0 && aprime+hcost<0 ...                  % Cannot buy shares with negative net worth
     || agej*ypp>=11 && aprime<-f_coll*hprimecost ...  % Collateral constraint on borrowing (for older buyers that earn real money)
     || hprime<h && aprime<0 ...                       % Cannot sell down a house that is collateralized
-    || agej>=Jr && aprime<0)                          % Ban pensioners from negative assets (even if they own houses)
+    || agej>=Jr && aprime<0)                          % Ban pensioners from negative assets (if they don't own houses)
     return 
 end
 

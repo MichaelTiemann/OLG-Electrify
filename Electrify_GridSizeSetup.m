@@ -1,4 +1,4 @@
-function [n_d,n_a,n_z,N_j,e,vfoptions]=Electrify_GridSizeSetup(scenario, J, small_z_no_e, small_model, vfoptions)
+function [n_d,n_a,n_z,N_j,vfoptions]=Electrify_GridSizeSetup(scenario, J, small_z_no_e, small_model, vfoptions)
 
 %% Grid sizes to use for household
 if scenario<3
@@ -36,7 +36,6 @@ else
 end
 if small_z_no_e
     n_z.household=1;
-    e=0;
 else
     % Exogenous labor productivity units shocks (next two lines)
     vfoptions.n_e.household=3; % iid

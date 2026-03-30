@@ -112,7 +112,7 @@ Params.phi=0.5; % Fraction of capital adjustment costs that can be deducted from
 Params.tau_d=0.2; % Tax rate on dividends
 Params.tau_cg=0.2; % Tax rate on capital gains
 
-Params=Electrify_Scenario_YPP_Setup(Params,Params.scenario,Params.ypp,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
+Params=Electrify_Scenario_YPP_Setup(Params,Params.scenario,Params.ypp,small_z_no_e,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,Params.tau_cg,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
 
 % Housing (ignored/overwritten if no housing in scenario)
 % Params.minhouse % set below, is the minimum value of house that can be purchased
@@ -145,8 +145,8 @@ Params.sigma_z_e_energy=0.211;
 
 %% Create our Grids from Scenario and Parameters
 vfoptions=struct(); simoptions=struct();
-[n_d,n_a,n_z,N_j,Params.e,vfoptions]=Electrify_GridSizeSetup(Params.scenario, Params.J, small_z_no_e, small_model, vfoptions);
-[d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_grid,k_grid,pv_grid_firm,Params,vfoptions,simoptions]=Electrify_GridSetup(Params.scenario, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions);
+[n_d,n_a,n_z,N_j,vfoptions]=Electrify_GridSizeSetup(Params.scenario, Params.J, small_z_no_e, small_model, vfoptions);
+[d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_grid,k_grid,pv_grid_firm,Params,vfoptions,simoptions]=Electrify_GridSetup(Params.scenario, Params.ypp, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions);
 
 % Set up Transition Path control parameters
 if small_T==2
@@ -291,7 +291,6 @@ simoptions.gridinterplayer = vfoptions.gridinterplayer;
 %% Remaining parameters
 % Steering GE
 Params.TargetKdivL=2.03;
-Params.pv_max_firm=pv_grid_firm(end);
 
 % Parameters set/evolved by Transition Paths
 Params.cpi=0; % Initial condition
@@ -299,11 +298,18 @@ Params.cpi_energy=0; % Initial condition
 
 % Scaling the household labor supply; we scale model and GE finds its own equilibrium
 % This is vaguely scenario-by-ypp
-Lhscale=[[0.25,0.21,0.20,0.21];
-    [0.36,0.28,0.24,0.38];
-    [0.36,0.28,0.21,0.38];
-    [0.36,0.36,0.38,0.38];
-    [0.36,0.36,0.38,0.7];
+Lhscale=[[0.25,0.21,0.20,116];
+    [0.37,0.27,0.24,2];    % 2
+    [0.54,0.40,0.30,2.3];
+    [0.57,0.44,0.31,2.3];  % 4
+    [0.65,1.1,0.32,2.3];
+    [3.3,2.8,1.6,2.3];     % 6
+    [5.0,3.2,2.1,2.6];
+    [6.2,4.2,2.9,3.0];     % 8
+    [7.5,4.7,3.5,3.2];
+    [7.9,5.0,3.5,3.2];    % 10
+    [8.7,5.8,3.6,3.4];
+    [9.5,6.3,3.7,3.6];    % 12
     ]; 
 if Params.ypp<=size(Lhscale,1)
     Lhscale_final=Lhscale(Params.ypp,Params.scenario)*1.1;
@@ -531,9 +537,11 @@ elseif Params.scenario==4
     ylabel('K')
 end
 
-if false
+if Params.scenario>=3 % shares vs. assets not possible in Scenarios 1 and 2
     % household = [S, A, H, PV, z, agej]
     [V_h, Policy_h]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j, {'household'}, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
+    share_grid=a_grid.household(1:n_a.household(1));
+    asset_grid=a_grid.household(n_a.household(1)+1:n_a.household(1)+n_a.household(2));
     % We can plot V as a 3d plot (surf is matlab command for 3d plot)
     figure(6)
     for row=1:3
@@ -544,16 +552,16 @@ if false
             % Plot F as S vs H
             if small_z_no_e
                 if Params.scenario<4
-                    surf(asset_grid,share_grid,V_h.household(:,:,2,1,1,agej), V_h.household(:,:,2,1,1,agej)-V_h.household(:,:,1,1,1,agej))
+                    surf(asset_grid,share_grid,V_h.household(:,:,2,2,1,agej), V_h.household(:,:,2,2,1,agej)-V_h.household(:,:,1,1,1,agej))
                 else
-                    surf(asset_grid,share_grid,V_h.household(:,:,1,2,1,1,agej), V_h.household(:,:,1,2,1,1,agej)-V_h.household(:,:,1,1,1,1,agej))
+                    surf(asset_grid,share_grid,V_h.household(:,:,2,2,2,1,agej), V_h.household(:,:,2,2,2,1,agej)-V_h.household(:,:,1,1,1,1,agej))
                 end
                 colorbar
             else
                 if Params.scenario<4
-                    surf(asset_grid,share_grid,V_h.household(:,:,1,1,1,4,Params.Jr))
-                else
                     surf(asset_grid,share_grid,V_h.household(:,:,1,1,4,Params.Jr))
+                else
+                    surf(asset_grid,share_grid,V_h.household(:,:,1,1,1,4,Params.Jr))
                 end
             end
             title(sprintf('Value function: F as S vs A at age %d', (agej-1)*Params.ypp+agejshifter+1))
@@ -569,16 +577,12 @@ AgeWeightsParamNames=struct('household',{{'mewj'}}); % So VFI Toolkit knows whic
 
 % Find parameters for Lhscale; note this is all small_z_no_e or all ~small_z_no_e
 if test_Lhscale
-    Params_Lh=Params;
-    vfoptions_Lh=vfoptions;
-    simoptions_Lh=simoptions;
     if small_z_no_e
         small_z_no_e_string="true";
     else
         small_z_no_e_string="false";
     end
-    for scenario=4:4
-        Params_Lh.scenario=scenario;
+    for scenario=1:4
         if scenario<3
             ReturnFn_Lh.household=ReturnFn_12.household;
         elseif scenario<4
@@ -593,42 +597,35 @@ if test_Lhscale
             ReturnFn_Lh.firm=ReturnFn_4.firm;
             ReturnFn_Lh.energy=ReturnFn_4.energy;
         end
-        for ypp=1:12
-            Params_Lh.ypp=ypp;
-            Params_Lh=Electrify_Scenario_YPP_Setup(Params_Lh,scenario,ypp,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
-            [n_d_Lh,n_a_Lh,n_z_Lh,N_j_Lh,Params_Lh.e,vfoptions_Lh]=Electrify_GridSizeSetup(scenario, Params_Lh.J, small_z_no_e, small_model, vfoptions_Lh);
-            [d_grid_Lh,a_grid_Lh,z_grid_Lh,pi_z_Lh,jequaloneDist,~,~,~,Params_Lh,vfoptions_Lh,simoptions_Lh]=Electrify_GridSetup(scenario, n_d_Lh, n_a_Lh, n_z_Lh, small_z_no_e, Params_Lh, vfoptions_Lh, simoptions_Lh);
+        for ypp=[7,8,9,10,12]
+            vfoptions_Lh=struct(); simoptions_Lh=struct();
+            Params_Lh=Electrify_Scenario_YPP_Setup(Params,scenario,ypp,small_z_no_e,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,Params.tau_cg,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
+            [n_d_Lh,n_a_Lh,n_z_Lh,N_j_Lh,vfoptions_Lh]=Electrify_GridSizeSetup(scenario, Params_Lh.J, small_z_no_e, small_model, vfoptions_Lh);
+            [d_grid_Lh,a_grid_Lh,z_grid_Lh,pi_z_Lh,jequaloneDist_Lh,share_grid_Lh,k_grid_Lh,pv_grid_firm_Lh,Params_Lh,vfoptions_Lh,simoptions_Lh]=Electrify_GridSetup(scenario, ypp, n_d_Lh, n_a_Lh, n_z_Lh, small_z_no_e, Params_Lh, vfoptions_Lh, simoptions_Lh);
             if ypp<=size(Lhscale,1)
                 Params_Lh.Lhscale=Lhscale(ypp,scenario);
             else
                 Params_Lh.Lhscale=Lhscale(end,scenario);
             end
             [V_Lh, Policy_Lh]=ValueFnIter_Case1_FHorz_PType(n_d_Lh,n_a_Lh,n_z_Lh,N_j_Lh,Names_i, d_grid_Lh, a_grid_Lh, z_grid_Lh, pi_z_Lh, ReturnFn_Lh, Params_Lh, DiscountFactorParamNames, vfoptions_Lh);
-            StationaryDist_Lh=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_Lh,n_d_Lh,n_a_Lh,n_z_Lh,N_j_Lh,Names_i,pi_z_Lh,Params_Lh,simoptions_Lh);
+            StationaryDist_Lh=StationaryDist_Case1_FHorz_PType(jequaloneDist_Lh,AgeWeightsParamNames,PTypeDistParamNames,Policy_Lh,n_d_Lh,n_a_Lh,n_z_Lh,N_j_Lh,Names_i,pi_z_Lh,Params_Lh,simoptions_Lh);
             if scenario<3
-                FnsToEvaluate2=FnsToEvaluate2_12;
+                FnsToEvaluate2_Lh=FnsToEvaluate2_12;
             elseif scenario<4
-                FnsToEvaluate2=FnsToEvaluate2_3;
+                FnsToEvaluate2_Lh=FnsToEvaluate2_3;
             else
-                FnsToEvaluate2=FnsToEvaluate2_4;
+                FnsToEvaluate2_Lh=FnsToEvaluate2_4;
             end
-            AggVars_Lh=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_Lh, Policy_Lh, FnsToEvaluate2, Params_Lh, n_d_Lh, n_a_Lh, n_z_Lh,N_j_Lh,Names_i, d_grid_Lh, a_grid_Lh, z_grid_Lh,simoptions_Lh);
-            clear FnsToEvaluate2
+            AggVars_Lh=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_Lh, Policy_Lh, FnsToEvaluate2_Lh, Params_Lh, n_d_Lh, n_a_Lh, n_z_Lh,N_j_Lh,Names_i, d_grid_Lh, a_grid_Lh, z_grid_Lh,simoptions_Lh);
             fprintf('Check Scenario %d; ypp= %d; small_z_no_e = %s: L_hscale = %.2f; L_h, L_f, K are ', scenario, ypp, small_z_no_e_string, Params_Lh.Lhscale)
             if AggVars_Lh.L_f.Mean~=0 && abs(1-AggVars_Lh.L_h.Mean/AggVars_Lh.L_f.Mean)<0.1
                 cprintf('', "%10.4f %10.4f %10.4f \n", AggVars_Lh.L_h.Mean,AggVars_Lh.L_f.Mean,AggVars_Lh.K.Mean);
             else
                 cprintf('err', "%10.4f %10.4f %10.4f \n", AggVars_Lh.L_h.Mean,AggVars_Lh.L_f.Mean,AggVars_Lh.K.Mean);
             end
+            clear vfoptions_Lh simoptions_Lh Params_Lh FnsToEvaluate2_Lh V_Lh Policy_Lh StationaryDist_Lh AggVars_Lh
         end
-    end
-    % Resync with single model run
-    if Params.scenario<3
-        FnsToEvaluate2=FnsToEvaluate2_12;
-    elseif Params.scenario<4
-        FnsToEvaluate2=FnsToEvaluate2_3;
-    else
-        FnsToEvaluate2=FnsToEvaluate2_4;
+        clear ReturnFn_Lh
     end
 else
 
@@ -846,7 +843,7 @@ if solve_GE>=2
     % 40 years of changing demographics
     % 60 years in final demographic state (to allow time to converge to final stationary general eqm)
     % Conditional survival probabilities
-    ParamPath.sj=[sj_init+(sj_final-sj_init).*linspace(0,1,ceil(40/(Params.ypp*jpT)))'; sj_final.*ones(T-ceil(40/(Params.ypp*jpT)),1)];
+    ParamPath.sj=[Params.sj_init+(Params.sj_final-Params.sj_init).*linspace(0,1,ceil(40/(Params.ypp*jpT)))'; Params.sj_final.*ones(T-ceil(40/(Params.ypp*jpT)),1)];
     % T-by-N_j (whether this or N_j-by_T, toolkit understands both)
     % Calculate the implied mewj from the sj
     ParamPath.mewj=cumprod([ones(T,1), ParamPath.sj(:,1:end-1)], 2); % mass of age jj is the mass of jj-1 that survive

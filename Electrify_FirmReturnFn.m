@@ -31,7 +31,7 @@ delta_pp=(1+delta)^ypp-1;
 invest_pp=kprime-(1-delta)^ypp*k; % largely tracks delta*k = 0.054*k
 
 % Capital-adjustment costs
-capitaladjcost_pp=(capadjconstant/2)*((invest_pp/(k*ypp)-delta_pp)^2) *(k*ypp); 
+capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k-delta_pp)^2)*k*ypp; 
 
 % Taxable corporate income
 T=profit_pp-delta_pp*k-phi*capitaladjcost_pp;

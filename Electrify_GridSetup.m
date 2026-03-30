@@ -1,4 +1,4 @@
-function [d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_grid,k_grid,pv_grid_firm,Params,vfoptions,simoptions]=Electrify_GridSetup(scenario, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions)
+function [d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_grid,k_grid,pv_grid_firm,Params,vfoptions,simoptions]=Electrify_GridSetup(scenario, ypp, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions)
 
 %% Grids for household
 
@@ -12,7 +12,7 @@ labor_grid=linspace(0,1,n_d.household(1))'; % Notice that it is imposing the 0<=
 % share_grid=[s_grid_cubed, s_grid_linear(2:end)]';
 
 % Set up d for VFI Toolkit
-if Params.scenario<3
+if scenario<3
     % One decision variable: labor hours percentage
     d_grid.household=labor_grid;
     % Grid for share holdings, always > 0
@@ -21,6 +21,7 @@ if Params.scenario<3
     share_grid=[s_grid_cubed, s_grid_linear(2:end)]';
     a_grid.household=share_grid;
     Params.minhouse=1;
+    pv_grid_hh=NaN;
 
     % This is a default, but we set explicitly to make this reentrant
     vfoptions.experienceasset.household=0;
@@ -40,7 +41,7 @@ else
     asset_grid(zeroassetindex)=0;
 
     % PV grid is 5 kW per grid element (approx 20kWh/day)
-    if Params.scenario<4
+    if scenario<4
         car_grid=zeros(0);
         house_grid=(0:1:n_a.household(3)-1)';
         pv_grid_hh=(0:1:n_a.household(4)-1)';
@@ -90,7 +91,7 @@ else
     simoptions.d_grid.household=d_grid.household;
     
     %% To speed up the use of experienceasset we use 'refine_d', which requires us to set the decision variables in a specific order
-    if Params.scenario<4
+    if scenario<4
         vfoptions.refine_d.household=[1,0,1]; % tell the code how many d1, d2, and d3 there are
     else
         vfoptions.refine_d.household=[2,0,1]; % tell the code how many d1, d2, and d3 there are
@@ -133,19 +134,19 @@ pi_z.household=pi_z_J;
 
 
 %% Grids for firm
-if Params.scenario<4
-    d_grid.firm=linspace(0,1+floor(log(Params.ypp)),n_d.firm)'; % Notice that it is imposing the d>=0 condition implicitly
+if scenario<4
+    d_grid.firm=linspace(0,1+floor(log(ypp)),n_d.firm)'; % Notice that it is imposing the d>=0 condition implicitly
     % k_max=10 replicates OLGModel14; K>4=infeasible when ypp=1, but need more as ypp increases
-    k_max=[10,6+ceil(log(Params.ypp)),10+ceil(log(Params.ypp)),10+ceil(log(Params.ypp))];
+    k_max=[10,6+ceil(log(ypp)),10+ceil(log(ypp)),10+ceil(log(ypp))];
     k_grid_cubed=linspace(0,1,ceil(n_a.firm/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
-    k_grid_linear=linspace(1,k_max(Params.scenario),floor(n_a.firm/2)+1);
+    k_grid_linear=linspace(1,k_max(scenario),floor(n_a.firm/2)+1);
     k_grid=[k_grid_cubed, k_grid_linear(2:end)];
     a_grid.firm=k_grid';
-    pv_grid_firm=0;
+    pv_grid_firm=NaN;
 else
     d_grid.firm=linspace(0,1,n_d.firm(1))'; % Electrification investment
     % k_max=10 replicates OLGModel14; K>4=infeasible when ypp=1, but need more as ypp increases
-    k_max=6+ceil(log(Params.ypp));
+    k_max=6+ceil(log(ypp));
     k_grid_cubed=linspace(0,1,ceil(n_a.firm(1)/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
     k_grid_linear=linspace(1,k_max,floor(n_a.firm(1)/2)+1);
     k_grid=[k_grid_cubed, k_grid_linear(2:end)];
@@ -164,9 +165,10 @@ z_grid.firm=exp(z_grid.firm);
 
 
 %% Grids for energy
-if Params.scenario < 4
+if scenario < 4
     d_grid.energy=0; % Notice that it is imposing the d>=0 condition implicitly
     a_grid.energy=linspace(0,1,n_a.energy)'; % Nothing in particular
+    pv_grid_energy=NaN;
 else
     d_grid.energy=linspace(0,1,n_d.energy)'; % Notice that it is imposing the d>=0 condition implicitly
     % 300 * 200GWh PV = 60 TWh solar generation of 69 TWh current fossil sources
@@ -187,10 +189,10 @@ z_grid.energy=exp(z_grid.energy);
 % at age j=1. We will give them all zero shares (and possibly zero assets, no house, no solarpv).
 if small_z_no_e
     jequaloneDist.household=zeros([n_a.household,n_z.household],'gpuArray'); % Put no households anywhere on grid
-    if Params.scenario<3
+    if scenario<3
         % All agents start with zero shares, and the median shocks
         jequaloneDist.household(1,floor((n_z.household+1)/2))=1;
-    elseif Params.scenario<4
+    elseif scenario<4
         % All agents start with zero shares, assets, houses, solarpv, and median shocks
         jequaloneDist.household(1,zeroassetindex,1,1,floor((n_z.household+1)/2))=1;
     else
@@ -199,10 +201,10 @@ if small_z_no_e
     end
 else
     jequaloneDist.household=zeros([n_a.household,n_z.household,vfoptions.n_e.household],'gpuArray'); % Put no households anywhere on grid
-    if Params.scenario<3
+    if scenario<3
         % All agents start with zero shares, and the median shocks
         jequaloneDist.household(1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;
-    elseif Params.scenario<4
+    elseif scenario<4
         % All agents start with zero shares, assets, houses, solarpv, and median shocks
         jequaloneDist.household(1,zeroassetindex,1,1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;
     else
@@ -212,6 +214,11 @@ else
 end
 
 % Note that because the firms are infinite horizon they do not have an age=1 distribution
+
+% We cannot store these values in a structure because we cannot pass structures via Params to applyfun.
+Params.pv_max_firm=pv_grid_firm(end);
+Params.pv_max_household=pv_grid_hh(end);
+Params.pv_max_energy=pv_grid_energy(end);
 
 % Last aspect of grid: can we divide and conquer?
 vfoptions.divideandconquer.household = logical(scenario<3);

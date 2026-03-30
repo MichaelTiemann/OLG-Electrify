@@ -8,7 +8,7 @@ function F=Electrify_HouseholdReturnFn( ...
 % Note: experienceasset, so first inputs are (d,a,z,e,...)
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
-F=-100;
+F=-Inf;
 
 % buyhouse decisions
 %  0=no house/sell house
@@ -130,7 +130,7 @@ end
 if agej==J % Final period
     if net_worth_prime<0
         % Died too far in debt...shouldn't happen
-        F=-100;
+        F=-Inf;
     else
         % Our warmglow includes selling our next period house assets
         warmglow=warmglow1*(net_worth_prime^(1-warmglow2))/(1-warmglow2);

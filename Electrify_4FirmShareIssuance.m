@@ -52,7 +52,7 @@ elseif dividend_pp<=0.2
     dividend_pp=mid_dividend_pp;
 else
     % We don't need to issue shares and can pay rich dividend
-    s=0.12345;
+    s=0;
 end
 
 end

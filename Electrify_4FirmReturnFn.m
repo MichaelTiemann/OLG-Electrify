@@ -1,7 +1,7 @@
 function F=Electrify_4FirmReturnFn( ...
     electrification,kprime,pvprime,k,pv,z, ...
     w, ...
-    ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max,carbon_tax)
+    ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max_firm,carbon_tax)
 % Whether we set it up so that dividends or equity issuance is the decision
 % variable is unimportant, here I use dividends as the decision variable.
 
@@ -33,14 +33,14 @@ pv_cost_offset_pp=min(pv*ypp*30/75900,y_energy_cost_pp);
 new_pv_cost=(pvprime-pv)*1/2000;
 
 % Profit
-profit_pp=y_pp-w*l*ypp-y_energy_cost_pp+pv_cost_offset_pp-new_pv_cost-y_carbon_tax*(1-pv/pv_max)*y_pp;
+profit_pp=y_pp-w*l*ypp-y_energy_cost_pp+pv_cost_offset_pp-new_pv_cost-y_carbon_tax*(1-pv/pv_max_firm)*y_pp;
 
 % Investment
 delta_pp=(1+delta)^ypp-1;
 invest_pp=kprime-(1-delta)^ypp*k;
 
 % Capital-adjustment costs
-capitaladjcost_pp=(capadjconstant/2)*((invest_pp/(k*ypp)-delta_pp)^2) *(k*ypp); 
+capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k-delta_pp)^2)*k*ypp; 
 
 % Taxable corporate income
 T=max(profit_pp-delta_pp*k-phi*capitaladjcost_pp,0);

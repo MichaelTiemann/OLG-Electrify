@@ -1,4 +1,11 @@
-function [Params]=Electrify_Scenario_YPP_Setup(Params,scenario,ypp,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH)
+function [Params]=Electrify_Scenario_YPP_Setup(Params,scenario,ypp,small_z_no_e,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,tau_cg,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH)
+
+if small_z_no_e
+    Params.e=0;
+end
+
+Params.scenario=scenario;
+Params.ypp=ypp;
 
 Params.J=ceil((max_age-agejshifter)/ypp); % =60/ypp, Number of period in life-cycle
 Params.Jr=round((65-agejshifter)/ypp); % Age 65 (period 10 is ages 65-69 in the 5 year case)
@@ -49,10 +56,12 @@ Params.rho_z=[rho_z(1)*ones_pp4y, ...
     rho_z, ...
     rho_z(end)*ones_pp4y, ...
     zeros(1,Params.J-Params.Jr+1)];
+Params.rho_z=Params.rho_z(1:Params.J);
 Params.sigma_epsilon_z=[sigma_epsilon_z(1)*ones_pp4y, ...
     sigma_epsilon_z, ...
     sigma_epsilon_z(end)*ones_pp4y, ...
     sigma_epsilon_z(end)*ones(1,Params.J-Params.Jr+1)];
+Params.sigma_epsilon_z=Params.sigma_epsilon_z(1:Params.J);
 
 % Transitory iid shock
 sigma_e=0.0410+0.0221*((24:ypp:60)/10)-0.0069*((24:ypp:60)/10).^2+0.0008*((24:ypp:60)/10).^3;
@@ -60,6 +69,7 @@ Params.sigma_e=[sigma_e(1)*ones_pp4y, ...
     sigma_e, ...
     sigma_e(end)*ones_pp4y, ...
     sigma_e(end)*ones(1,Params.J-Params.Jr+1)];
+Params.sigma_e=Params.sigma_e(1:Params.J);
 
 % Note: These iid shocks will interact with the endogenous labor so the final labor
 % earnings process will not equal that of Karahan & Ozkan (2013)
@@ -82,11 +92,13 @@ dj=resize(dj,101+ypp,FillValue=1);
 % Note: when ypp==1, the product over the reshaped array is over a single year period (i.e. trivial)
 sj_init=prod(1-reshape(dj(1:ypp*Params.J),[ypp,Params.J]),1); % p5-year survival rates
 sj_init(end)=0; % In the present model the last period (j=J) value of sj is actually irrelevant
+Params.sj_init=sj_init;
 
 % Add 5 years of life expectancy...age sj(65) in the future will be sj(60) by today's statistics
 % Part of this is achieved by improving early childhood survival as well...feeding two birds with one worm
 sj_final=prod(1-reshape([dj(1:2:10), repelem(dj(11:15), 3), dj(16:ypp*Params.J-5)],[ypp,Params.J]),1);
 sj_final(end)=0; % In the present model the last period (j=J) value of sj is actually irrelevant
+Params.sj_final=sj_final;
 
 %% Setup for sj and mewj transitions (T-by-N_j)
 % We defer doing transition maths until we calculate GE final
@@ -108,11 +120,11 @@ if scenario>2
     Params.AccidentBeqAH_pp=AccidentBeqAH(scenario)*ypp;
 end
 Params.r_pp=(1+r)^ypp-1;
-Params.firmbeta=1/(1+Params.r_pp/(1-Params.tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
+Params.firmbeta=1/(1+Params.r_pp/(1-tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
 
 Params.sigma_h=sigma_h(scenario);
 Params.sigma_c=sigma_c(scenario);
-Params.psi=psi(Params.scenario);
+Params.psi=psi(scenario);
 Params.energy_pct_cost=energy_pct_cost(scenario);
 
 if scenario==4
