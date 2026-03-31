@@ -12,7 +12,7 @@ solve_setup=true;
 test_Lhscale=false;
 solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=false;
-small_z_no_e=true; % n_z=1; n_e=0
+small_z_no_e=false; % n_z=1; n_e=0
 small_model=false; % Minimal vs. maximal grid sizes
 small_T=0; % small_T==1 means just do T=1, T=2 (or smallest not-to-be-confused-with-dimension); small_T==2 means use jpT
 
@@ -32,7 +32,7 @@ Params.scenario=4;
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
 % Discounting parameters (beta_pp and sj) defined in terms of ypp
-Params.ypp=5; % model period, in years (just used this to modify some parameters from annual to model period)
+Params.ypp=8; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
 max_age=100;
@@ -297,8 +297,9 @@ Params.cpi=0; % Initial condition
 Params.cpi_energy=0; % Initial condition
 
 % Scaling the household labor supply; we scale model and GE finds its own equilibrium
-% This is vaguely scenario-by-ypp
-Lhscale=[[0.25,0.21,0.20,116];
+% This is vaguely scenario-by-ypp, set for small_z_no_e=true
+Lhscale_small_z_no_e=[
+    [0.25,0.21,0.20,116];
     [0.37,0.27,0.24,2];    % 2
     [0.54,0.40,0.30,2.3];
     [0.57,0.44,0.31,2.3];  % 4
@@ -311,6 +312,22 @@ Lhscale=[[0.25,0.21,0.20,116];
     [8.7,5.8,3.6,3.4];
     [9.5,6.3,3.7,3.6];    % 12
     ]; 
+
+Lhscale=[
+    [0.23,0.19,0.18,1.2];
+    [0.50,0.38,0.31,0.72]; % 2
+    [0.54,0.40,0.30,0.61];
+    [0.62,0.46,0.32,0.59]; % 4
+    [0.78,0.56,0.37,0.56];
+    [0.9,0.8,0.43,0.76];   % 6
+    [2.1,1.5,0.7,0.6];
+    [2.9,2.1,1.1,2.4];     % 8
+    [4.9,4.7,2.3,3.0];
+    [7.6,4.9,3.4,3.3];     % 10
+    [9.8,6.4,3.7,3.6];
+    [12,7.9,4.3,4.0];      % 12
+    ]; 
+
 if Params.ypp<=size(Lhscale,1)
     Lhscale_final=Lhscale(Params.ypp,Params.scenario)*1.1;
     ParamPath.Lhscale=linspace(Lhscale(Params.ypp,Params.scenario),Lhscale_final,T);
@@ -498,6 +515,13 @@ FnsToEvaluate2_4.CarbonCosts_f.firm=@(kprime,pvprime,k,pv,z,w,ypp,alpha_k,alpha_
 % runtimes) and then use FnsToEvaluate2 to analyse model with more stats.
 % Note: FnsToEvaluate may need 'e' grids, but AggVars and other stats use a
 % a joint ze grid (which reads as z in their parameter lists).
+if Params.scenario<3
+    FnsToEvaluate2=FnsToEvaluate2_12;
+elseif Params.scenario<4
+    FnsToEvaluate2=FnsToEvaluate2_3;
+else
+    FnsToEvaluate2=FnsToEvaluate2_4;
+end
 
 if Params.scenario==3
     [V_f, Policy_f]=ValueFnIter_Case1_PType(n_d,n_a,n_z, {'firm'}, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
@@ -547,7 +571,11 @@ if Params.scenario>=3 % shares vs. assets not possible in Scenarios 1 and 2
     for row=1:3
         for col=1:3
             subplot(3,3,(row-1)*3+col);
-            agej=(row-1)*6+col*2-1;
+            if Params.ypp<6
+                agej=(row-1)*6+col*2-1;
+            else
+                agej=(row-1)*3+col;
+            end
             % Plot F as K vs PV
             % Plot F as S vs H
             if small_z_no_e
@@ -582,7 +610,7 @@ if test_Lhscale
     else
         small_z_no_e_string="false";
     end
-    for scenario=1:4
+    for scenario=4:-1:1
         if scenario<3
             ReturnFn_Lh.household=ReturnFn_12.household;
         elseif scenario<4
@@ -597,7 +625,7 @@ if test_Lhscale
             ReturnFn_Lh.firm=ReturnFn_4.firm;
             ReturnFn_Lh.energy=ReturnFn_4.energy;
         end
-        for ypp=[7,8,9,10,12]
+        for ypp=[12:-2:6, 5:-1:1]
             vfoptions_Lh=struct(); simoptions_Lh=struct();
             Params_Lh=Electrify_Scenario_YPP_Setup(Params,scenario,ypp,small_z_no_e,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,Params.tau_cg,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
             [n_d_Lh,n_a_Lh,n_z_Lh,N_j_Lh,vfoptions_Lh]=Electrify_GridSizeSetup(scenario, Params_Lh.J, small_z_no_e, small_model, vfoptions_Lh);
@@ -674,13 +702,6 @@ StationaryDist_init=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsPar
 %% Test
 % Note: Because we used simoptions we must include this as an input
 disp('Test AggVars')
-if Params.scenario<3
-    FnsToEvaluate2=FnsToEvaluate2_12;
-elseif Params.scenario<4
-    FnsToEvaluate2=FnsToEvaluate2_3;
-else
-    FnsToEvaluate2=FnsToEvaluate2_4;
-end
 AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j,Names_i, d_grid, a_grid, z_grid,simoptions);
 
 % Next few lines were used to try a few parameter values so as to get a

@@ -134,13 +134,14 @@ pi_z.household=pi_z_J;
 
 
 %% Grids for firm
+% note we discard the 0 and the 1 from k_grid_cubed, and give ourselves and extra slot in the linear space
 if scenario<4
     d_grid.firm=linspace(0,1+floor(log(ypp)),n_d.firm)'; % Notice that it is imposing the d>=0 condition implicitly
     % k_max=10 replicates OLGModel14; K>4=infeasible when ypp=1, but need more as ypp increases
     k_max=[10,6+ceil(log(ypp)),10+ceil(log(ypp)),10+ceil(log(ypp))];
     k_grid_cubed=linspace(0,1,ceil(n_a.firm/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
-    k_grid_linear=linspace(1,k_max(scenario),floor(n_a.firm/2)+1);
-    k_grid=[k_grid_cubed, k_grid_linear(2:end)];
+    k_grid_linear=linspace(1,k_max(scenario),ceil(n_a.firm/2)+1);
+    k_grid=[k_grid_cubed(2:end-1), k_grid_linear];
     a_grid.firm=k_grid';
     pv_grid_firm=NaN;
 else
@@ -148,8 +149,8 @@ else
     % k_max=10 replicates OLGModel14; K>4=infeasible when ypp=1, but need more as ypp increases
     k_max=6+ceil(log(ypp));
     k_grid_cubed=linspace(0,1,ceil(n_a.firm(1)/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
-    k_grid_linear=linspace(1,k_max,floor(n_a.firm(1)/2)+1);
-    k_grid=[k_grid_cubed, k_grid_linear(2:end)];
+    k_grid_linear=linspace(1,k_max,ceil(n_a.firm(1)/2)+1);
+    k_grid=[k_grid_cubed(2:end-1), k_grid_linear];
     % 300 * 200GWh PV = 60 TWh solar generation of 69 TWh current fossil sources
     pv_grid_firm=linspace(0,100*(1+1/(n_a.firm(2)-1)),n_a.firm(2))-100/(n_a.firm(2)-1);
     a_grid.firm=[k_grid'; pv_grid_firm'];
