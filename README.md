@@ -116,8 +116,7 @@ elseif dividend<mid_dividend
     % We will issue new shares and provide a full dividend
     shares_to_sell=mid_dividend-dividend;
     dividend=mid_dividend;
-else
-    % We don't need to issue shares and can pay rich dividend
+else % We don't need to issue shares and can pay rich dividend
 end
 ```
 
