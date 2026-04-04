@@ -147,10 +147,6 @@ As tempting as it would be to put a parlimentary budget negotiation into the mod
 * capital gains and dividend taxes pay for government services
 * carbon taxes pay for energy transition
 
----
-<!-- Page Break Here -->
----
-
 ## Statistical References and Data
 
 The following are [data](https://www.mbie.govt.nz/building-and-energy/energy-and-natural-resources/energy-statistics-and-modelling/energy-publications-and-technical-papers/energy-in-new-zealand/energy-in-new-zealand-2025) collected informally for parameterizing the model.  Better sources and methods gladly accepted!
