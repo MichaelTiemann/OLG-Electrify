@@ -149,30 +149,39 @@ As tempting as it would be to put a parlimentary budget negotiation into the mod
 
 ## Statistical References and Data
 
-The following are data collected informally for parameterizing the model.  Better sources and methods gladly accepted!
+The following are [data](https://www.mbie.govt.nz/building-and-energy/energy-and-natural-resources/energy-statistics-and-modelling/energy-publications-and-technical-papers/energy-in-new-zealand/energy-in-new-zealand-2025) collected informally for parameterizing the model.  Better sources and methods gladly accepted!
+
+43L/week petrol usage [source](https://www.odt.co.nz/news/national/fuel-hikes-add-40-household-bills-rnz)
 
 ```
 %% Basic statistical abstract (NZD)
-% NZ GDP: $440B ($80K per capita, $152K per employed worker)
-% NZ Wages: $55K living, $70K median, $80K average * 2.9M workers = $232B wages
-% NZ Energy:    - 525 PJ/year
-%   Oil         - 270 PJ
+% NZ GDP: $440B (\$80K per capita, \$152K per employed worker)
+% NZ GDP: 55% households => $242B
+%         20% government =>  $88B
+%         25% business   => $110B
+% NZ Wages: $55K living, \$70K median, \$80K average * 2.9M workers = \$232B wages
+% NZ Households: 2.04M (thus average household income is $114K)
+% NZ Energy:    - 525 PJ/year (87 PJ household, potentially 178 PJ w/household transport)
+%   Oil         - 271 PJ
 %   Electricity - 144 PJ
 %   Gas         -  58 PJ
-%   Biomass     -  40 PJ
-%   Coal        -  18 PJ
+%   Biomass     -  35 PJ
+%   Coal        -  17 PJ
 % NZ Electricity retail: $350/MWh
-% NZ HH Energy: 20 kWh/day electricity =>  7 MWh/year =>  $2500/year => 3.5% wages
-% NZ HH Energy: 73 kWh/day overall     => 27 MWh/year => $10000/year => 14.0% wages
+% NZ household uses 43L Petrol / week = 2236L / year; 34.2 MJ/L petrol * 2600 * 2M households = 153 PJ !?
+% NZ HH Electricity:  51 PJ =>  7.1 MWh/HH/year =>  $2485/year => 2.2% HH wages
+% NZ HH Other Energy: 36 PJ =>  5.0 MWh/HH/year =>  $1750/year => 1.54% HH wages
+% NZ HH Transport:    91 PJ =>  1330L Petrol/HH/year @ \$3.55/L => 4.1% HH wages
+% NZ HH Energy: $8956 => 7.9% HH wages
 % NZ Firm Energy retail: $150/MWh
-%   Transport    - 200 PJ
-%   Industrial   - 160 PJ
-%   Commercial   -  55 PJ
-%   Ag,Forest,Fish- 30 PJ
-%   Total: 445 PJ => 125 TWh => $20B energy costs => 4.5% of 440B GDP
-% Energy is 8.6% of Labor costs
-% Net capital stocks of NZ $1,329B less $690B real estate = $630B
-% K/L = $440B/232B = 1.9
+%   Transport    - 202 PJ -- 20PJ international transport; 50% LPVs, so 111 PJ commercial traffic
+%   Industrial   - 151 PJ
+%   Commercial   -  54 PJ -- includes public services
+%   Ag,Forest,Fish- 31 PJ
+%   Total: 347 PJ (not 445) => 96 TWh => $14.4B energy costs => 13.1% of \$110B GDP
+% Energy is 6.2% of Labor costs
+% Net capital stocks of NZ $1,329B less \$690B real estate = \$630B
+% K/L = $630B/\$232B = 2.72
 ```
 
 ### Energy cost and supply allocations
@@ -182,14 +191,41 @@ we imagine firms able to use their facilities for locally sourcing electricity. 
 but it allows firms (which may include transport companies) to purchase power from the energy sector rather than being forced to install their own PVs.
 Depending on the settings, there may be a role for energy suppliers to generate and sell electricity, or it may be that every energy consumer prefers to be self-reliant.
 
+Noting that GDP is _everything_ spent by the economy, we add households and firms together for the gross numbers.
+
 ```
-% If Y is full GDP ($440B), then Ek=125 TWh and ek=$440B/125TWh=$3.52 GDP/kWh
-% NZ emissions from energy sector: 76.4 Mt CO2e
+% If Y is $110B (commercial output), then Ek=96 TWh and ek=\$110B/96TWh=\$1146 GDP/MWh
+% NZ emissions from energy sector: 76.4 Mt CO2e across 22+201+36 = 259 PJ fossil
+%    Allocated to commercial:   17 PJ + 15% of 33  =  22 PJ => 8.5% of 76.4 =>  6.49 Mt CO2e
+%    Allocated to com transp:  111 PJ + 15% of 1.2 = 111 PJ => 42.9%        => 32.7  Mt CO2e
+%    Allocated to HH transp:    91 PJ + 15% of 1.2 =  91 PJ => 35.1%        => 26.8  Mt CO2e
+%    Allocated to residential:  28 PJ + 15% of 51  =  36 PJ => 13.9%        => 10.6  Mt CO2e
 % 69 TWh to be electrified (56 TWh already renewable); need 46,000 MW generation
 % Choosing unit industrial PV to be 200GWh/year generation...
-% 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$440B = 0.0005 max GDP
-% 200GWh PV/year * 1000 MWh/GWh * $150/MWh = Firm PV Energy Cost Offset $30M/PV/year (vs $440B)
-% 69 TWh/year to electrify = 345*200GWh/year * $220M/200GWh/year = $75900M cost of 100% conversion
+% 200GWh/year = 133MW*1500h/yr = $220M cost @ \$1.65M/MW; \$220M/\$110B = 0.002 max Y
+% 200GWh PV/year * 1000 MWh/GWh * $150/MWh = Firm PV Energy Cost Offset \$30M/PV/year (vs \$110B)
+% 69 TWh/year to electrify = 345*200GWh/year * $220M/200GWh/year = \$75900M cost of 100% conversion
 ```
 
+As to allocating costs, we model HH solarPV as a fraction of house cost.
+The average NZ starter home ranges from $450K-\$700K.  We choose \$456K as a starting home price (4x \$114K average household income).
+A high-end/high-efficiency system is \$15K for 5kW generation, or approximately 3.3% of the cost of h==1 per PV or 13.2% of average household income.
+
 At present we allocate firms with the choice of installing 0-100 industry-scale PVs, and the energy sector to install the remaining 245 as a choice between 0-300 industry-scale PVs.
+
+For firms, 200 GWh per year generation offsets $30M/year in energy costs and costs \$220M to install.
+We estimate a low 2% depreciation rate (1% annual degradation, 1% other maint) and the foregone value
+of either risk-free rate of return on capital, or the firm's own dividend rate.
+Thus \$4.4M annual depreciation and at least \$11M in capital opportunity cost = \$15.4M/year.
+A net \$14.6M energy cost offset yields a 15 year fully depreciated ammortization schedule for \220M investment.
+
+If we loosely translate one unit of K to $10B worth of captial investment, \$220M cost = 0.022 worth of K.
+And \$30M base energy offset cost = 0.003 worth of K per year (so 0.015 in a 5 year period, not including depreciation or interest opportunity costs, which the model computes in other ways).
+
+However, carbon taxes become significant when true social cost is used as basis:
+```
+76.4 Mt CO2e * $42 / t CO2e = \$3.21B NZD (0.73% GDP)
+76.4 Mt CO2e * $2450 / t CO2e = \$187B NZD (42.5% GDP)
+```
+Thus, there is a very strong incentive to decarbonize as the price of carbon inevitably rises.
+Each 200 GWh industrial PV decarbonizes 0.29% of what can be decarbonized, or 0.123% of GDP when carbon is fully and fairly priced.
