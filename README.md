@@ -178,7 +178,7 @@ The following are [data](https://www.mbie.govt.nz/building-and-energy/energy-and
 % NZ HH Transport:    91 PJ =>  1330L Petrol/HH/year @ \$3.55/L => 4.1% HH wages
 % NZ HH Energy: $8956 => 7.9% HH wages
 % NZ Firm Energy retail: $150/MWh
-%   Transport    - 202 PJ -- 20PJ international transport; 50% LPVs, so 111 PJ commercial traffic
+%   Transport    - 202 PJ -- 20PJ int'l transport; 50% LPVs, so 111 PJ commercial
 %   Industrial   - 151 PJ
 %   Commercial   -  54 PJ -- includes public services
 %   Ag,Forest,Fish- 31 PJ
@@ -200,10 +200,11 @@ Noting that GDP is _everything_ spent by the economy, we add households and firm
 ```
 % If Y is $110B (commercial output), then Ek=96 TWh and ek=\$110B/96TWh=\$1146 GDP/MWh
 % NZ emissions from energy sector: 76.4 Mt CO2e across 22+201+36 = 259 PJ fossil
-%    Allocated to commercial:   17 PJ + 15% of 33  =  22 PJ => 8.5% of 76.4 =>  6.49 Mt CO2e
-%    Allocated to com transp:  111 PJ + 15% of 1.2 = 111 PJ => 42.9%        => 32.7  Mt CO2e
-%    Allocated to HH transp:    91 PJ + 15% of 1.2 =  91 PJ => 35.1%        => 26.8  Mt CO2e
-%    Allocated to residential:  28 PJ + 15% of 51  =  36 PJ => 13.9%        => 10.6  Mt CO2e
+% Electricity is 85% renewable / 15% fossil, so 0.15 is fossil factor of electricity
+%  Alloc to commercial:   17 PJ + 0.15*33  =  22 PJ => 8.5% of 76.4 =>  6.49 Mt CO2e
+%  Alloc to com transp:  111 PJ + 0.15*1.2 = 111 PJ => 42.9%        => 32.7  Mt CO2e
+%  Alloc to HH transp:    91 PJ + 0.15*1.2 =  91 PJ => 35.1%        => 26.8  Mt CO2e
+%  Alloc to residential:  28 PJ + 0.15*51  =  36 PJ => 13.9%        => 10.6  Mt CO2e
 % 69 TWh to be electrified (56 TWh already renewable); need 46,000 MW generation
 % Choosing unit industrial PV to be 200GWh/year generation...
 % 200GWh/year = 133MW*1500h/yr = $220M cost @ \$1.65M/MW; \$220M/\$110B = 0.002 max Y
