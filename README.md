@@ -204,7 +204,7 @@ Noting that GDP is _everything_ spent by the economy, we add households and firm
 % 69 TWh to be electrified (56 TWh already renewable); need 46,000 MW generation
 % Choosing unit industrial PV to be 200GWh/year generation...
 % 200GWh/year = 133MW*1500h/yr = $220M cost @ \$1.65M/MW; \$220M/\$110B = 0.002 max Y
-% 200GWh PV/year * 1000 MWh/GWh * $150/MWh = Firm PV Energy Cost Offset \$30M/PV/year (vs \$110B)
+% 200GWh PV/year * 1000 MWh/GWh * $150/MWh = Cost offset \$30M/PV/year (vs \$110B)
 % 69 TWh/year to electrify = 345*200GWh/year * $220M/200GWh/year = \$75900M cost of 100% conversion
 ```
 
