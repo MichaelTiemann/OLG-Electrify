@@ -205,7 +205,7 @@ Noting that GDP is _everything_ spent by the economy, we add households and firm
 % Choosing unit industrial PV to be 200GWh/year generation...
 % 200GWh/year = 133MW*1500h/yr = $220M cost @ \$1.65M/MW; \$220M/\$110B = 0.002 max Y
 % 200GWh PV/year * 1000 MWh/GWh * $150/MWh = Cost offset \$30M/PV/year (vs \$110B)
-% 69 TWh/year to electrify = 345*200GWh/year * $220M/200GWh/year = \$75900M cost of 100% conversion
+% 69 TWh/year to electrify = 345*200GWh/year * $220M/200GWh/year = \$75.9B transition
 ```
 
 As to allocating costs, we model HH solarPV as a fraction of house cost.
