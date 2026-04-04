@@ -9,10 +9,10 @@
 addpath(genpath('./MatlabToolkits/'))
 
 solve_setup=true;
-test_Lhscale=false;
+test_Lhscale=true;
 solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
-small_z_no_e=true; % n_z=1; n_e=0
+small_z_no_e=false; % n_z=1; n_e=0
 small_model=false; % Minimal vs. maximal grid sizes
 small_T=0; % small_T==1 means just do T=1, T=2 (or smallest not-to-be-confused-with-dimension); small_T==2 means use jpT
 
@@ -123,8 +123,7 @@ Params.rentprice=0.3; % To make real fraction of income, must be multiplied by k
 Params.houseservices=0.5;
 Params.f_htc=0.05; % transaction cost of buying/selling house (is a percent of h+hprime)
 Params.f_coll=0.5; % collateral contraint (fraction of house value that can be borrowed)
-Params.pv_pct_cost=0.05; % modeling a $30K install for a $600K house
-
+Params.pv_pct_cost=0.033; % modeling a $15K install for a 5kW unit install
 %% Parameters for firm
 % Production
 Params.alpha_k=0.311; % diminishing returns to capital and energy inputs
@@ -207,37 +206,45 @@ Params.TargetKdivL=2.03;
 Params.cpi=0; % Initial condition
 Params.cpi_energy=0; % Initial condition
 
-% Scaling the household labor supply; we scale model and GE finds its own equilibrium
-% This is vaguely scenario-by-ypp, set for small_z_no_e=true
-Lhscale=[
-    [0.25,0.21,0.20,116];
-    [0.37,0.27,0.24,1.8];    % 2
-    [0.55,0.41,0.32,2.2];
-    [0.58,0.46,0.33,2.2];  % 4
-    [0.67,1.1,0.33,2.3];
-    [3.3,2.8,1.6,2.3];     % 6
-    [5.0,3.3,2.1,2.5];
-    [6.2,4.2,2.7,2.7];     % 8
-    [7.5,4.6,3.5,3.0];
-    [7.9,5.0,3.5,3.1];    % 10
-    [8.7,5.6,3.6,3.2];
-    [9.5,6.1,3.7,3.4];    % 12
-    ]; 
-
-Lhscale_z_and_e=[
-    [0.23,0.19,0.18,1.2];
-    [0.50,0.38,0.31,0.72]; % 2
-    [0.54,0.40,0.30,0.61];
-    [0.62,0.46,0.32,0.59]; % 4
-    [0.78,0.56,0.37,0.56];
-    [0.9,0.8,0.43,0.76];   % 6
-    [2.1,1.5,0.7,0.6];
-    [2.9,2.1,1.1,2.4];     % 8
-    [4.9,4.7,2.3,3.0];
-    [7.6,4.9,3.4,3.3];     % 10
-    [9.8,6.4,3.7,3.6];
-    [12,7.9,4.3,4.0];      % 12
-    ]; 
+if test_Lhscale
+    % Scaling the household labor supply; we scale model and GE finds its own equilibrium
+    % This is vaguely scenario-by-ypp, set for small_z_no_e=true
+    Lhscale_small_z_no_e=[
+        [0.13,0.11,0.09,0.63];
+        [0.18,0.13,0.11,0.8];    % 2
+        [0.26,0.21,0.16,1.0];
+        [0.27,0.23,0.16,1.0];  % 4
+        [0.33,0.5,0.16,1.1];
+        [1.4,1.4,0.8,1.1];     % 6
+        [1.9,1.5,1.3,1.2];
+        [2.4,1.6,1.3,1.3];     % 8
+        [2.7,1.6,1.5,1.4];
+        [3.1,2.1,1.7,1.4];    % 10
+        [3.5,2.2,1.7,1.4];
+        [3.6,2.9,1.8,1.4];    % 12
+        ]; 
+    
+    Lhscale_z_and_e=[
+        [0.23,0.19,0.18,1.2];
+        [0.50,0.38,0.31,0.72]; % 2
+        [0.54,0.40,0.30,0.61];
+        [0.62,0.46,0.32,0.59]; % 4
+        [0.78,0.56,0.37,0.56];
+        [0.9,0.8,0.43,0.76];   % 6
+        [2.1,1.5,0.7,0.6];
+        [2.9,2.1,1.1,2.4];     % 8
+        [4.9,4.7,2.3,3.0];
+        [7.6,4.9,3.4,3.3];     % 10
+        [9.8,6.4,3.7,3.6];
+        [12,7.9,4.3,4.0];      % 12
+        ];
+    
+    if small_z_no_e
+        Lhscale=Lhscale_small_z_no_e;
+    else
+        Lhscale=Lhscale_z_and_e;
+    end
+end
 
 if Params.ypp<=size(Lhscale,1)
     Lhscale_final=Lhscale(Params.ypp,Params.scenario)*1.1;
@@ -392,20 +399,7 @@ if test_Lhscale
         small_z_no_e_string="false";
     end
     for scenario=4:-1:1
-        if scenario<3
-            ReturnFn_Lh.household=ReturnFn_12.household;
-        elseif scenario<4
-            ReturnFn_Lh.household=ReturnFn_3.household;
-        else
-            ReturnFn_Lh.household=ReturnFn_4.household;
-        end
-        if scenario<4
-            ReturnFn_Lh.firm=ReturnFn_123.firm;
-            ReturnFn_Lh.energy=ReturnFn_123.energy;
-        else
-            ReturnFn_Lh.firm=ReturnFn_4.firm;
-            ReturnFn_Lh.energy=ReturnFn_4.energy;
-        end
+        ReturnFn_Lh=Electrify_Scenario_ReturnFn_Setup(scenario);
         for ypp=[12:-2:6, 5:-1:1]
             vfoptions_Lh=struct(); simoptions_Lh=struct();
             Params_Lh=Electrify_Scenario_YPP_Setup(Params,scenario,ypp,small_z_no_e,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,Params.tau_cg,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
@@ -611,7 +605,7 @@ end
 ParamPath.Ek=linspace(1,1.01,T); Params.Ek=ParamPath.Ek(1);
 ParamPath.ek=linspace(1,1.01,T); Params.ek=ParamPath.ek(1);
 ParamPath.carbon_tax=linspace(42,2450,T); Params.carbon_tax=ParamPath.carbon_tax(1);
-ParamPath.energy_pct_brown=linspace(0.80,0.05,T); Params.energy_pct_brown=ParamPath.carbon_tax(1);
+ParamPath.energy_pct_brown=linspace(0.55,0.05,T); Params.energy_pct_brown=ParamPath.carbon_tax(1);
 
 % Model inflation as a series of 10-year supply-side shocks across 100 year transition period
 % These are shocks above "normal" cpi inflation

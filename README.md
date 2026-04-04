@@ -200,18 +200,18 @@ Noting that GDP is _everything_ spent by the economy, we add households and firm
 %  Alloc to com transp:  111 PJ + 0.15*1.2 = 111 PJ => 42.9%        => 32.7  Mt CO2e
 %  Alloc to HH transp:    91 PJ + 0.15*1.2 =  91 PJ => 35.1%        => 26.8  Mt CO2e
 %  Alloc to residential:  28 PJ + 0.15*51  =  36 PJ => 13.9%        => 10.6  Mt CO2e
-% 69 TWh to be electrified (56 TWh already renewable); need 46,000 MW generation
+% 53 TWh to be electrified (43 TWh already renewable); need 35,333 MW generation
 % Choosing unit industrial PV to be 200GWh/year generation...
 % 200GWh/year = 133MW*1500h/yr = $220M cost @ \$1.65M/MW; \$220M/\$110B = 0.002 max Y
 % 200GWh PV/year * 1000 MWh/GWh * $150/MWh = Cost offset \$30M/PV/year (vs \$110B)
-% 69 TWh/year to electrify = 345*200GWh/year * $220M/200GWh/year = \$75.9B transition
+% 53 TWh/year to electrify = 265*200GWh/year * $220M/200GWh/year = \$58.3B transition
 ```
 
 As to allocating costs, we model HH solarPV as a fraction of house cost.
 The average NZ starter home ranges from $450K-\$700K.  We choose \$456K as a starting home price (4x \$114K average household income).
 A high-end/high-efficiency system is \$15K for 5kW generation, or approximately 3.3% of the cost of h==1 per PV or 13.2% of average household income.
 
-At present we allocate firms with the choice of installing 0-100 industry-scale PVs, and the energy sector to install the remaining 245 as a choice between 0-300 industry-scale PVs.
+At present we allocate firms with the choice of installing 0-100 industry-scale PVs, and the energy sector to install the remaining 165 as a choice between 0-200 industry-scale PVs.
 
 For firms, 200 GWh per year generation offsets $30M/year in energy costs and costs \$220M to install.
 We estimate a low 2% depreciation rate (1% annual degradation, 1% other maint) and the foregone value

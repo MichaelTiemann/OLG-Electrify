@@ -15,7 +15,7 @@ function F=Electrify_4HouseholdReturnFn( ...
 F=-Inf;
 
 %% Housing matters
-% buyhouse decisions
+% buyhouse decisions--needed for solarpv experience asset
 %  0=no house/sell house
 %  1=buy house w/o pv this period
 %  2=keep house; no pv upgrade
@@ -33,7 +33,7 @@ elseif mod(buyhouse,2)==0
     end
 end
 
-% Houses start at 4x annual wage
+% Houses start at 4x household wage ($114K across 2M NZ households)
 hcost=4*h*w;
 hprimecost=4*hprime*w;
 
@@ -41,7 +41,7 @@ hprimecost=4*hprime*w;
 if (sprime-s>0 && aprime+hcost<0 ...                  % Cannot buy shares with negative net worth
     || agej*ypp>=11 && aprime<-f_coll*hprimecost ...  % Collateral constraint on borrowing (for older buyers that earn real money)
     || hprime<h && aprime<0 ...                       % Cannot sell down a house that is collateralized
-    || agej>=Jr && aprime<0)                          % Ban pensioners from negative assets (if they don't own houses)
+    || agej>=Jr && hprime==0 && aprime<0)             % Ban pensioners from negative assets (if they don't own houses)
     return 
 end
 
@@ -132,12 +132,12 @@ if carcost~=0
     c=c-carcost;
     % Energy costs...
     if car==1
-        energy_cost_pp=energy_cost_pp+0.02*w*ypp;
+        energy_cost_pp=energy_cost_pp+0.041*w*ypp;
     else
         if solarpv>0.5
             solarpv=solarpv-0.5;
         else
-            energy_pct_cost=energy_pct_cost+0.02;
+            energy_cost_pp=energy_cost_pp+0.02*w*ypp;
         end
     end
 else
@@ -152,7 +152,7 @@ end
 
 % Add cost of housing energy; PV generation: 30kW (2 solar units) meets h==1 energy needs
 energy_cost_pp=energy_cost_pp+(1+energy_cpi)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
-carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/3500;
+carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/200; % Magic divisior to hit 0.7% hh income at $42/t CO2e
 
 c=c-energy_cost_pp-carbon_tax_pp;
 

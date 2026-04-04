@@ -69,7 +69,7 @@ if scenario<4
     vfoptions.experienceasset.energy=0;
 else
     n_d.energy=11; % Per-period PV investment (0-10 PV arrays per period)
-    n_a.energy=[n_a.firm(1),301]; % Capital holdings and PV (experience) assets
+    n_a.energy=[n_a.firm(1),201]; % Capital holdings and PV (experience) assets
     vfoptions.experienceasset.energy=1;
 end
 if small_z_no_e

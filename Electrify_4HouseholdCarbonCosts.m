@@ -13,30 +13,26 @@ function carbon_cost_pp=Electrify_4HouseholdCarbonCosts( ...
 
 energy_cost_pp=0;
 
-% ...subtract car costs (purchase, sale, and/or maintenance)
-if car>0
-    % Energy costs...
-    if car==1
-        energy_cost_pp=energy_cost_pp+0.02*w*ypp;
+% Car energy costs...
+if car==1
+    energy_cost_pp=energy_cost_pp+0.041*w*ypp;
+elseif car==2
+    if solarpv>0.5
+        solarpv=solarpv-0.5;
     else
-        if solarpv>0.5
-            solarpv=solarpv-0.5;
-        else
-            energy_pct_cost=energy_pct_cost+0.02;
-        end
+        energy_cost_pp=energy_cost_pp+0.02*w*ypp;
     end
 end
 
-% Add cost of housing
-energy_cost_pp=energy_cost_pp+(1+energy_cpi)*energy_pct_cost*max(h^1.5,1)*ypp;
 
 if car~=2
     % car batteries make solarpv more effective...
     solarpv=solarpv/2;
 end
 
-% PV generation: 30kW (2 solar units) meets h==1 energy needs
-carbon_cost_pp=energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp*energy_pct_brown*carbon_tax/3500;
+% Add cost of housing energy; PV generation: 30kW (2 solar units) meets h==1 energy needs
+energy_cost_pp=energy_cost_pp+(1+energy_cpi)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
+carbon_cost_pp=energy_cost_pp*energy_pct_brown*carbon_tax/200; % Magic divisior to hit 0.7% hh income at $42/t CO2e
 
 
 end

@@ -1,7 +1,7 @@
 function F=Electrify_4FirmReturnFn( ...
     installpv,kprime,k,pv,z, ...
     w, ...
-    ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,pv_max_firm,carbon_tax)
+    ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg,Ek,ek,energy_pct_brown,carbon_tax)
 % Whether we set it up so that dividends or equity issuance is the decision
 % variable is unimportant, here I use dividends as the decision variable.
 
@@ -16,30 +16,39 @@ l=(w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % This is just w=Marg. Prod. Labo
 % We could use (Ek*ek)^alpha_k or (Ek*ek) as part of the TFP multiplier
 y_pp=(Ek*ek)*z*(k^alpha_k)*(l^alpha_l)*ypp;
 
-% If Y is full GDP ($440B), then Ek=125 TWh and ek=$440B/125TWh=$3.52 GDP/kWh
-% 69 TWh to be electrified (56 TWh already renewable); need 46,000 MW generation
-y_carbon_tax=76.4e6*carbon_tax/440e9; % Energy sector emitted 76.4 Mt CO2e; cost of carbon = NZD $35-$2450 / tCO2e
-y_energy_cost_pp=0.045*y_pp; % Assume energy cost is 4.5% of firm production
-% 200GWh PV/year * 1000 MWh/GWh * $150/MWh = $30M/PV/year (vs $440B)
-% 69 TWh to electrify = $75900M total costs
-pv_cost_offset_pp=min(pv*ypp*30/75900,y_energy_cost_pp);
+y_energy_cost_pp=0.131*y_pp/ek; % Assume energy cost is 13.1% of firm production
 
-% 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$440B = 0.0005 max GDP per PV
-new_pv_cost=installpv*220e6;
+% For sake of argument, say K = $10B (so we need 11 K to get full Y)
+% 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$10B = 0.022 units of K per PV
+new_pv_cost=installpv*0.022;
+% $30M/year revenues / $10B = 0.003 units of K per year (not period)
+pv_cost_offset_pp=min(pv*ypp*0.003,y_energy_cost_pp);
+
+% If Y is $110B, then Ek=96 TWh and ek=$110B/96TWh=$1146 Y/MWh
+% 53 TWh to be electrified (43 TWh already renewable); need 35,333 MW generation
+% 200GWh PV/year * 1000 MWh/GWh * $150/MWh = $30M/PV/year (vs $110B)
+% 53 TWh to electrify = $58.3B total costs
+
+% Energy sector emitted 76.4 Mt CO2e; 49/51 HH/firm split; cost of carbon = NZD $42-$2450 / tCO2e
+% We use a magic number to get cost of carbon tax to be $1.6B @ $42/ton,
+% which is 16% of a "unit of K", thus 0.16
+y_carbon_tax_pp=76.4e6*0.51*carbon_tax*energy_pct_brown*(1-pv_cost_offset_pp/y_energy_cost_pp)/14.4e9;
 
 % Profit
-profit_pp=y_pp-w*l*ypp-y_energy_cost_pp+pv_cost_offset_pp-y_carbon_tax*(1-pv/pv_max_firm)*y_pp;
+profit_pp=y_pp-w*l*ypp-y_energy_cost_pp+pv_cost_offset_pp-y_carbon_tax_pp;
 
 % Investment
 delta_pp=(1+delta)^ypp-1;
-invest_pp=kprime+new_pv_cost-(1-delta)^ypp*k;
+pv_delta=0.02;
+pv_delta_pp=(1+pv_delta)^ypp-1;
+invest_pp=kprime+new_pv_cost-(1-delta)^ypp*k-(1-pv_delta)^ypp*pv;
 
 % Capital-adjustment costs (k>0 always)
-capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k-delta_pp)^2)*k*ypp;
+capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k-delta_pp-pv_delta_pp)^2)*k*ypp;
 
 % Taxable corporate income
-T=max(profit_pp-delta_pp*k-phi*capitaladjcost_pp,0);
-% -delta_pp*k: investment expensing
+T=max(profit_pp-delta_pp*k-pv_delta_pp*pv-phi*capitaladjcost_pp,0);
+% -delta_pp*k: investment expensing; -pv_delta_pp*pv: pv expensing
 % phi is the fraction of capitaladjcost that can be deducted from corporate taxes
 
 % Firms financing constraint gives the new equity issuance

@@ -245,7 +245,9 @@ vfoptions.divideandconquer.household = logical(scenario<3);
 % normally needed for agent distriubiton simulation, we have to also
 % include these in simoptions
 simoptions.experienceasset=vfoptions.experienceasset;
-simoptions.refine_d=vfoptions.refine_d;
+if isfield(vfoptions, 'refine_d')
+    simoptions.refine_d=vfoptions.refine_d;
+end
 simoptions.a_grid=a_grid;
 simoptions.d_grid=d_grid;
 
