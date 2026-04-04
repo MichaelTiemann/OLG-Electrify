@@ -121,6 +121,7 @@ if scenario>2
 end
 Params.r_pp=(1+r)^ypp-1;
 Params.firmbeta=1/(1+Params.r_pp/(1-tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
+Params.energybeta=1/(1+Params.r_pp/(1-tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
 
 Params.sigma_h=sigma_h(scenario);
 Params.sigma_c=sigma_c(scenario);

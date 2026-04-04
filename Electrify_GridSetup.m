@@ -25,7 +25,6 @@ if scenario<3
 
     % This is a default, but we set explicitly to make this reentrant
     vfoptions.experienceasset.household=0;
-    simoptions.experienceasset.household=0;
 else
     % Grid for share holdings, always > 0; Small max due to other assets
     share_grid=8*linspace(0,1,n_a.household(1))';
@@ -64,31 +63,18 @@ else
     
     d_grid.household=[labor_grid; buyhouse_grid];
     a_grid.household=[share_grid; asset_grid; car_grid; house_grid; pv_grid_hh];
-    
+
     %% Solar PV is an experience asset
     vfoptions.experienceasset.household=1;
-    simoptions.experienceasset.household=1;
     
-    %% Define aprime function used for the experience asset
+    %% aprime functions defined in Electrify_Scenario_Fn_Setup
     
-    % experienceasset: aprime_val=aprimeFn(d,a)
-    % vfoptions.refine_d: the decision variables input to aprimeFn are d3
-    aprimeFn=@(buyhouse, solarpv, ypp) ElectrifyHousing_aprimeFn(buyhouse, solarpv, ypp); % Will return the value of aprime (solarpv)
-    
-    %% Put the experience asset into vfoptions and simoptions
-    vfoptions.aprimeFn.household=aprimeFn;
     % vfoptions.n_u=n_u;
     % vfoptions.u_grid=u_grid;
     % vfoptions.pi_u=pi_u;
-    simoptions.aprimeFn.household=aprimeFn;
     % simoptions.n_u=n_u;
     % simoptions.u_grid=u_grid;
     % simoptions.pi_u=pi_u;
-    % Because a_grid and d_grid are involved in experience assets, but are not
-    % normally needed for agent distriubiton simulation, we have to also
-    % include these in simoptions
-    simoptions.a_grid.household=a_grid.household;
-    simoptions.d_grid.household=d_grid.household;
     
     %% To speed up the use of experienceasset we use 'refine_d', which requires us to set the decision variables in a specific order
     if scenario<4
@@ -104,7 +90,6 @@ else
     %       aprimeFn must use inputs (d2,d3,..)
     % n_d must be set up as n_d=[n_d1, n_d2, n_d3]
     % d_grid must be set up as d_grid=[d1_grid; d2_grid; d3_grid];
-    simoptions.refine_d=vfoptions.refine_d;
 end
 if small_z_no_e
     z_grid_J=zeros(n_z.household,Params.J);
@@ -129,7 +114,7 @@ else
 end
 
 % z_grid and pi_z for household
-z_grid.household=z_grid_J;
+z_grid.household=exp(z_grid_J);
 pi_z.household=pi_z_J;
 
 
@@ -144,6 +129,8 @@ if scenario<4
     k_grid=[k_grid_cubed(2:end-1), k_grid_linear];
     a_grid.firm=k_grid';
     pv_grid_firm=NaN;
+    % This is a default, but we set explicitly to make this reentrant
+    vfoptions.experienceasset.firm=0;
 else
     d_grid.firm=linspace(0,1,n_d.firm(1))'; % Electrification investment
     % k_max=10 replicates OLGModel14; K>4=infeasible when ypp=1, but need more as ypp increases
@@ -152,8 +139,22 @@ else
     k_grid_linear=linspace(1,k_max,ceil(n_a.firm(1)/2)+1);
     k_grid=[k_grid_cubed(2:end-1), k_grid_linear];
     % 300 * 200GWh PV = 60 TWh solar generation of 69 TWh current fossil sources
-    pv_grid_firm=linspace(0,100*(1+1/(n_a.firm(2)-1)),n_a.firm(2))-100/(n_a.firm(2)-1);
+    % We allow firms to own up to 100 units of this capacity (as an experience asset)
+    pv_grid_firm=(0:n_a.firm(2)-1);
     a_grid.firm=[k_grid'; pv_grid_firm'];
+
+    vfoptions.experienceasset.firm=1;
+
+    %% To speed up the use of experienceasset we use 'refine_d', which requires us to set the decision variables in a specific order
+    vfoptions.refine_d.firm=[0,0,1]; % tell the code how many d1, d2, and d3 there are
+    % Idea is to distinguish three categories of decision variable:
+    %  d1: decision is in the ReturnFn but not in aprimeFn
+    %  d2: decision is in the aprimeFn but not in ReturnFn
+    %  d3: decision is in both ReturnFn and in aprimeFn
+    % Note: ReturnFn must use inputs (d1,d3,..) 
+    %       aprimeFn must use inputs (d2,d3,..)
+    % n_d must be set up as n_d=[n_d1, n_d2, n_d3]
+    % d_grid must be set up as d_grid=[d1_grid; d2_grid; d3_grid];
 end
 
 if n_z.firm==1
@@ -170,11 +171,27 @@ if scenario < 4
     d_grid.energy=0; % Notice that it is imposing the d>=0 condition implicitly
     a_grid.energy=linspace(0,1,n_a.energy)'; % Nothing in particular
     pv_grid_energy=NaN;
+    % This is a default, but we set explicitly to make this reentrant
+    vfoptions.experienceasset.energy=0;
 else
-    d_grid.energy=linspace(0,1,n_d.energy)'; % Notice that it is imposing the d>=0 condition implicitly
+    d_grid.energy=(0:n_d.energy-1)'; % Notice that it is imposing the d>=0 condition implicitly
     % 300 * 200GWh PV = 60 TWh solar generation of 69 TWh current fossil sources
-    pv_grid_energy=linspace(0,200*(1+1/(n_a.energy-1)),n_a.energy)-100/(n_a.energy-1);
-    a_grid.energy=pv_grid_energy'; % PV assets
+    % We allow energy to own up to 200 units of this capacity (as an experience asset)
+    pv_grid_energy=(0:n_a.energy(2)-1);
+    a_grid.energy=[k_grid'; pv_grid_energy']; % Capital and PV assets
+    % This is a default, but we set explicitly to make this reentrant
+    vfoptions.experienceasset.energy=1;
+
+    %% To speed up the use of experienceasset we use 'refine_d', which requires us to set the decision variables in a specific order
+    vfoptions.refine_d.energy=[0,0,1]; % tell the code how many d1, d2, and d3 there are
+    % Idea is to distinguish three categories of decision variable:
+    %  d1: decision is in the ReturnFn but not in aprimeFn
+    %  d2: decision is in the aprimeFn but not in ReturnFn
+    %  d3: decision is in both ReturnFn and in aprimeFn
+    % Note: ReturnFn must use inputs (d1,d3,..) 
+    %       aprimeFn must use inputs (d2,d3,..)
+    % n_d must be set up as n_d=[n_d1, n_d2, n_d3]
+    % d_grid must be set up as d_grid=[d1_grid; d2_grid; d3_grid];
 end
 
 if small_z_no_e
@@ -224,5 +241,12 @@ Params.pv_max_energy=pv_grid_energy(end);
 % Last aspect of grid: can we divide and conquer?
 vfoptions.divideandconquer.household = logical(scenario<3);
 
+% Because a_grid and d_grid are involved in experience assets, but are not
+% normally needed for agent distriubiton simulation, we have to also
+% include these in simoptions
+simoptions.experienceasset=vfoptions.experienceasset;
+simoptions.refine_d=vfoptions.refine_d;
+simoptions.a_grid=a_grid;
+simoptions.d_grid=d_grid;
 
 end

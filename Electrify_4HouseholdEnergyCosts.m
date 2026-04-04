@@ -11,32 +11,27 @@ function energy_cost_pp=Electrify_4HouseholdEnergyCosts( ...
 % Note: experienceasset, so first inputs are (d,a,z,e,...)
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
-energy_cost_pp=0;
+% Add cost of housing
+energy_cost_pp=energy_pct_cost*max(h^1.5,1)*ypp;
 
-% ...subtract car costs (purchase, sale, and/or maintenance)
+% Add car energy costs
 if car>0
     % Energy costs...
     if car==1
         energy_cost_pp=energy_cost_pp+0.02*w*ypp;
-    else
-        if solarpv>0.5
-            solarpv=solarpv-0.5;
-        else
-            energy_pct_cost=energy_pct_cost+0.02;
-        end
+    elseif solarpv>0.5 % car==2
+        solarpv=solarpv-0.5; % Deduct car charging from energy demand
     end
 end
-
-% Add cost of housing
-energy_cost_pp=energy_cost_pp+(1+energy_cpi)*energy_pct_cost*max(h^1.5,1)*ypp;
 
 if car~=2
     % car batteries make solarpv more effective...
     solarpv=solarpv/2;
 end
 
-% PV generation: 30kW (2 solar units) meets h==1 energy needs
-energy_cost_pp=energy_cost_pp-(1+energy_cpi)*energy_pct_cost*(solarpv/2)*ypp;
+% PV generation: 10kW/30kWh (2 solar units) meets h==1 energy needs
+energy_cost_pp=energy_cost_pp-energy_pct_cost*(solarpv/2)*ypp;
 
+energy_cost_pp=(1+energy_cpi)*energy_cost_pp;
 
 end
