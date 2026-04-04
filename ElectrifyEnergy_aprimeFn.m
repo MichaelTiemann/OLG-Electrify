@@ -1,9 +1,7 @@
 function aprime=ElectrifyEnergy_aprimeFn(installpv,pv,ypp)
 
-if installpv<11
-    aprime=min(pv+installpv,200);
-else
-    aprime=0.99*pv;
-end
+% Decision function limits the state space of `installpv`
+aprime=min(pv+installpv,200);
+
 
 end

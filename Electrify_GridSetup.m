@@ -132,7 +132,7 @@ if scenario<4
     % This is a default, but we set explicitly to make this reentrant
     vfoptions.experienceasset.firm=0;
 else
-    d_grid.firm=linspace(0,1,n_d.firm(1))'; % Electrification investment
+    d_grid.firm=(0:n_d.firm(1)-1)'; % Electrification investment
     % k_max=10 replicates OLGModel14; K>4=infeasible when ypp=1, but need more as ypp increases
     k_max=6+ceil(log(ypp));
     k_grid_cubed=linspace(0,1,ceil(n_a.firm(1)/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.

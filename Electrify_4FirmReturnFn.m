@@ -41,7 +41,7 @@ profit_pp=y_pp-w*l*ypp-y_energy_cost_pp+pv_cost_offset_pp-y_carbon_tax_pp;
 delta_pp=(1+delta)^ypp-1;
 pv_delta=0.02;
 pv_delta_pp=(1+pv_delta)^ypp-1;
-invest_pp=kprime+new_pv_cost-(1-delta)^ypp*k-(1-pv_delta)^ypp*pv;
+invest_pp=kprime+new_pv_cost-(1-delta)^ypp*k-pv_delta_pp*pv;
 
 % Capital-adjustment costs (k>0 always)
 capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k-delta_pp-pv_delta_pp)^2)*k*ypp;
