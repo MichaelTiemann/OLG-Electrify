@@ -44,7 +44,13 @@ pv_delta_pp=(1+pv_delta)^ypp-1;
 invest_pp=kprime+new_pv_cost-(1-delta)^ypp*k-pv_delta_pp*pv;
 
 % Capital-adjustment costs (k>0 always)
-capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k-delta_pp-pv_delta_pp)^2)*k*ypp;
+if invest_pp>=0
+    capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k-delta_pp-pv_delta_pp)^2)*k*ypp;
+else
+    capitaladjcost_pp=0;
+    F=-3;
+    return
+end
 
 % Taxable corporate income
 T=max(profit_pp-delta_pp*k-pv_delta_pp*pv-phi*capitaladjcost_pp,0);
@@ -77,6 +83,9 @@ if s>=0 % enforce that 'no share repurchases allowed'
     % When tau_d==tau_cg, F=profit-invest-capitaladjcost-tau_corp*(profit-delta_pp*k-phi*capitaladjcost)
     % Add term to prefer greater Y and dividends closer to 20%
     F=(((1-tau_d)/(1-tau_cg))*dividend_pp-s)+y_pp*(1-(dividend_pp-mid_dividend_pp)^2)/10;
+    if F<-2
+        F=-2;
+    end
 end
 
 % Note: dividend payments cannot be negative is enforced by the grid on

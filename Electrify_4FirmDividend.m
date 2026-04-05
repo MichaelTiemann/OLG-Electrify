@@ -42,7 +42,11 @@ pv_delta_pp=(1+pv_delta)^ypp-1;
 invest_pp=kprime+new_pv_cost-(1-delta)^ypp*k-pv_delta_pp*pv;
 
 % Capital-adjustment costs (k>0 always)
-capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k-delta_pp-pv_delta_pp)^2)*k*ypp;
+if invest_pp>=0
+    capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k-delta_pp-pv_delta_pp)^2)*k*ypp;
+else
+    capitaladjcost_pp=0;
+end
 
 % Taxable corporate income
 T=max(profit_pp-delta_pp*k-pv_delta_pp*pv-phi*capitaladjcost_pp,0);

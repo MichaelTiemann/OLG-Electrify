@@ -9,7 +9,7 @@
 addpath(genpath('./MatlabToolkits/'))
 
 solve_setup=true;
-test_Lhscale=true;
+test_Lhscale=false;
 solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=false; % n_z=1; n_e=0
@@ -206,44 +206,42 @@ Params.TargetKdivL=2.03;
 Params.cpi=0; % Initial condition
 Params.cpi_energy=0; % Initial condition
 
-if test_Lhscale
-    % Scaling the household labor supply; we scale model and GE finds its own equilibrium
-    % This is vaguely scenario-by-ypp, set for small_z_no_e=true
-    Lhscale_small_z_no_e=[
-        [0.13,0.11,0.09,0.63];
-        [0.18,0.13,0.11,0.8];    % 2
-        [0.26,0.21,0.16,1.0];
-        [0.27,0.23,0.16,1.0];  % 4
-        [0.33,0.5,0.16,1.1];
-        [1.4,1.4,0.8,1.1];     % 6
-        [1.9,1.5,1.3,1.2];
-        [2.4,1.6,1.3,1.3];     % 8
-        [2.7,1.6,1.5,1.4];
-        [3.1,2.1,1.7,1.4];    % 10
-        [3.5,2.2,1.7,1.4];
-        [3.6,2.9,1.8,1.4];    % 12
-        ]; 
-    
-    Lhscale_z_and_e=[
-        [0.23,0.19,0.18,1.0];
-        [0.50,0.38,0.31,1.2]; % 2
-        [0.54,0.40,0.30,1.4];
-        [0.62,0.46,0.32,1.5]; % 4
-        [0.78,0.56,0.37,1.6];
-        [0.9,0.8,0.43,1.7];   % 6
-        [2.1,1.5,0.7,1.9];
-        [1.4,2.1,0.6,2.1];     % 8
-        [2.2,2.2,1.2,2.1];
-        [3.0,2.3,1.8,2.2];     % 10
-        [3.5,2.4,2.0,2.3];
-        [4.0,2.5,2.2,2.2];      % 12
-        ];
-    
-    if small_z_no_e
-        Lhscale=Lhscale_small_z_no_e;
-    else
-        Lhscale=Lhscale_z_and_e;
-    end
+% Scaling the household labor supply; we scale model and GE finds its own equilibrium
+% This is vaguely scenario-by-ypp, set for small_z_no_e=true
+Lhscale_small_z_no_e=[
+    [0.13,0.11,0.09,0.63];
+    [0.18,0.13,0.11,0.8];    % 2
+    [0.26,0.21,0.16,1.0];
+    [0.27,0.23,0.16,1.0];  % 4
+    [0.33,0.5,0.16,1.1];
+    [1.4,1.4,0.8,1.1];     % 6
+    [1.9,1.5,1.3,1.2];
+    [2.4,1.6,1.3,1.3];     % 8
+    [2.7,1.6,1.5,1.4];
+    [3.1,2.1,1.7,1.4];    % 10
+    [3.5,2.2,1.7,1.4];
+    [3.6,2.9,1.8,1.4];    % 12
+    ]; 
+
+Lhscale_z_and_e=[
+    [0.12,0.09,0.10,0.4];
+    [0.25,0.18,0.14,0.8]; % 2
+    [0.27,0.20,0.15,1.4];
+    [0.31,0.24,0.16,1.5]; % 4
+    [0.40,0.26,0.18,1.6];
+    [0.45,0.4,0.23,1.7];   % 6
+    [0.8,0.8,0.7,1.9];
+    [1.3,1.1,0.5,2.1];     % 8
+    [2.2,1.6,1.1,2.1];
+    [3.1,2.3,1.7,2.2];     % 10
+    [4.0,2.7,1.8,2.3];
+    [5.0,3.0,2.0,2.2];      % 12
+    ];
+
+if small_z_no_e
+    Lhscale=Lhscale_small_z_no_e;
+else
+    Lhscale=Lhscale_z_and_e;
 end
 
 if Params.ypp<=size(Lhscale,1)
