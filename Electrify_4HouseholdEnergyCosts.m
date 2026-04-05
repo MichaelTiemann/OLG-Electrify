@@ -13,8 +13,7 @@ function energy_cost_pp=Electrify_4HouseholdEnergyCosts( ...
 
 energy_cost_pp=0;
 
-% add car energy costs
-% Energy costs...
+% Car energy costs...
 if car==1
     energy_cost_pp=energy_cost_pp+0.041*w*ypp;
 elseif car==2

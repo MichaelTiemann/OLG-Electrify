@@ -97,6 +97,10 @@ else
     % annual insurance, maintenance, WOF, etc.
     carcost=carcost+0.02*w*ypp;
 end
+if car==1
+    % See if this promotes petrol uptake
+    carservices_j=carservices_j*1.05;
+end
 
 % We can get P (share price) from the equation that defines r as the return to the mutual fund
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag

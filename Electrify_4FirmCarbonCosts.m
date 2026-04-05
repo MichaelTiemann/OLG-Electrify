@@ -20,7 +20,7 @@ pv_cost_offset_pp=min(pv*ypp*0.003,y_energy_cost_pp);
 % Energy sector emitted 76.4 Mt CO2e; 49/51 HH/firm split; cost of carbon = NZD $42-$2450 / tCO2e
 % We use a magic number to get cost of carbon tax to be $1.6B @ $42/ton,
 % which is 16% of a "unit of K", thus 0.16
-y_carbon_cost_pp=76.4e6*0.51*carbon_tax*energy_pct_brown*(1-pv_cost_offset_pp/y_energy_cost_pp)/14.4e9;
+y_carbon_cost_pp=76.4e6*0.51*carbon_tax*energy_pct_brown*(y_energy_cost_pp-pv_cost_offset_pp)/7e9;
 
 
 end

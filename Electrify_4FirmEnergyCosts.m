@@ -12,8 +12,7 @@ l=(w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % This is just w=Marg. Prod. Labo
 % We could use (Ek*ek)^alpha_k or (Ek*ek) as part of the TFP multiplier
 y_pp=(Ek*ek)*z*(k^alpha_k)*(l^alpha_l)*ypp;
 
-% If Y is full GDP ($440B), then Ek=125 TWh and ek=$440B/125TWh=$3.52/kWh
-% 69 TWh to be electrified (56 TWh already renewable); need 46,000 MW generation
-y_energy_cost_pp=0.045*y_pp; % Assume energy cost is 4.5% of firm production
+y_energy_cost_pp=0.131*y_pp/ek; % Assume energy cost is 13.1% of firm production
+
 
 end

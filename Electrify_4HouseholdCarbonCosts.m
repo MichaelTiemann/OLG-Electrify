@@ -24,7 +24,6 @@ elseif car==2
     end
 end
 
-
 if car~=2
     % car batteries make solarpv more effective...
     solarpv=solarpv/2;
