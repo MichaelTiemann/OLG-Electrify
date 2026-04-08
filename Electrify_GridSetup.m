@@ -1,4 +1,4 @@
-function [d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_grid,k_grid,pv_grid_firm,Params,vfoptions,simoptions]=Electrify_GridSetup(scenario, ypp, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions)
+function [d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_grid,k_grid,pvnew_grid_firm,pvnew_grid_energy,Params,vfoptions,simoptions]=Electrify_GridSetup(scenario, ypp, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions)
 
 %% Grids for household
 
@@ -128,7 +128,7 @@ if scenario<4
     k_grid_linear=linspace(1,k_max(scenario),ceil(n_a.firm/2)+1);
     k_grid=[k_grid_cubed(2:end-1), k_grid_linear];
     a_grid.firm=k_grid';
-    pv_grid_firm=NaN;
+    pvnew_grid_firm=NaN;
     % This is a default, but we set explicitly to make this reentrant
     vfoptions.experienceasset.firm=0;
 else
@@ -139,9 +139,10 @@ else
     k_grid_linear=linspace(1,k_max,ceil(n_a.firm(1)/2)+1);
     k_grid=[k_grid_cubed(2:end-1), k_grid_linear];
     % 300 * 200GWh PV = 60 TWh solar generation of 69 TWh current fossil sources
-    % We allow firms to own up to 100 units of this capacity (as an experience asset)
-    pv_grid_firm=(0:n_a.firm(2)-1);
-    a_grid.firm=[k_grid'; pv_grid_firm'];
+    % While we allow firms to own up to 100 units of this capacity (as an experience asset),
+    % we do this by adding the newly installed capacity to the parameter `pvinstalled_firm` 
+    pvnew_grid_firm=(0:n_a.firm(2)-1);
+    a_grid.firm=[k_grid'; pvnew_grid_firm'];
 
     vfoptions.experienceasset.firm=1;
 
@@ -170,15 +171,15 @@ z_grid.firm=exp(z_grid.firm);
 if scenario < 4
     d_grid.energy=0; % Notice that it is imposing the d>=0 condition implicitly
     a_grid.energy=linspace(0,1,n_a.energy)'; % Nothing in particular
-    pv_grid_energy=NaN;
+    pvnew_grid_energy=NaN;
     % This is a default, but we set explicitly to make this reentrant
     vfoptions.experienceasset.energy=0;
 else
     d_grid.energy=(0:n_d.energy-1)'; % Notice that it is imposing the d>=0 condition implicitly
     % 300 * 200GWh PV = 60 TWh solar generation of 69 TWh current fossil sources
     % We allow energy to own up to 200 units of this capacity (as an experience asset)
-    pv_grid_energy=(0:n_a.energy(2)-1);
-    a_grid.energy=[k_grid'; pv_grid_energy']; % Capital and PV assets
+    pvnew_grid_energy=(0:n_a.energy(2)-1);
+    a_grid.energy=[k_grid'; pvnew_grid_energy']; % Capital and new PV assets
     % This is a default, but we set explicitly to make this reentrant
     vfoptions.experienceasset.energy=1;
 
@@ -234,9 +235,10 @@ end
 % Note that because the firms are infinite horizon they do not have an age=1 distribution
 
 % We cannot store these values in a structure because we cannot pass structures via Params to applyfun.
-Params.pv_max_firm=pv_grid_firm(end);
-Params.pv_max_household=pv_grid_hh(end);
-Params.pv_max_energy=pv_grid_energy(end);
+Params.pvinstalled_firm=0;
+Params.pvmax_firm=100;
+Params.pvinstalled_energy=0;
+Params.pvmax_energy=200;
 
 % Last aspect of grid: can we divide and conquer?
 vfoptions.divideandconquer.household = logical(scenario<3);

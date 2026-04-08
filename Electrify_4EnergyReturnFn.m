@@ -1,5 +1,4 @@
-function F=Electrify_4EnergyReturnFn(installpv,kprime,k,pv,z,ypp,delta,EnergyCosts_h,EnergyCosts_f)
-
+function F=Electrify_4EnergyReturnFn(pvnew,kprime,k,pv,z,ypp,pvinstalled_energy,pvmax_energy,delta,pv_delta,EnergyCosts_h,EnergyCosts_f)
 % Choosing unit industrial PV to be 200GWh/year generation...
 % 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$440B = 0.0005 max GDP
 % 200GWh PV/year * 1000 MWh/GWh * $150/MWh = Firm PV Energy Cost Offset $30M/PV/year (vs $440B)
@@ -27,10 +26,10 @@ pv_req = (MW_hh+MW_firm)/133;
 pv_maint=(pv*220e6)*((1+delta)^ypp-1);
 
 % 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$440B = 0.0005 max GDP per PV
-new_pv_cost=installpv*220e6;
+pvnew_cost=pvnew*220e6;
 
 % Can't buy what we don't have money to buy
-if new_pv_cost>kprime
+if pvnew_cost>kprime
     return
 end
 

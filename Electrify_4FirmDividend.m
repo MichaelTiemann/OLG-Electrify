@@ -1,7 +1,7 @@
 function dividend_pp=Electrify_4FirmDividend( ...
-    installpv,kprime,k,pv,z, ...
+    pvnew,kprime,k,pv,z, ...
     w, ...
-    ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax)
+    ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax)
 % Whether we set it up so that dividends or equity issuance is the decision
 % variable is unimportant, here I use dividends as the decision variable.
 
@@ -18,7 +18,7 @@ y_energy_cost_pp=0.131*y_pp/ek; % Assume energy cost is 13.1% of firm production
 
 % For sake of argument, say K = $10B (so we need 11 K to get full Y)
 % 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$10B = 0.022 units of K per PV
-new_pv_cost=installpv*0.022;
+new_pv_cost=pvnew*0.022;
 % $30M/year revenues / $10B = 0.003 units of K per year (not period)
 pv_cost_offset_pp=min(pv*ypp*0.003,y_energy_cost_pp);
 

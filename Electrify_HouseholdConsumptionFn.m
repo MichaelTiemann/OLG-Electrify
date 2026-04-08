@@ -1,4 +1,4 @@
-function c=Electrify_HouseholdConsumptionFn( ...
+function c_pp=Electrify_HouseholdConsumptionFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
@@ -48,24 +48,24 @@ Plag=P; % As stationary general eqm
 
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
-    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
+    c_pp=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
 else % Retirement
-    c=pension*ypp;
+    c_pp=pension*ypp;
 end
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
-c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqS_pp+AccidentBeqAH_pp+(hcost-hprimecost);
+c_pp=c_pp+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqS_pp+AccidentBeqAH_pp+(hcost-hprimecost);
 % PV generation: 30kW (2 solar units) meets h==1 energy needs
-c=c+(1+cpi)*energy_pct_cost*(solarpv/2)*ypp;
+c_pp=c_pp+(1+cpi)*energy_pct_cost*(solarpv/2)*ypp;
 if a<0
     % Subtract loan interest by adding a negative number
-    c=c+(1+r_pp+r_wedge_pp)*a;
+    c_pp=c_pp+(1+r_pp+r_wedge_pp)*a;
 else
     % Add deposit interest
-    c=c+(1+r_pp)*a;
+    c_pp=c_pp+(1+r_pp)*a;
 end
 % ...subtract capital gains tax and next period share, asset holdings
-c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
+c_pp=c_pp-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
 % ...subtract housing-related costs:  pv installation/upgrade, house transaction costs, rental or home maintenance costs, and scaled energy costs
-c=c-htc-rentalcosts-hcost*0.02*ypp-pvinstallcost-(1+cpi)*energy_pct_cost*max(h^1.5,1)*ypp;
+c_pp=c_pp-htc-rentalcosts-hcost*0.02*ypp-pvinstallcost-(1+cpi)*energy_pct_cost*max(h^1.5,1)*ypp;
 
 end

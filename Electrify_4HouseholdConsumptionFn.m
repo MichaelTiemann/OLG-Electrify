@@ -1,4 +1,4 @@
-function c=Electrify_4HouseholdConsumptionFn( ...
+function c_pp=Electrify_4HouseholdConsumptionFn( ...
     labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
@@ -79,27 +79,27 @@ Plag=P; % As stationary general eqm
 
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
-    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
+    c_pp=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
 else % Retirement
-    c=pension*ypp;
+    c_pp=pension*ypp;
 end
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + net housing assets
-c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqS_pp+AccidentBeqAH_pp+(hcost-hprimecost);
+c_pp=c_pp+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqS_pp+AccidentBeqAH_pp+(hcost-hprimecost);
 if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
     % Subtract loan interest by adding diminishing assets
-    c=c+(1+r_pp+r_wedge_pp)*a;
+    c_pp=c_pp+(1+r_pp+r_wedge_pp)*a;
 else
     % Deposit interest included in augmented assets
-    c=c+(1+r_pp)*a;
+    c_pp=c_pp+(1+r_pp)*a;
 end
 % ...subtract capital gains tax and next period share, asset holdings
-c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
+c_pp=c_pp-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation
-c=c-htc-rentalcosts-hcost*0.01*ypp-pvinstallcost;
+c_pp=c_pp-htc-rentalcosts-hcost*0.01*ypp-pvinstallcost;
 
 % ...subtract car costs (purchase, sale, and/or maintenance)
 if carcost~=0
-    c=c-carcost;
+    c_pp=c_pp-carcost;
     % Energy costs...
     if car==1
         energy_cost_pp=energy_cost_pp+0.02*w*ypp;
@@ -112,7 +112,7 @@ if carcost~=0
     end
 else
     % Public transportation cost...
-    c=c-0.2*w;
+    c_pp=c_pp-0.2*w;
 end
 
 % Add cost of housing
@@ -127,7 +127,7 @@ end
 energy_cost_pp=energy_cost_pp+(1+energy_cpi)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
 carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/3500;
 
-c=c-energy_cost_pp-carbon_tax_pp;
+c_pp=c_pp-energy_cost_pp-carbon_tax_pp;
 
 
 end

@@ -81,26 +81,27 @@ end
 %% Car matters
 % Car costs 50% annual wage, or can trade at 25% annual wage
 if cprime==0
-    if car>0
-        carcost=-0.25*w; % Selling a car: get back 1/2 of what was paid for it
+    if car==1 % Selling a car: get back <= 1/2 of what was paid for it
+        carcost=-0.15*w;
+    elseif car==2
+        carcost=-0.37*w;
     end
 else
     if car==0
         if cprime==1
-            carcost=0.25*w; % Buying from scratch; cheap petrol car
+            carcost=0.3*w; % Buying from scratch; cheap petrol car
         else
-            carcost=0.5*w; % Buying from scratch; pay full price (50% of w)
+            carcost=0.75*w; % Buying from scratch; pay full price (50% of w)
         end
-    elseif cprime~=car
-        carcost=0.25*w; % Trading cars; pay half price (25%) with trade-in
+    elseif car<cprime
+        carcost=0.6*w; % Minescule trade-in value of petrol car
+    else
+        carcost=-0.05*w; % Get some money back from the trade
     end
     % annual insurance, maintenance, WOF, etc.
     carcost=carcost+0.02*w*ypp;
 end
-if car==1
-    % See if this promotes petrol uptake
-    carservices_j=carservices_j*1.05;
-end
+
 
 % We can get P (share price) from the equation that defines r as the return to the mutual fund
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
@@ -138,7 +139,7 @@ if carcost~=0
     if car==1
         energy_cost_pp=energy_cost_pp+0.041*w*ypp;
     else
-        if solarpv>0.5
+        if solarpv>=0.5
             solarpv=solarpv-0.5;
         else
             energy_cost_pp=energy_cost_pp+0.02*w*ypp;
@@ -146,15 +147,12 @@ if carcost~=0
     end
 else
     % Public transportation cost...
-    c=c-0.2*w;
+    c=c-0.2*w*ypp;
 end
 
-if car~=2
-    % car batteries make solarpv more effective...
-    solarpv=solarpv/2;
-end
 
 % Add cost of housing energy; PV generation: 30kW (2 solar units) meets h==1 energy needs
+% Does owning an EV help with solarPV offset?
 energy_cost_pp=energy_cost_pp+(1+energy_cpi)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
 carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/200; % Magic divisior to hit 0.7% hh income at $42/t CO2e
 

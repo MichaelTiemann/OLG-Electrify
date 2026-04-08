@@ -10,8 +10,8 @@ ReturnFn=Electrify_Scenario_ReturnFn_Setup(Params.scenario);
 % experienceasset: aprime_val=aprimeFn(d,a)
 % vfoptions.refine_d: the decision variables input to aprimeFn are d3
 aprimeFn.household=@(buyhouse, solarpv, ypp) ElectrifyHousing_aprimeFn(buyhouse, solarpv, ypp); % Will return the value of aprime (solarpv)
-aprimeFn.firm=@(installpv, pv, ypp) ElectrifyFirm_aprimeFn(installpv, pv, ypp); % Will return the value of aprime (solarpv)
-aprimeFn.energy=@(installpv, pv, ypp) ElectrifyEnergy_aprimeFn(installpv, pv, ypp); % Will return the value of aprime (solarpv)
+aprimeFn.firm=@(pvnew, pv, ypp,pvinstalled_firm,pvmax_firm,pv_delta) ElectrifyFirm_aprimeFn(pvnew, pv, ypp,pvinstalled_firm,pvmax_firm,pv_delta); % Will return the value of aprime (solarpv)
+aprimeFn.energy=@(pvnew, pv, ypp,pvinstalled_firm,pvmax_firm,pv_delta) ElectrifyEnergy_aprimeFn(pvnew, pv, ypp,pvinstalled_firm,pvmax_firm,pv_delta); % Will return the value of aprime (solarpv)
 
 %% Put aprimeFns into vfoptions and simoptions (household, firm, and energy)
 vfoptions.aprimeFn=aprimeFn;
@@ -68,7 +68,7 @@ FnsToEvaluate_4.CarbonCosts_h.household=@(labor,buyhouse,sprime,aprime,cprime,hp
 % From firms
 FnsToEvaluate_12.L_f.firm=@(d,kprime,k,z,w,alpha_k,alpha_l) ...
     (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm, not scaled by ypp
-FnsToEvaluate_12.K.firm=@(d,kprime,k,z,w,alpha_k,alpha_l) k; % physical capital
+FnsToEvaluate_12.K.firm=@(d,kprime,k,z) k; % physical capital
 FnsToEvaluate_12.dividend_pp.firm=@(d,kprime,k,z,ypp) (1+d)^ypp-1; % dividend paid by firm
 FnsToEvaluate_12.Sissued.firm=@(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
     Electrify_FirmShareIssuance(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % Share issuance
@@ -80,26 +80,29 @@ for ff=1:length(fnnames)
         FnsToEvaluate_3.(fnnames{ff}).firm=FnsToEvaluate_12.(fnnames{ff}).firm;
     end
 end
-FnsToEvaluate_4.L_f.firm=@(installpv,kprime,k,pv,z,w,alpha_k,alpha_l) ...
+FnsToEvaluate_4.L_f.firm=@(pvnew,kprime,k,pv,z,w,alpha_k,alpha_l) ...
     (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm, not scaled by ypp
-FnsToEvaluate_4.K.firm=@(installpv,kprime,k,pv,z,w,alpha_k,alpha_l) k; % physical capital
-FnsToEvaluate_4.PV_f.firm=@(installpv,kprime,k,pv,z,w,alpha_k,alpha_l) pv; % firm's solarPV generation capacity
-FnsToEvaluate_4.D_pp.firm=@(installpv,kprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max_firm,carbon_tax) ...
-    Electrify_4FirmDividend(installpv,kprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max_firm,carbon_tax); % dividend paid by firm
-FnsToEvaluate_4.Sissued.firm=@(installpv,kprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max_firm,carbon_tax) ...
-    Electrify_4FirmShareIssuance(installpv,kprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max_firm,carbon_tax); % Share issuance
-FnsToEvaluate_4.CorpTaxRevenue.firm=@(installpv,kprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max_firm,carbon_tax) ...
-    Electrify_4FirmCorporateTaxRevenue(installpv,kprime,k,pv,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,pv_max_firm,carbon_tax); % revenue from the corporate profits tax
-FnsToEvaluate_4.EnergyCosts_f.firm=@(installpv,kprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max_firm,carbon_tax) ...
-    Electrify_4FirmEnergyCosts(installpv,kprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,pv_max_firm,carbon_tax);
-FnsToEvaluate_4.CarbonCosts_f.firm=@(installpv,kprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,energy_pct_brown,carbon_tax) ...
-    Electrify_4FirmCarbonCosts(installpv,kprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek,energy_pct_brown,carbon_tax);
+FnsToEvaluate_4.K.firm=@(pvnew,kprime,k,pv,z) k; % physical capital
+FnsToEvaluate_4.pvnew_f.firm=@(pvnew,kprime,k,pv,z,pvinstalled_firm,pvmax_firm) pvnew;
+FnsToEvaluate_4.pv_f.firm=@(pvnew,kprime,k,pv,z,pvinstalled_firm,pvmax_firm) pv;
+FnsToEvaluate_4.D_pp.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax) ...
+    Electrify_4FirmDividend(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax); % dividend paid by firm
+FnsToEvaluate_4.Sissued.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax) ...
+    Electrify_4FirmShareIssuance(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax); % Share issuance
+FnsToEvaluate_4.CorpTaxRevenue.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax) ...
+    Electrify_4FirmCorporateTaxRevenue(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax); % revenue from the corporate profits tax
+FnsToEvaluate_4.EnergyCosts_f.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,Ek,ek,carbon_tax) ...
+    Electrify_4FirmEnergyCosts(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,Ek,ek,carbon_tax);
+FnsToEvaluate_4.CarbonCosts_f.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,Ek,ek,energy_pct_brown,carbon_tax) ...
+    Electrify_4FirmCarbonCosts(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,Ek,ek,energy_pct_brown,carbon_tax);
 
 % From energy -- there must be at least one
 FnsToEvaluate_12.EnergyRevenue.energy=@(aprime,a,z) 0;
 FnsToEvaluate_3.EnergyRevenue.energy=@(aprime,a,z) 0;
 FnsToEvaluate_4.EnergyRevenue.energy=@(invest,aprime,a,z,EnergyCosts_h,EnergyCosts_f) EnergyCosts_h+EnergyCosts_f;
 FnsToEvaluate_4.TransitionInvestment.energy=@(invest,aprime,a,z,CarbonCosts_h,CarbonCosts_f) CarbonCosts_h+CarbonCosts_f;
+FnsToEvaluate_4.pvnew_e.energy=@(pvnew,kprime,k,pv,z,pvinstalled_firm,pvmax_energy) pvnew;
+FnsToEvaluate_4.pv_e.energy=@(pvnew,kprime,k,pv,z,pvinstalled_firm,pvmax_energy) pv;
 
 % For analysing the model
 FnsToEvaluate2_12=FnsToEvaluate_12;
@@ -119,11 +122,11 @@ FnsToEvaluate2_4.H.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,ca
 FnsToEvaluate2_4.PV_h.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings
 FnsToEvaluate2_4.BadDebt_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) ...
     min(0,(aprime+(1+cpi)*hprime)*(1-sj));
-FnsToEvaluate2_12.Output.firm=@(d,kprime,k,z,w,ypp,alpha_k,alpha_l) ...
-    z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
+FnsToEvaluate2_12.Output.firm=@(d,kprime,k,z,w,alpha_k,alpha_l) ...
+    z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
 FnsToEvaluate2_3.Output.firm=FnsToEvaluate2_12.Output.firm;
-FnsToEvaluate2_4.Output.firm=@(installpv,kprime,k,pv,z,w,ypp,alpha_k,alpha_l,Ek,ek) ...
-    (Ek*ek)*z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l*ypp; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
+FnsToEvaluate2_4.Output.firm=@(pvnew,kprime,k,pv,z,w,alpha_k,alpha_l,Ek,ek) ...
+    (Ek*ek)*z*(k^alpha_k)*((w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)))^alpha_l; % Production function z*(k^alpha_k)*(l^alpha_l) (substituting for l)
 
 % Note: I keep the FnsToEvaluate use in general eqm to a minimum (to reduce
 % runtimes) and then use FnsToEvaluate2 to analyse model with more stats.
