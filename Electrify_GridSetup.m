@@ -113,8 +113,8 @@ else
     simoptions.pi_e.household=pi_e_J;
 end
 
-% z_grid and pi_z for household
-z_grid.household=exp(z_grid_J);
+% z_grid and pi_z for household (we use exp in household functions)
+z_grid.household=z_grid_J;
 pi_z.household=pi_z_J;
 
 

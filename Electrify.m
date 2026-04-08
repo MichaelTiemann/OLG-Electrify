@@ -232,7 +232,7 @@ Lhscale_z_and_e=[
     [0.25,0.18,0.14,0.8]; % 2
     [0.27,0.20,0.15,1.4];
     [0.31,0.24,0.16,1.5]; % 4
-    [0.40,0.26,0.18,0.2];
+    [0.40,0.26,0.18,0.36];
     [0.45,0.4,0.23,1.7];   % 6
     [0.8,0.8,0.7,1.9];
     [1.3,1.1,0.5,2.1];     % 8
@@ -818,7 +818,8 @@ if solve_TPath
     transpathoptions.graphaggvarspath=1; % plots of the AggVarsPath that get updated every iteration
     
     % Running, it was about stuck iterating around 2 or 3*10^(-4) but had clearly solved. So
-    transpathoptions.tolerance=4*10^(-3); % default is 10^(-4), which is a very demanding accuracy
+    transpathoptions.tolerance=4*10^(-2); % default is 10^(-4), which is a very demanding accuracy
+    transpathoptions.updateaccuracycutoff=transpathoptions.tolerance/(2*length(GEPriceParamNames));
 
     %%
 
@@ -918,7 +919,7 @@ saveas(figure_c,'./SavedOutput/Graphs/Electrify_LifeCycleProfiles','pdf')
 
 AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
 
-Y=AggVars.Output.Mean;
+Y=AggVars.Output_f.Mean;
 
 P=((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Params.r_pp-Params.tau_cg);
 
@@ -932,7 +933,7 @@ TotalValueOfFirms=sum(temp(isfinite(temp)));
 
 fileID = fopen('SavedOutput\aggs.txt','w');
 fprintf(fileID,'Following are some aggregates of the model economy (Scenario %d): \n', Params.scenario);
-fprintf(fileID,'Output: Y=%8.2f \n',AggVars.Output.Mean);
+fprintf(fileID,'Output: Y=%8.2f \n',AggVars.Output_f.Mean);
 fprintf(fileID,'Aggregate TFP: Y=%8.2f \n',AggregateTFP);
 fprintf(fileID,'Capital-Output ratio (firm side): K/Y=%8.2f \n',AggVars.K.Mean/Y);
 if Params.scenario<3
