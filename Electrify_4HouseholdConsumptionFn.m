@@ -13,19 +13,16 @@ function c_pp=Electrify_4HouseholdConsumptionFn( ...
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
 carcost=0;
-rentalcosts=rentprice*w*ypp;
+if h==0
+    rentalcosts=rentprice*w*ypp;
+else
+    rentalcosts=0;
+end
 htc=0; % house transaction cost
 pvinstallcost=0;
 % A Tally of energy costs, which will be deducted at the end
 energy_cost_pp=0;
 
-% Housing services (based on housing stock)
-if h==0
-    hs=0.5*houseservices*minhouse;
-else
-    hs=houseservices*h;
-    rentalcosts=0;
-end
 % Houses start at 4x annual wage
 hcost=4*h*w;
 hprimecost=4*hprime*w;

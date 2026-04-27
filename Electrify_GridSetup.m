@@ -1,4 +1,4 @@
-function [d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_grid,k_grid,pvnew_grid_firm,pvnew_grid_energy,Params,vfoptions,simoptions]=Electrify_GridSetup(scenario, ypp, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions)
+function [d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_grid,house_grid,pv_grid_hh,k_grid,pvnew_grid_firm,pvnew_grid_energy,Params,vfoptions,simoptions]=Electrify_GridSetup(scenario, ypp, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions)
 
 %% Grids for household
 
@@ -25,6 +25,8 @@ if scenario<3
 
     % This is a default, but we set explicitly to make this reentrant
     vfoptions.experienceasset.household=0;
+    house_grid=0;
+    pv_grid_hh=0;
 else
     % Grid for share holdings, always > 0; Small max due to other assets
     share_grid=8*linspace(0,1,n_a.household(1))';

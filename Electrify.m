@@ -1,4 +1,4 @@
-%% OLG Electrification (based on OLGModels14: Heterogenous households and heterogeneous firms
+%% OLG Electrification (based on OLGModels14: Heterogeneous households and heterogeneous firms
 %% and also Life-Cycle Model 35: Portfolio-Choice with Housing)
 % See https://www.vfitoolkit.com/updates-blog/2021/an-introduction-to-life-cycle-models/
 % OLGModel14.m in the repo https://github.com/vfitoolkit/IntroToOLGModels
@@ -13,7 +13,7 @@ test_Lhscale=false;
 solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=false; % n_z=1; n_e=0
-small_model=true; % Minimal vs. maximal grid sizes
+small_model=false; % Minimal vs. maximal grid sizes
 small_T=0; % small_T==1 means just do T=1, T=2 (or smallest not-to-be-confused-with-dimension); small_T==2 means use jpT
 
 if solve_setup
@@ -30,7 +30,7 @@ Params.ptypemass=[1,1,1]; % Mass of households and firms are each equal to one
 Params.scenario=4;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
-% Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolutions).
+% Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolution).
 % Discounting parameters (beta_pp and sj) defined in terms of ypp
 Params.ypp=5; % model period, in years (just used this to modify some parameters from annual to model period)
 
@@ -77,9 +77,8 @@ k_j3 = [1, 1, 1, 1];
 % Warm glow of bequest
 Params.warmglow1=0.3; % (relative) importance of bequests
 Params.warmglow2=3; % bliss point of bequests (essentially, the target amount)
-Params.warmglow3=Params.sigma; % By using the same curvature as the utility of consumption it makes it much easier to guess appropraite parameter values for the warm glow
+Params.warmglow3=Params.sigma; % By using the same curvature as the utility of consumption it makes it much easier to guess appropriate parameter values for the warm glow
 
-% The warmglow parameters will help us find the GE solution to actual bequest rates/values
 AccidentBeqS=[0.02,0.02,0.02,0.02]; % Accidental bequests (this is the lump sum transfer of shares)
 AccidentBeqAH=[0,0,0.02,0.02]; % Accidental bequests (this is the lump sum transfer of assets+house value)
 
@@ -88,7 +87,7 @@ AccidentBeqAH=[0,0,0.02,0.02]; % Accidental bequests (this is the lump sum trans
 sigma_h=[0,0,0.5,0.2];
 % Relative importance of car services (vs consumption) in utility
 sigma_c=[0,0,0.5,0.3];
-Params.eta=1.5; % Curvature of leisure (This will end up being 1/Frisch elasty)
+Params.eta=1.5; % Curvature of leisure (This will end up being 1/Frisch elasticity)
 psi = [2, 1, 1, 1]; % Weight on leisure
 
 %% Energy parameters
@@ -136,12 +135,12 @@ Params.delta=0.054; % Annual depreciation of physical capital
 % Capital adjustment costs
 Params.capadjconstant=1.21; % term in the capital adjustment cost
 
-% Idiosyncatic productivity shocks
+% Idiosyncratic productivity shocks
 Params.rho_z_firm=0.767;
 Params.sigma_z_e_firm=0.211;
 
 %% Parameters for energy
-% Idiosyncatic productivity shocks
+% Idiosyncratic productivity shocks
 Params.rho_z_energy=0.767;
 Params.sigma_z_e_energy=0.211;
 
@@ -150,7 +149,7 @@ Params.sigma_z_e_energy=0.211;
 
 %% Create our Grids from Scenario and Parameters
 [n_d,n_a,n_z,N_j,vfoptions]=Electrify_GridSizeSetup(Params.scenario, Params.J, small_z_no_e, small_model, vfoptions);
-[d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_grid,k_grid,pv_grid_firm,pv_grid_energy,Params,vfoptions,simoptions]=Electrify_GridSetup(Params.scenario, Params.ypp, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions);
+[d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_grid,house_grid,pv_grid_hh,k_grid,pv_grid_firm,pv_grid_energy,Params,vfoptions,simoptions]=Electrify_GridSetup(Params.scenario, Params.ypp, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions);
 
 % Set up Transition Path control parameters
 if small_T==2
@@ -213,27 +212,27 @@ Params.cpi_energy=0; % Initial condition
 % Scaling the household labor supply; we scale model and GE finds its own equilibrium
 % This is vaguely scenario-by-ypp, set for small_z_no_e=true
 Lhscale_small_z_no_e=[
-    [0.13,0.11,0.09,0.63];
-    [0.18,0.13,0.11,0.8];    % 2
-    [0.26,0.21,0.16,1.0];
-    [0.27,0.23,0.16,1.0];  % 4
-    [0.33,0.5,0.16,1.1];
-    [1.4,1.4,0.8,1.1];     % 6
-    [1.9,1.5,1.3,1.2];
-    [2.4,1.6,1.3,1.3];     % 8
-    [2.7,1.6,1.5,1.4];
-    [3.1,2.1,1.7,1.4];    % 10
-    [3.5,2.2,1.7,1.4];
-    [3.6,2.9,1.8,1.4];    % 12
+    [0.13,0.11,0.09,0.3];
+    [0.18,0.13,0.11,0.38];    % 2
+    [0.26,0.21,0.16,0.4];
+    [0.27,0.23,0.16,0.35];  % 4
+    [0.33,0.5,0.16,0.33];
+    [1.4,1.4,0.8,0.24];     % 6
+    [1.9,1.5,1.3,0.27];
+    [2.4,1.6,1.3,0.31];     % 8
+    [2.7,1.6,1.5,0.4];
+    [3.1,2.1,1.7,0.5];    % 10
+    [3.5,2.2,1.7,0.35];
+    [3.6,2.9,1.8,0.25];    % 12
     ]; 
 
 Lhscale_z_and_e=[
-    [0.12,0.09,0.10,0.4];
-    [0.25,0.18,0.14,0.8]; % 2
-    [0.27,0.20,0.15,1.4];
-    [0.31,0.24,0.16,1.5]; % 4
-    [0.40,0.26,0.18,0.36];
-    [0.45,0.4,0.23,1.7];   % 6
+    [0.12,0.09,0.10,0.8];
+    [0.25,0.18,0.14,0.52]; % 2
+    [0.27,0.20,0.15,0.42];
+    [0.31,0.24,0.16,0.38]; % 4
+    [0.40,0.26,0.18,0.37];
+    [0.45,0.4,0.23,0.18];   % 6
     [0.8,0.8,0.7,1.9];
     [1.3,1.1,0.5,2.1];     % 8
     [2.2,1.6,1.1,2.1];
@@ -263,22 +262,22 @@ Params.Lhscale=ParamPath.Lhscale(1);
 Params.P0=1;
 Params.w=1;
 Params.pension=0.4; % Initial guess (this will be determined in general eqm)
-Params.G=0.1; % Government expenditure
+% Params.G=0.1; % Government expenditure
 
 % And some initial values/guesses for AggVar values that will be calculated while calculating the general eqm
 Params.D_pp=(1+0.20)^Params.ypp-1; % The dividends paid by the firm per period
 Params.EnergyCosts_h=0.3; % Energy used by households
 Params.EnergyCosts_f=0.7; % Energy used by firms
 Params.CarbonCosts_h=0.05; % Carbon tax paid by households
-Params.CarbonCosts_f=0.3; % Cabron tax by firms
+Params.CarbonCosts_f=0.3; % Carbon tax by firms
 
 %% General eqm variables
 if Params.scenario<3
-    GEPriceParamNames={'w','D_pp','P0','pension','G','AccidentBeqS_pp'};
+    GEPriceParamNames={'w','D_pp','P0','pension'};
 elseif Params.scenario<4
-    GEPriceParamNames={'w','D_pp','P0','pension','G','AccidentBeqS_pp','AccidentBeqAH_pp'};
+    GEPriceParamNames={'w','D_pp','P0','pension'};
 else
-    GEPriceParamNames={'w','P0','pension','G','AccidentBeqS_pp','AccidentBeqAH_pp'};
+    GEPriceParamNames={'w','P0','pension'};
 end
 heteroagentoptions.constrainpositive=GEPriceParamNames;
 
@@ -296,11 +295,10 @@ heteroagentoptions.constrainpositive=GEPriceParamNames;
 % both z).
 % Note also we must differentiate based on Scenarios...
 
-% General Equilibrium conditions (these should evaluate to zero in general equilbrium)
+% General Equilibrium conditions (these should evaluate to zero in general equilibrium)
 GeneralEqmEqns.sharemarket=@(S) S-1; % mass of all shares equals one
 GeneralEqmEqns.labormarket=@(L_h,L_f) (L_h-L_f)*max(2,Params.ypp); % labor supply of households equals labor demand of firms (scaled by ypp)
 GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue) PensionSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue: pension*fractionretired-tau*w*H
-GeneralEqmEqns.govbudget=@(G,tau_d,D_pp,CapitalGainsTaxRevenue,CorpTaxRevenue,ypp) G*ypp-tau_d*D_pp-CapitalGainsTaxRevenue-CorpTaxRevenue; % G is equal to the target, GdivYtarget*Y
 % GeneralEqmEqns.firmdiscounting=@(firmbeta,r_pp,tau_cg) firmbeta-1/(1+r_pp/(1-tau_cg)); % Firms discount rate is related to market return rate
 if Params.scenario<4
     GeneralEqmEqns.dividends=@(dividend_pp,D_pp) (dividend_pp-D_pp); % That the dividend households receive equals that which firms give
@@ -308,10 +306,6 @@ end
 GeneralEqmEqns.ShareIssuance=@(Sissued,P0,D_pp,tau_cg,tau_d,r_pp) ...
     P0-((((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
 GeneralEqmEqns.CapitalOutputRatio=@(K,L_f,TargetKdivL) (K/L_f-TargetKdivL)/100; % Ratio not based on ypp
-GeneralEqmEqns.bequestsS_pp=@(BeqleftS_pp,AccidentBeqS_pp,n_pp) BeqleftS_pp/(1+n_pp)-AccidentBeqS_pp; % Accidental share bequests received equal accidental share bequests left
-if Params.scenario>2
-    GeneralEqmEqns.bequestsAH_pp=@(BeqleftAH_pp,AccidentBeqAH_pp,n_pp) BeqleftAH_pp/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
-end
 
 % This takes little time, so give a graph to look at first
 if Params.scenario==3
@@ -377,9 +371,9 @@ if Params.scenario>=3 % shares vs. assets not possible in Scenarios 1 and 2
             % Plot F as S vs H
             if small_z_no_e
                 if Params.scenario<4
-                    surf(asset_grid,share_grid,V_init.household(:,:,2,2,1,agej), V_init.household(:,:,2,2,1,agej)-V_init.household(:,:,1,1,1,agej))
+                    surf(asset_grid,share_grid,V_init.household(:,:,2-small_model,2,1,agej), V_init.household(:,:,2-small_model,2,1,agej)-V_init.household(:,:,1,1,1,agej))
                 else
-                    surf(asset_grid,share_grid,V_init.household(:,:,2,2,2,1,agej), V_init.household(:,:,2,2,2,1,agej)-V_init.household(:,:,1,1,1,1,agej))
+                    surf(asset_grid,share_grid,V_init.household(:,:,2-small_model,2,2,1,agej), V_init.household(:,:,2-small_model,2,2,1,agej)-V_init.household(:,:,1,1,1,1,agej))
                 end
                 colorbar
             else
@@ -441,7 +435,7 @@ disp('Test AggVars')
 AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j,Names_i, d_grid, a_grid, z_grid,simoptions);
 
 % Next few lines were used to try a few parameter values so as to get a
-% decent initial guess before actually solving the general equilbrium
+% decent initial guess before actually solving the general equilibrium
 fprintf('Check: L_h, L_f, K \n')
 [AggVars.L_h.Mean,AggVars.L_f.Mean,AggVars.K.Mean]
 fprintf('Check: K/L_f (should be about 2.03) \n')
@@ -480,7 +474,7 @@ if test_Lhscale
             [ReturnFn_Lh,~,FnsToEvaluate2_Lh,~,vfoptions_Lh,simoptions_Lh]=Electrify_Scenario_Fn_Setup(Params_Lh,vfoptions_Lh,simoptions_Lh);
 
             [n_d_Lh,n_a_Lh,n_z_Lh,N_j_Lh,vfoptions_Lh]=Electrify_GridSizeSetup(scenario, Params_Lh.J, small_z_no_e, small_model, vfoptions_Lh);
-            [d_grid_Lh,a_grid_Lh,z_grid_Lh,pi_z_Lh,jequaloneDist_Lh,share_grid_Lh,k_grid_Lh,pv_grid_firm_Lh,pv_grid_energy_Lh,Params_Lh,vfoptions_Lh,simoptions_Lh]=Electrify_GridSetup(scenario, ypp, n_d_Lh, n_a_Lh, n_z_Lh, small_z_no_e, Params_Lh, vfoptions_Lh, simoptions_Lh);
+            [d_grid_Lh,a_grid_Lh,z_grid_Lh,pi_z_Lh,jequaloneDist_Lh,share_grid_Lh,house_grid_Lh,pv_grid_hh_Lh,k_grid_Lh,pv_grid_firm_Lh,pv_grid_energy_Lh,Params_Lh,vfoptions_Lh,simoptions_Lh]=Electrify_GridSetup(scenario, ypp, n_d_Lh, n_a_Lh, n_z_Lh, small_z_no_e, Params_Lh, vfoptions_Lh, simoptions_Lh);
             if ypp<=size(Lhscale,1)
                 Params_Lh.Lhscale=Lhscale(ypp,scenario);
             else
@@ -540,17 +534,20 @@ if mod(solve_GE,2)==1
     % Put this into Params so we can calculate things about the initial equilibrium
     % GEcondns tells us the values of the GeneralEqmEqns, should be near zero
     Params.pension=p_eqm_init.pension;
-    Params.AccidentBeqS_pp=p_eqm_init.AccidentBeqS_pp;
+    % Plot twist: we are going to use the good AggVar value of bequests as elements of the GEqm so that we can transition from init to final across demographic changes
+    p_eqm_init.AccidentBeqS_pp=Params.AccidentBeqS_pp;
+    p_eqm_init.G=Params.tau_d*Params.D_pp+AggVars.CapitalGainsTaxRevenue.household.Mean+AggVars.CorpTaxRevenue.firm.Mean;
     % To use a '_tminus1' variable we must include its initial value
-    transpathoptions.initialvalues.BeqleftS_pp=p_eqm_init.AccidentBeqS_pp;
+    transpathoptions.initialvalues.BeqleftS_pp= Params.AccidentBeqS_pp;
     if Params.scenario>2
-        Params.AccidentBeqAH_pp=p_eqm_init.AccidentBeqAH_pp;
-        transpathoptions.initialvalues.BeqleftAH_pp=p_eqm_init.AccidentBeqAH_pp;
+        % Plot twist as above...
+        p_eqm_init.AccidentBeqAH_pp=Params.AccidentBeqAH_pp;
+        transpathoptions.initialvalues.BeqleftAH_pp= Params.AccidentBeqAH_pp;
     end
     transpathoptions.initialvalues.pvinstalled_firm=0;
     transpathoptions.initialvalues.pvinstalled_energy=0;
 
-    Params.G=p_eqm_init.G;
+    % Params.G=p_eqm_init.G;
     Params.w=p_eqm_init.w;
     % Params.firmbeta=p_eqm_init.firmbeta;
     Params.P0=p_eqm_init.P0;
@@ -677,7 +674,7 @@ if solve_GE>=2
     AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j,Names_i, d_grid, a_grid, z_grid,simoptions);
 
     % Next few lines were used to try a few parameter values so as to get a
-    % decent initial guess before actually solving the general equilbrium
+    % decent initial guess before actually solving the general equilibrium
     fprintf('Check: L_h, L_f, K \n')
     [AggVars.L_h.Mean,AggVars.L_f.Mean,AggVars.K.Mean]
     fprintf('Check: K/L_f (should be about 2.03) \n')
@@ -700,11 +697,11 @@ if solve_GE>=2
     % Done, the general eqm prices are in p_eqm
     % GEcondns tells us the values of the GeneralEqmEqns, should be near zero
     Params.pension=p_eqm_final.pension;
-    Params.AccidentBeqS_pp=p_eqm_final.AccidentBeqS_pp;
+    p_eqm_final.AccidentBeqS_pp=Params.AccidentBeqS_pp;
     if Params.scenario>2
-        Params.AccidentBeqAH_pp=p_eqm_final.AccidentBeqAH_pp;
+        p_eqm_final.AccidentBeqAH_pp=Params.AccidentBeqAH_pp;
     end
-    Params.G=p_eqm_final.G;
+    p_eqm_final.G=Params.tau_d*Params.D_pp+AggVars.CapitalGainsTaxRevenue.household.Mean+AggVars.CorpTaxRevenue.firm.Mean;
     Params.w=p_eqm_final.w;
     % Params.firmbeta=p_eqm_final.firmbeta;
     Params.P0=p_eqm_final.P0;
@@ -736,10 +733,21 @@ if solve_TPath
     % T=100; % number of periods for transition path
     
     % Already created ParamPath.sj and ParamPath.mewj
-    
-    % Initial guess for general eqm parameters; if small_T, V_final is V_init at T=T_end
+
     if small_T==1
         T_eq=ceil(T_end/2);
+    else
+        T_eq=ceil(0.618*T); % Demographic change has stopped and T_eq begins period of transition equilibrium-finding
+    end
+
+    ParamPath.AccidentBeqS_pp=[linspace(p_eqm_init.AccidentBeqS_pp,p_eqm_final.AccidentBeqS_pp,T_eq), p_eqm_final.AccidentBeqS_pp*ones(1,T_end-T_eq)];
+    if Params.scenario>2
+        ParamPath.AccidentBeqAH_pp=[linspace(p_eqm_init.AccidentBeqAH_pp,p_eqm_final.AccidentBeqAH_pp,T_eq), p_eqm_final.AccidentBeqAH_pp*ones(1,T_end-T_eq)];
+    end
+    ParamPath.G=[linspace(p_eqm_init.G, p_eqm_final.G,T_eq), p_eqm_final.G*ones(1,T_end-T_eq)];
+
+    % Initial guess for general eqm parameters; if small_T, V_final is V_init at T=T_end
+    if small_T==1
         paramnames=fieldnames(ParamPath);
         for nn=1:length(paramnames)
             if size(ParamPath.(paramnames{nn}),1)==1
@@ -749,18 +757,13 @@ if solve_TPath
             end
         end
     else
-        T_eq=ceil(0.618*T); % Demographic change has stopped and T_eq begins period of transition equilibrium-finding
         ParamPath0=ParamPath;
     end
+
     PricePath0.w=[linspace(p_eqm_init.w, p_eqm_final.w,T_eq), p_eqm_final.w*ones(1,T_end-T_eq)];
     % PricePath0.firmbeta=[linspace(p_eqm_init.firmbeta, p_eqm_final.firmbeta,T_eq), p_eqm_final.firmbeta*ones(1,T_end-T_eq)];
     PricePath0.P0=[linspace(p_eqm_init.P0, p_eqm_final.P0,T_eq), p_eqm_final.P0*ones(1,T_end-T_eq)];
     PricePath0.pension=[linspace(p_eqm_init.pension, p_eqm_final.pension,T_eq), p_eqm_final.pension*ones(1,T_end-T_eq)];
-    PricePath0.AccidentBeqS_pp=[linspace(p_eqm_init.AccidentBeqS_pp,p_eqm_final.AccidentBeqS_pp,T_eq), p_eqm_final.AccidentBeqS_pp*ones(1,T_end-T_eq)];
-    if Params.scenario>2
-        PricePath0.AccidentBeqAH_pp=[linspace(p_eqm_init.AccidentBeqAH_pp,p_eqm_final.AccidentBeqAH_pp,T_eq), p_eqm_final.AccidentBeqAH_pp*ones(1,T_end-T_eq)];
-    end
-    PricePath0.G=[linspace(p_eqm_init.G, p_eqm_final.G,T_eq), p_eqm_final.G*ones(1,T_end-T_eq)];
     % PricePath0.TargetKdivL=2.03*ones(1,T_end);
 
     % General eqm eqns, same idea as with the stationary general eqm
@@ -770,12 +773,12 @@ if solve_TPath
     % GeneralEqmEqns_Transition.dividends=GeneralEqmEqns.dividends;
     GeneralEqmEqns_Transition.ShareIssuance=GeneralEqmEqns.ShareIssuance;
     GeneralEqmEqns_Transition.pensions=GeneralEqmEqns.pensions;
-    GeneralEqmEqns_Transition.govbudgetbalance=GeneralEqmEqns.govbudget;
+    % GeneralEqmEqns_Transition.govbudgetbalance=GeneralEqmEqns.govbudget;
     % Note: bequests are left in t-1 and received in t
-    GeneralEqmEqns_Transition.bequestsS_pp=@(BeqleftS_pp_tminus1,AccidentBeqS_pp,n_pp) BeqleftS_pp_tminus1/(1+n_pp)-AccidentBeqS_pp; % Accidental share bequests received equal accidental share bequests left
-    if Params.scenario>2
-        GeneralEqmEqns_Transition.bequestsAH_pp=@(BeqleftAH_pp_tminus1,AccidentBeqAH_pp,n_pp) BeqleftAH_pp_tminus1/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
-    end
+    % GeneralEqmEqns_Transition.bequestsS_pp=@(BeqleftS_pp_tminus1,AccidentBeqS_pp,n_pp) BeqleftS_pp_tminus1/(1+n_pp)-AccidentBeqS_pp; % Accidental share bequests received equal accidental share bequests left
+    % if Params.scenario>2
+    %     GeneralEqmEqns_Transition.bequestsAH_pp=@(BeqleftAH_pp_tminus1,AccidentBeqAH_pp,n_pp) BeqleftAH_pp_tminus1/(1+n_pp)-AccidentBeqAH_pp; % Accidental asset+house bequests received equal accidental asset+house bequests left
+    % end
     
     % Note: in this example these are actually identical to the general eqm
     % eqns for the stationary general eqm, but that is not often the case.
@@ -788,18 +791,18 @@ if solve_TPath
         ... % 'firmdiscounting','firmbeta',0,0.03;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
         'ShareIssuance','P0',0,0.03;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
         'pensions','pension',0,0.03;... % pensions GE condition will be positive if pension is too big, so subtract
-        'govbudgetbalance','G',0,0.03;... % govbudget GE condition will be positive if G is too big, so subtract
-        'bequestsS_pp','AccidentBeqS_pp',1,0.03;... % bequests GE condition will be negative if BeqS_pp is too big, so add
-        'bequestsAH_pp','AccidentBeqAH_pp',1,0.03;... % bequests GE condition will be negative if BeqAH_pp is too big, so add
+        ... % 'govbudgetbalance','G',0,0.03;... % govbudget GE condition will be positive if G is too big, so subtract
+        ... % 'bequestsS_pp','AccidentBeqS_pp',1,0.03;... % bequests GE condition will be negative if BeqS_pp is too big, so add
+        ... % 'bequestsAH_pp','AccidentBeqAH_pp',1,0.03;... % bequests GE condition will be negative if BeqAH_pp is too big, so add
         };
-    if Params.scenario<3
-        mask=strcmp(transpathoptions.GEnewprice3.howtoupdate(:,1),'bequestsAH_pp');
-        transpathoptions.GEnewprice3.howtoupdate(mask,:)=[];
-    elseif Params.scenario==4
-        for pp=1:size(transpathoptions.GEnewprice3.howtoupdate,1)
-            transpathoptions.GEnewprice3.howtoupdate{pp,4}=0.008;
-        end
-    end
+    % if Params.scenario<3
+    %     mask=strcmp(transpathoptions.GEnewprice3.howtoupdate(:,1),'bequestsAH_pp');
+    %     transpathoptions.GEnewprice3.howtoupdate(mask,:)=[];
+    % elseif Params.scenario==4
+    %     for pp=1:size(transpathoptions.GEnewprice3.howtoupdate,1)
+    %         transpathoptions.GEnewprice3.howtoupdate{pp,4}=0.008;
+    %     end
+    % end
 
     % Note: the update is essentially new_price=price+factor*add*GEcondn_value-factor*(1-add)*GEcondn_value
     % Notice that this adds factor*GEcondn_value when add=1 and subtracts it what add=0
@@ -821,6 +824,11 @@ if solve_TPath
     transpathoptions.tolerance=4*10^(-2); % default is 10^(-4), which is a very demanding accuracy
     transpathoptions.updateaccuracycutoff=transpathoptions.tolerance/(2*length(GEPriceParamNames));
 
+    transpathoptions.verbose=1;
+    transpathoptions.graphpricepath=1; % 1: creates a graph of the 'current' price path which updates each iteration.
+    transpathoptions.graphaggvarspath=1; % 1: creates a graph of the 'current' aggregate variables which updates each iteration.
+    transpathoptions.graphGEcondns=1;  % 1: creates a graph of the 'current' general eqm conditions which updates each iteration.
+    transpathoptions.historyofpricepath=1;
     %%
 
     save tpathElectrifyC.mat
@@ -887,7 +895,7 @@ if Params.scenario>2
     end
 end
 
-%% Plot the life cycle profiles of capital and labour for the inital and final eqm.
+%% Plot the life cycle profiles of capital and labour for the initial and final eqm.
 
 figure_c=figure(10);
 if Params.scenario<3
@@ -910,18 +918,20 @@ if Params.scenario>2
     title('Life Cycle Profile: Asset holdings')
     subplot(3,2,4); plot(1:1:Params.J,AgeConditionalStats.H.Mean)
     title('Life Cycle Profile: House holdings')
-    subplot(3,2,6); plot(1:1:Params.J,AgeConditionalStats.PV.Mean)
+    subplot(3,2,6); plot(1:1:Params.J,AgeConditionalStats.PV_h.Mean)
     title('Life Cycle Profile: Solar PV installed')
 end
 saveas(figure_c,'./SavedOutput/Graphs/Electrify_LifeCycleProfiles','pdf')
 
 %% Calculate some aggregates and print findings about them
 
-AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
+AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate3, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
 
 Y=AggVars.Output_f.Mean;
 
 P=((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Params.r_pp-Params.tau_cg);
+
+G_pp=Params.tau_d*Params.D_pp+AggVars.CapitalGainsTaxRevenue.household.Mean+AggVars.CorpTaxRevenue.firm.Mean; % If G influenced any GEqm equations, we'd need it to equilibrate with them
 
 % Calculate the aggregate TFP as output/((capital^alpha_k)*(labor^alpha_l))
 AggregateTFP=Y/((AggVars.K.Mean^Params.alpha_k)*(AggVars.L_f.Mean^Params.alpha_l));
@@ -945,7 +955,7 @@ else
 end
 fprintf(fileID,'Total firm value (firm side): Value of firm=%8.2f \n',TotalValueOfFirms);
 fprintf(fileID,'Consumption-Output ratio: C/Y=%8.2f \n',AggVars.Consumption.Mean/(Y*Params.ypp));
-fprintf(fileID,'Government-to-Output ratio: G/Y=%8.2f \n', Params.G/Y);
+fprintf(fileID,'Government-to-Output ratio: G/Y=%8.2f \n', G_pp/(Y*Params.ypp));
 fprintf(fileID,'Wage: w=%8.2f \n',Params.w);
 fclose(fileID);
 

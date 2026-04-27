@@ -18,6 +18,8 @@ else
         end
         if small_z_no_e
             vfoptions.lowmemory.household=0;
+        elseif small_model
+            vfoptions.lowmemory.household=1;
         else
             vfoptions.lowmemory.household=2;
         end
@@ -25,7 +27,7 @@ else
         % Endogenous shares, assets (>=6), car (3), housing (>=2), and solarpv (>=2) x15kW PV
         if small_model
             n_d.household=[21,3]; % Decisions: labor, buyhouse (3 w/o PV; 5 w/PV)
-            n_a.household=[9,31,1,2,2];
+            n_a.household=[9,31,1,2,2]; % note: car fixed at zero
         else
             n_d.household=[21,5]; % Decisions: labor, buyhouse (3 w/o PV; 5 w/PV)
             n_a.household=[5,31,3,4,5];
