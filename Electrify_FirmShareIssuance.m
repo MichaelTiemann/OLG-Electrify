@@ -1,4 +1,4 @@
-function s=Electrify_FirmShareIssuance(dividend,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi)
+function s=Electrify_FirmShareIssuance(dividend,kprime,k,z,w,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi)
 % Whether we set it up so that dividends or equity issuance is the decision
 % variable is unimportant, here I use dividends as the decision variable.
 
@@ -8,25 +8,23 @@ function s=Electrify_FirmShareIssuance(dividend,kprime,k,z,w,ypp,delta,alpha_k,a
 l=(w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % This is just w=Marg. Prod. Labor, but rearranged
 
 % Output
-y=z*(k^alpha_k)*(l^alpha_l)*ypp;
+y=z*(k^alpha_k)*(l^alpha_l);
 
 % Profit
-profit=y-w*l*ypp;
+profit=y-w*l;
 
 % Investment
-delta_pp=(1+delta)^ypp-1;
-invest=kprime-(1-delta_pp)*k;
+invest=kprime-(1-delta)*k;
 
 % Capital-adjustment costs
-capitaladjcost=(capadjconstant/2)*((invest/k-delta_pp)^2) *k; 
+capitaladjcost=(capadjconstant/2)*((invest/k-delta)^2) *k; 
 
 % Taxable corporate income
-T=profit-delta_pp*k-phi*capitaladjcost;
+T=profit-delta*k-phi*capitaladjcost;
 % -delta*k: investment expensing
 % phi is the fraction of capitaladjcost that can be deducted from corporate taxes
 
 % Firms financing constraint gives the new equity issuance
-dividend_pp=(1+dividend)^ypp-1;
-s=dividend_pp+invest+capitaladjcost-(profit-tau_corp*T);
+s=dividend+invest+capitaladjcost-(profit-tau_corp*T);
 
 end

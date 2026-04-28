@@ -1,4 +1,4 @@
-function F=Electrify_4EnergyReturnFn(pvnew,kprime,k,pv,z,ypp,pvinstalled_energy,pvmax_energy,delta,pv_delta,EnergyCosts_h,EnergyCosts_f)
+function F=Electrify_4EnergyReturnFn(pvnew,kprime,k,pv,z,pvinstalled_energy,pvmax_energy,delta,pv_delta,EnergyCosts_h,EnergyCosts_f)
 % Choosing unit industrial PV to be 200GWh/year generation...
 % 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$440B = 0.0005 max GDP
 % 200GWh PV/year * 1000 MWh/GWh * $150/MWh = Firm PV Energy Cost Offset $30M/PV/year (vs $440B)
@@ -9,7 +9,7 @@ F=-Inf;
 % Convert household demand to energy supply
 % Starting point: 0.46 over 5 years = 0.092/a = $7360 per person * 2.9M = $21B
 % $21B / $350/MWh = 60 TWh; 60 TWh => 40000 MW gen
-MW_hh=(EnergyCosts_h*80000/ypp)*2.9e6/350/1500;
+MW_hh=(EnergyCosts_h*80000)*2.9e6/350/1500;
 revenue_hh=EnergyCosts_h*80000*2.9e6; % for the period
 
 % Starting point: 0.64 over 5 years = 0.128/a /0.045 = 2.844 * 155B = $440B/a
@@ -17,13 +17,13 @@ revenue_hh=EnergyCosts_h*80000*2.9e6; % for the period
 % $19.8B / $150/MWh = 132 TWh (call it 125 TWh)
 % 125 TWh / 1500 h / year = 83,333 MW gen
 Y_firm=(EnergyCosts_f/0.045)*155e9;
-MW_firm=(Y_firm/ypp)*125e12/440e9/1500e6;
+MW_firm=Y_firm*125e12/440e9/1500e6;
 revenue_firm=EnergyCosts_f*155e9; % for the period
 
 % Each PV is 133MW generation
 pv_req = (MW_hh+MW_firm)/133;
 
-pv_maint=(pv*220e6)*((1+delta)^ypp-1);
+pv_maint=(pv*220e6)*delta;
 
 % 200GWh/year = 133MW*1500h/yr = $220M cost @ $1.65M/MW; $220M/$440B = 0.0005 max GDP per PV
 pvnew_cost=pvnew*220e6;

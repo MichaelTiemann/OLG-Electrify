@@ -1,20 +1,20 @@
-function [Params]=Electrify_Scenario_YPP_Setup(Params,scenario,ypp,small_z_no_e,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,tau_cg,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH)
+function [Params]=Electrify_Scenario_YPJ_Setup(Params,scenario,ypj,small_z_no_e,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,tau_cg,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH)
 
 if small_z_no_e
     Params.e=0;
 end
 
 Params.scenario=scenario;
-Params.ypp=ypp;
+Params.ypj=ypj;
 
-Params.J=ceil((max_age-agejshifter)/ypp); % =60/ypp, Number of period in life-cycle
-Params.Jr=round((65-agejshifter)/ypp); % Age 65 (period 10 is ages 65-69 in the 5 year case)
+Params.J=ceil((max_age-agejshifter)/ypj); % =60/ypj, Number of period in life-cycle
+Params.Jr=round((65-agejshifter)/ypj); % Age 65 (period 10 is ages 65-69 in the 5 year case)
 Params.agej=1:1:Params.J; % Is a vector of all the periods: 1,2,3,...,J
 
 if Params.Jr>5
-    kappa_j12=linspace(k_j1(scenario),k_j2(scenario),Params.Jr-round((15+k_j2_length(scenario))/ypp));
-    kappa_j2s=k_j2(scenario)*ones(1,ceil(k_j2_length(scenario)/ypp));
-    kappa_j23=linspace(k_j2(scenario),k_j3(scenario),ceil(14/ypp));
+    kappa_j12=linspace(k_j1(scenario),k_j2(scenario),Params.Jr-round((15+k_j2_length(scenario))/ypj));
+    kappa_j2s=k_j2(scenario)*ones(1,ceil(k_j2_length(scenario)/ypj));
+    kappa_j23=linspace(k_j2(scenario),k_j3(scenario),ceil(14/ypj));
 else
     kappa_j12=linspace(k_j1(scenario),k_j2(scenario),Params.Jr-1-min(k_j2_length(scenario),1));
     kappa_j2s=k_j2(scenario)*ones(1,min(k_j2_length(scenario),1)); % At most one period of max wage
@@ -26,20 +26,20 @@ kappa_j=[kappa_j12, kappa_j2s, kappa_j23, kappa_jr];
 % If Params.J is rounded up, don't add extra zeros
 Params.kappa_j=kappa_j(1:Params.J);
 
-Params.r_wedge_pp=(1+r_wedge)^ypp-1;
-Params.beta_pp = beta(scenario)^ypp;
-Params.n_pp=(1+n)^ypp-1; % percentage rate (expressed as fraction) of population growth per period
+Params.r_wedge=r_wedge;
+Params.beta = beta(scenario);
+Params.n=n; % percentage rate (expressed as fraction) of population growth per period
 
 Params.carservices_j=0.1*ones(Params.J,1);
 % Cars start to be useful as people ramp up family life
-age1=ceil((28-agejshifter)/ypp);
-age2=ceil((32-agejshifter)/ypp);
+age1=ceil((28-agejshifter)/ypj);
+age2=ceil((32-agejshifter)/ypj);
 Params.carservices_j(age1:age2)=linspace(0.5,2,age2-age1+1);
-age1=age2; age2=ceil((44-agejshifter)/ypp);
+age1=age2; age2=ceil((44-agejshifter)/ypj);
 Params.carservices_j(age1:age2)=2*ones(age2-age1+1,1);
-age1=age2; age2=ceil((65-agejshifter)/ypp);
+age1=age2; age2=ceil((65-agejshifter)/ypj);
 Params.carservices_j(age1:age2)=linspace(2,1,age2-age1+1);
-age1=age2; age2=ceil((80-agejshifter)/ypp);
+age1=age2; age2=ceil((80-agejshifter)/ypj);
 Params.carservices_j(age1:age2)=linspace(1,0,age2-age1+1);
 Params.carservices_j(age2+1:end)=0;
 
@@ -47,9 +47,9 @@ Params.carservices_j(age2+1:end)=0;
 % Chosen following Karahan & Ozkan (2013) [as used by Fella, Gallipoli & Pan (2019)]
 % Note that 37 covers 24 to 60 inclusive (as in the original)
 % Now repeat the first and last values to fill in working age, and put zeros for retirement (where it is anyway irrelevant)
-ones_pp4y=ones(1,ceil(4/ypp));
-rho_z=0.7596+0.2039*((1:ypp:37)/10)-0.0535*((1:ypp:37)/10).^2+0.0028*((1:ypp:37)/10).^3; % Chosen following Karahan & Ozkan (2013) [as used by Fella, Gallipoli & Pan (2019)]
-sigma_epsilon_z=0.0518-0.0405*((1:ypp:37)/10)+0.0105*((1:ypp:37)/10).^2-0.0002*((1:ypp:37)/10).^3; % Chosen following Karahan & Ozkan (2013) [as used by Fella, Gallipoli & Pan (2019)]
+ones_pp4y=ones(1,ceil(4/ypj));
+rho_z=0.7596+0.2039*((1:ypj:37)/10)-0.0535*((1:ypj:37)/10).^2+0.0028*((1:ypj:37)/10).^3; % Chosen following Karahan & Ozkan (2013) [as used by Fella, Gallipoli & Pan (2019)]
+sigma_epsilon_z=0.0518-0.0405*((1:ypj:37)/10)+0.0105*((1:ypj:37)/10).^2-0.0002*((1:ypj:37)/10).^3; % Chosen following Karahan & Ozkan (2013) [as used by Fella, Gallipoli & Pan (2019)]
 
 % Here we allow one period each at the start and end of working age, followed by retirement
 Params.rho_z=[rho_z(1)*ones_pp4y, ...
@@ -64,7 +64,7 @@ Params.sigma_epsilon_z=[sigma_epsilon_z(1)*ones_pp4y, ...
 Params.sigma_epsilon_z=Params.sigma_epsilon_z(1:Params.J);
 
 % Transitory iid shock
-sigma_e=0.0410+0.0221*((24:ypp:60)/10)-0.0069*((24:ypp:60)/10).^2+0.0008*((24:ypp:60)/10).^3;
+sigma_e=0.0410+0.0221*((24:ypj:60)/10)-0.0069*((24:ypj:60)/10).^2+0.0008*((24:ypj:60)/10).^3;
 Params.sigma_e=[sigma_e(1)*ones_pp4y, ...
     sigma_e, ...
     sigma_e(end)*ones_pp4y, ...
@@ -87,16 +87,16 @@ dj=[0.006879, 0.000463, 0.000307, 0.000220, 0.000184, 0.000172, 0.000160, 0.0001
     0.009473, 0.010450, 0.011456, 0.012407, 0.013320, 0.014299, 0.015323,...                                                                                                                                   % Ages 61-67
     0.016558, 0.018029, 0.019723, 0.021607, 0.023723, 0.026143, 0.028892, 0.031988, 0.035476, 0.039238, 0.043382, 0.047941, 0.052953, 0.058457, 0.064494,...                                                   % Ages 68-82
     0.071107, 0.078342, 0.086244, 0.094861, 0.104242, 0.114432, 0.125479, 0.137427, 0.150317, 0.164187, 0.179066, 0.194979, 0.211941, 0.229957, 0.249020, 0.269112, 0.290198, 0.312231, 1.000000];             % Ages 83-101
-dj=resize(dj,101+ypp,FillValue=1);
+dj=resize(dj,101+ypj,FillValue=1);
 % dj covers Ages 0-100, plus extras at end to make it period-friendly
-% Note: when ypp==1, the product over the reshaped array is over a single year period (i.e. trivial)
-sj_init=prod(1-reshape(dj(1:ypp*Params.J),[ypp,Params.J]),1); % p5-year survival rates
+% Note: when ypj==1, the product over the reshaped array is over a single year period (i.e. trivial)
+sj_init=prod(1-reshape(dj(1:ypj*Params.J),[ypj,Params.J]),1); % p5-year survival rates
 sj_init(end)=0; % In the present model the last period (j=J) value of sj is actually irrelevant
 Params.sj_init=sj_init;
 
 % Add 5 years of life expectancy...age sj(65) in the future will be sj(60) by today's statistics
 % Part of this is achieved by improving early childhood survival as well...feeding two birds with one worm
-sj_final=prod(1-reshape([dj(1:2:10), repelem(dj(11:15), 3), dj(16:ypp*Params.J-5)],[ypp,Params.J]),1);
+sj_final=prod(1-reshape([dj(1:2:10), repelem(dj(11:15), 3), dj(16:ypj*Params.J-5)],[ypj,Params.J]),1);
 sj_final(end)=0; % In the present model the last period (j=J) value of sj is actually irrelevant
 Params.sj_final=sj_final;
 
@@ -104,7 +104,7 @@ Params.sj_final=sj_final;
 % We defer doing transition maths until we calculate GE final
 Params.sj=sj_init;
 Params.mewj=cumprod([1,Params.sj(1:end-1)],2); % mass of age jj is the mass of jj-1 that survive
-Params.mewj=Params.mewj./((1+Params.n_pp).^((1:Params.J)-1)); % Population shrinks in the N_j dimension
+Params.mewj=Params.mewj./((1+Params.n).^(Params.ypj*((1:Params.J)-1))); % Population shrinks in the N_j dimension
 Params.mewj=Params.mewj./sum(Params.mewj); % normalize age-masses to sum to one
 
 % Note: This is rather incomplete, as really you should also have
@@ -115,13 +115,13 @@ Params.mewj=Params.mewj./sum(Params.mewj); % normalize age-masses to sum to one
 % do this with the toolkit does not change.
 
 % The warmglow parameters will help us find the GE solution to actual bequest rates/values
-Params.AccidentBeqS_pp=AccidentBeqS(scenario)*ypp;
+Params.AccidentBeqS=AccidentBeqS(scenario);
 if scenario>2
-    Params.AccidentBeqAH_pp=AccidentBeqAH(scenario)*ypp;
+    Params.AccidentBeqAH=AccidentBeqAH(scenario);
 end
-Params.r_pp=(1+r)^ypp-1;
-Params.firmbeta=1/(1+Params.r_pp/(1-tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
-Params.energybeta=1/(1+Params.r_pp/(1-tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
+Params.r=r;
+Params.firmbeta=1/(1+Params.r/(1-tau_cg)); % 1/(1+r) but returns net of capital gains tax
+Params.energybeta=1/(1+Params.r/(1-tau_cg)); % 1/(1+r) but returns net of capital gains tax
 
 Params.sigma_h=sigma_h(scenario);
 Params.sigma_c=sigma_c(scenario);
@@ -134,8 +134,8 @@ if scenario==4
     Params.energy_pct_brown=0.8;
 end
 
-Params.G_pp=G*ypp; % Government expenditure
-Params.D_pp=(1+D)^ypp-1; % The dividends paid by the firm per period
+Params.G=G; % Government expenditure
+Params.D=D; % The dividends paid by the firm per period
 
 
 end

@@ -1,8 +1,8 @@
-function c_pp=Electrify_4HouseholdConsumptionFn( ...
+function c=Electrify_4HouseholdConsumptionFn( ...
     labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
-    pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
-    kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-    r_pp,r_wedge_pp,f_htc,rentprice,energy_cpi,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax)
+    pension,AccidentBeqS,AccidentBeqAH,w,P0,D, ...
+    kappa_j,tau_l,tau_d,tau_cg,agej,Jr, ...
+    r,r_wedge,f_htc,rentprice,energy_cpi,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax)
 
 % Implement depreciation model:
 %   Car services A(t) = (1-delta_a)*A(t-1) + I(a,t)
@@ -14,14 +14,14 @@ function c_pp=Electrify_4HouseholdConsumptionFn( ...
 
 carcost=0;
 if h==0
-    rentalcosts=rentprice*w*ypp;
+    rentalcosts=rentprice*w;
 else
     rentalcosts=0;
 end
 htc=0; % house transaction cost
 pvinstallcost=0;
 % A Tally of energy costs, which will be deducted at the end
-energy_cost_pp=0;
+energy_cost=0;
 
 % Houses start at 4x annual wage
 hcost=4*h*w;
@@ -62,7 +62,7 @@ else
         carcost=0.25*w; % Trading cars; pay half price (25%) with trade-in
     end
     % annual insurance, maintenance, WOF, etc.
-    carcost=carcost+0.02*w*ypp;
+    carcost=carcost+0.02*w;
 end
 
 % We can get P (share price) from the equation that defines r as the return to the mutual fund
@@ -70,36 +70,36 @@ end
 % We are looking at stationary general eqm, so
 % Plag=P;
 % And thus we have
-P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
+P=((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg);
 
 Plag=P; % As stationary general eqm
 
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
-    c_pp=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
+    c=(1-tau_l)*labor*w*kappa_j*exp(z+e); 
 else % Retirement
-    c_pp=pension*ypp;
+    c=pension;
 end
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + net housing assets
-c_pp=c_pp+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqS_pp+AccidentBeqAH_pp+(hcost-hprimecost);
+c=c+((1-tau_d)*D+P0)*(s+AccidentBeqS)+AccidentBeqS+AccidentBeqAH+(hcost-hprimecost);
 if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
     % Subtract loan interest by adding diminishing assets
-    c_pp=c_pp+(1+r_pp+r_wedge_pp)*a;
+    c=c+(1+r+r_wedge)*a;
 else
     % Deposit interest included in augmented assets
-    c_pp=c_pp+(1+r_pp)*a;
+    c=c+(1+r)*a;
 end
 % ...subtract capital gains tax and next period share, asset holdings
-c_pp=c_pp-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
+c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS)-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation
-c_pp=c_pp-htc-rentalcosts-hcost*0.01*ypp-pvinstallcost;
+c=c-htc-rentalcosts-hcost*0.01-pvinstallcost;
 
 % ...subtract car costs (purchase, sale, and/or maintenance)
 if carcost~=0
-    c_pp=c_pp-carcost;
+    c=c-carcost;
     % Energy costs...
     if car==1
-        energy_cost_pp=energy_cost_pp+0.02*w*ypp;
+        energy_cost=energy_cost+0.02*w;
     else
         if solarpv>0.5
             solarpv=solarpv-0.5;
@@ -109,11 +109,11 @@ if carcost~=0
     end
 else
     % Public transportation cost...
-    c_pp=c_pp-0.2*w;
+    c=c-0.1*w;
 end
 
 % Add cost of housing
-energy_cost_pp=energy_cost_pp+(1+energy_cpi)*energy_pct_cost*max(h^1.5,1)*ypp;
+energy_cost=energy_cost+(1+energy_cpi)*energy_pct_cost*max(h^1.5,1);
 
 if car~=2
     % car batteries make solarpv more effective...
@@ -121,10 +121,10 @@ if car~=2
 end
 
 % PV generation: 30kW (2 solar units) meets h==1 energy needs
-energy_cost_pp=energy_cost_pp+(1+energy_cpi)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
-carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/3500;
+energy_cost=energy_cost+(1+energy_cpi)*energy_pct_cost*(max(h^1.5,1)-solarpv/2);
+carbon_tax=energy_cost*energy_pct_brown*carbon_tax/3500;
 
-c_pp=c_pp-energy_cost_pp-carbon_tax_pp;
+c=c-energy_cost-carbon_tax;
 
 
 end

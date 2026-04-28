@@ -1,8 +1,8 @@
 function F=Electrify_HouseholdReturnFn( ...
     labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
-    pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
-    sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
-    scenario,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,cpi,pv_pct_cost,energy_pct_cost ...
+    pension,AccidentBeqS,AccidentBeqAH,w,P0,D, ...
+    sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,agej,Jr,J,...
+    scenario,r,r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,cpi,pv_pct_cost,energy_pct_cost ...
     )
 
 % Note: experienceasset, so first inputs are (d,a,z,e,...)
@@ -29,19 +29,19 @@ elseif mod(buyhouse,2)==0
 end
 
 % Housing matters
-rentalcosts_pp=0; % Overwrite if housing in scenario
+rentalcosts=0; % Overwrite if housing in scenario
 hs=1; % Housing services (based on housing stock)
 htc=0; % house transaction cost
 hcost=0;
 hprimecost=0;
 pvinstallcost=0;
 if scenario==3
-    rentalcosts_pp=rentprice*sqrt(kappa_j)*ypp;
+    rentalcosts=rentprice*sqrt(kappa_j);
     if h==0
         hs=0.5*houseservices*minhouse;
     else
         hs=houseservices*h;
-        rentalcosts_pp=0;
+        rentalcosts=0;
     end
     % Houses start at 4x annual wage
     hcost=4*h*(1+cpi);
@@ -68,7 +68,7 @@ end
 
 %% Allow/Disallow some trivial agent decisions
 if (sprime-s>0 && aprime+hprimecost<0 ...             % Cannot buy shares with negative net worth
-    || agej*ypp>=11 && aprime<-f_coll*hprimecost ...  % Collateral constraint on borrowing (for older buyers that earn real money)
+    || agej>=11 && aprime<-f_coll*hprimecost ...  % Collateral constraint on borrowing (for older buyers that earn real money)
     || hprime<h && aprime<0 ...                       % Cannot sell down a house that is collateralized
     || agej>=Jr && aprime<0)                          % Ban pensioners from negative assets (even if they own houses)
     return 
@@ -79,36 +79,36 @@ end
 % We are looking at stationary general eqm, so
 % Plag=P;
 % And thus we have
-P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
+P=((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg);
 
 Plag=P; % As stationary general eqm
 
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
-    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
+    c=(1-tau_l)*labor*w*kappa_j*exp(z+e); 
 else % Retirement
-    c=pension*ypp;
+    c=pension;
 end
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
-c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqAH_pp+(hcost-hprimecost);
+c=c+((1-tau_d)*D+P0)*(s+AccidentBeqS)+AccidentBeqAH+(hcost-hprimecost);
 % PV generation: 30kW (2 solar units) meets h==1 energy needs
-%%% WTF c=c+(1+cpi)*energy_pct_cost*(solarpv/2)*ypp;
+%%% WTF c=c+(1+cpi)*energy_pct_cost*(solarpv/2);
 if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
     % Subtract loan interest by adding diminishing assets
-    c=c+(1+r_pp+r_wedge_pp)*a;
+    c=c+(1+r+r_wedge)*a;
 else
     % Deposit interest included in augmented assets
-    c=c+(1+r_pp)*a;
+    c=c+(1+r)*a;
 end
 % ...subtract capital gains tax and next period share, asset holdings
-c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
+c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS)-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation, and scaled energy costs
-c=c-htc-rentalcosts_pp-hcost*0.02*ypp-pvinstallcost-(1+cpi)*energy_pct_cost*max(h^1.5,1)*ypp;
+c=c-htc-rentalcosts-hcost*0.02-pvinstallcost-(1+cpi)*energy_pct_cost*max(h^1.5,1);
 
 % If we are aiming for a starter loan, what loan can we afford?
 net_worth_prime=P*sprime+aprime+hprimecost;
-if aprime<0 && agej*ypp<11
-    maxloan=-0.5*((10+ypp)-agej*ypp)/10;
+if aprime<0 && agej<11
+    maxloan=-0.5*(11-agej)/10;
     if net_worth_prime<maxloan
         if net_worth_prime+c>maxloan
             % We could have put this into aprime ...
