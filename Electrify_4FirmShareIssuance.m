@@ -1,4 +1,4 @@
-function s=Electrify_4FirmShareIssuance(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax)
+function s=Electrify_4FirmShareIssuance(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta_pp,pv_delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax)
 % Whether we set it up so that dividends or equity issuance is the decision
 % variable is unimportant, here I use dividends as the decision variable.
 
@@ -33,14 +33,12 @@ y_carbon_tax_pp=76.4e6*0.51*carbon_tax*energy_pct_brown*(1-pv_cost_offset_pp/y_e
 profit_pp=y_pp-w*l*ypp-y_energy_cost_pp+pv_cost_offset_pp-y_carbon_tax_pp;
 
 % Investment
-delta_pp=(1+delta)^ypp-1;
-pv_delta=0.02;
-pv_delta_pp=(1+pv_delta)^ypp-1;
-invest_pp=kprime+new_pv_cost-(1-delta)^ypp*k-pv_delta_pp*pv;
+invest_pp=kprime+new_pv_cost-(1-delta_pp)*k-pv_delta_pp*pv;
 
 % Capital-adjustment costs (k>0 always)
 if invest_pp>=0
-    capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k-delta_pp-pv_delta_pp)^2)*k*ypp;
+    k_pp=k+ypp;
+    capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k_pp-delta_pp)^2)*k_pp;
 else
     capitaladjcost_pp=0;
 end
@@ -56,7 +54,7 @@ mid_dividend_pp=1.2^ypp-1;
 dividend_pp=s+(profit_pp-tau_corp*T)-invest_pp-capitaladjcost_pp;
 if dividend_pp<0
     % We will issue new shares and provide a discounted dividend
-    low_dividend_pp=1.1^ypp-1;
+    low_dividend_pp=mid_dividend_pp/2;
     s=low_dividend_pp-dividend_pp;
     dividend_pp=low_dividend_pp;
 elseif dividend_pp<=0.2

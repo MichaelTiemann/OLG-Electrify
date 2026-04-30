@@ -1,4 +1,4 @@
-function revenue=Electrify_4FirmCorporateTaxRevenue(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax)
+function revenue_pp=Electrify_4FirmCorporateTaxRevenue(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta_pp,pv_delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax)
 % Whether we set it up so that dividends or equity issuance is the decision
 % variable is unimportant, here I use dividends as the decision variable.
 
@@ -33,23 +33,21 @@ y_carbon_tax_pp=76.4e6*0.51*carbon_tax*energy_pct_brown*(1-pv_cost_offset_pp/y_e
 profit_pp=y_pp-w*l*ypp-y_energy_cost_pp+pv_cost_offset_pp-y_carbon_tax_pp;
 
 % Investment
-delta_pp=(1+delta)^ypp-1;
-pv_delta=0.02;
-pv_delta_pp=(1+pv_delta)^ypp-1;
-invest_pp=kprime+new_pv_cost-(1-delta)^ypp*k-pv_delta_pp*pv;
+invest_pp=kprime+new_pv_cost-(1-delta_pp)*k-pv_delta_pp*pv;
 
 % Capital-adjustment costs (k>0 always)
 if invest_pp>=0
-    capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k-delta_pp-pv_delta_pp)^2)*k*ypp;
+    k_pp=k+ypp;
+    capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k_pp-delta_pp)^2)*k_pp;
 else
     capitaladjcost_pp=0;
 end
 
 % Taxable corporate income
-T=max(profit_pp-delta_pp*k-pv_delta_pp*pv-phi*capitaladjcost_pp,0);
+T_pp=max(profit_pp-delta_pp*k-pv_delta_pp*pv-phi*capitaladjcost_pp,0);
 % -delta_pp*k: investment expensing; -pv_delta_pp*pv: pv expensing
 % phi is the fraction of capitaladjcost that can be deducted from corporate taxes
 
-revenue=tau_corp*T;
+revenue_pp=tau_corp*T_pp;
 
 end

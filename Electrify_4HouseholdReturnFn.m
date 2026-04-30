@@ -1,8 +1,7 @@
 function F=Electrify_4HouseholdReturnFn( ...
     labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
-    pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
-    sigma,psi,eta,sigma_h,sigma_c,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
-    r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,energy_cpi,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax ...
+    pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp,sigma,psi,eta,sigma_h,sigma_c,kappa_j,warmglow1,warmglow2,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
+    ypp,agej,Jr,J,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax ...
     )
 % Implement depreciation model:
 %   Car services A(t) = (1-delta_a)*A(t-1) + I(a,t)
@@ -107,10 +106,41 @@ end
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
 % We are looking at stationary general eqm, so
 % Plag=P;
-% And thus we have
-P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
+% And thus we have P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
 
-Plag=P; % As stationary general eqm
+% But in fact the price does not meaningfully represent the acquisition
+% cost by a younger generation that is now older in this stationary
+% distribution.  However, we can use the history of acquisition and
+% disposals to impute when agents are buying and selling, and thus what
+% capital gains they should pay.  We imagine that stocks earn 2x the
+% risk-free rate of return (i.e., 2*r_pp) and that if we are selling before
+% they peak, we are selling recently acquired stocks, whereas if we are
+% selling at or after the peak of acquisition, we are selling long-term
+% gains in a LIFO fashion.
+
+% We take P0 as the price of the current stationary distribution, and we
+% back-calculate what the price Plag may have been in the past.
+
+P=P0;
+r=(1+r_pp)^(1/ypp)-1;
+if sprime>=s
+    cg=0; % We are holding or buying, so no capital gains
+else
+    if agej<=S_agej_peak_first
+        Plag=P0*(1-2*r)^ypp; % Dispose of shares presumably acquired recently
+    elseif S_agej_peak_last==S_agej_last % Bulk liquidation
+        % Sell all remaining shares from first acquisition to buy-point (using geometric mean to average acquisition cost)
+        agej_bought=S_agej_peak_first-sqrt(S_agej_peak_first-S_agej_first);
+        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+    else
+        % Estimate where we are past peak accumulation and mirror around to
+        % proportional acquisition point
+        agej_selling_pct=(agej-S_agej_peak_last)/(S_agej_last-S_agej_peak_last);
+        agej_bought=S_agej_peak_first-agej_selling_pct*(S_agej_peak_first-S_agej_first);
+        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+    end
+    cg=tau_cg*(P0-Plag)*(s+AccidentBeqS_pp-sprime);
+end
 
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
@@ -119,7 +149,7 @@ else % Retirement
     c=pension*ypp;
 end
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + net housing assets
-c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqS_pp+AccidentBeqAH_pp+(hcost-hprimecost);
+c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqAH_pp+(hcost-hprimecost);
 if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
     % Subtract loan interest by adding diminishing assets
     c=c+(1+r_pp+r_wedge_pp)*a;
@@ -128,7 +158,7 @@ else
     c=c+(1+r_pp)*a;
 end
 % ...subtract capital gains tax and next period share, asset holdings
-c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
+c=c-cg-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation
 c=c-htc-rentalcosts-hcost*0.01*ypp-pvinstallcost;
 
@@ -153,8 +183,8 @@ end
 
 % Add cost of housing energy; PV generation: 30kW (2 solar units) meets h==1 energy needs
 % Does owning an EV help with solarPV offset?
-energy_cost_pp=energy_cost_pp+(1+energy_cpi)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
-carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/200; % Magic divisior to hit 0.7% hh income at $42/t CO2e
+energy_cost_pp=energy_cost_pp+(1+cpi_energy)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
+carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/200; % Magic divisor to hit 0.7% hh income at $42/t CO2e
 
 c=c-energy_cost_pp-carbon_tax_pp;
 

@@ -1,8 +1,8 @@
 function c_pp=Electrify_4HouseholdConsumptionFn( ...
     labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
-    kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-    r_pp,r_wedge_pp,f_htc,rentprice,energy_cpi,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax)
+    kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
+    ypp,agej,Jr,r_pp,r_wedge_pp,f_htc,rentprice,energy_cpi,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax)
 
 % Implement depreciation model:
 %   Car services A(t) = (1-delta_a)*A(t-1) + I(a,t)
@@ -65,14 +65,26 @@ else
     carcost=carcost+0.02*w*ypp;
 end
 
-% We can get P (share price) from the equation that defines r as the return to the mutual fund
-% 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
-% We are looking at stationary general eqm, so
-% Plag=P;
-% And thus we have
-P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
-
-Plag=P; % As stationary general eqm
+P=P0;
+r=(1+r_pp)^(1/ypp)-1;
+if sprime>=s
+    cg=0; % We are holding or buying, so no capital gains
+else
+    if agej<=S_agej_peak_first
+        Plag=P0*(1-2*r)^ypp; % Dispose of shares presumably acquired recently
+    elseif S_agej_peak_last==S_agej_last % Bulk liquidation
+        % Sell all remaining shares from first acquisition to buy-point (using geometric mean to average acquisition cost)
+        agej_bought=S_agej_peak_first-sqrt(S_agej_peak_first-S_agej_first);
+        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+    else
+        % Estimate where we are past peak accumulation and mirror around to
+        % proportional acquisition point
+        agej_selling_pct=(agej-S_agej_peak_last)/(S_agej_last-S_agej_peak_last);
+        agej_bought=S_agej_peak_first-agej_selling_pct*(S_agej_peak_first-S_agej_first);
+        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+    end
+    cg=tau_cg*(P0-Plag)*(s+AccidentBeqS_pp-sprime);
+end
 
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
@@ -80,8 +92,9 @@ if agej<Jr % If working age
 else % Retirement
     c_pp=pension*ypp;
 end
+
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + net housing assets
-c_pp=c_pp+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqS_pp+AccidentBeqAH_pp+(hcost-hprimecost);
+c_pp=c_pp+((1-tau_d)*D_pp+P)*(s+AccidentBeqS_pp)+AccidentBeqAH_pp+(hcost-hprimecost);
 if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
     % Subtract loan interest by adding diminishing assets
     c_pp=c_pp+(1+r_pp+r_wedge_pp)*a;
@@ -89,8 +102,8 @@ else
     % Deposit interest included in augmented assets
     c_pp=c_pp+(1+r_pp)*a;
 end
-% ...subtract capital gains tax and next period share, asset holdings
-c_pp=c_pp-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
+% ...subtract capital gains, next period share, asset holdings
+c_pp=c_pp-cg-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation
 c_pp=c_pp-htc-rentalcosts-hcost*0.01*ypp-pvinstallcost;
 

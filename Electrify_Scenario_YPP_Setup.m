@@ -28,7 +28,7 @@ Params.kappa_j=kappa_j(1:Params.J);
 
 Params.r_wedge_pp=(1+r_wedge)^ypp-1;
 Params.beta_pp = beta(scenario)^ypp;
-Params.n_pp=(1+n)^ypp-1; % percentage rate (expressed as fraction) of population growth per period
+Params.n_pp=(1+n(scenario))^ypp-1; % percentage rate (expressed as fraction) of population growth per period
 
 Params.carservices_j=0.1*ones(Params.J,1);
 % Cars start to be useful as people ramp up family life

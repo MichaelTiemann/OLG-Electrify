@@ -188,7 +188,7 @@ simoptions.experienceasset=1;
 
 % experienceasset: aprime_val=aprimeFn(d,a)
 % vfoptions.refine_d: the decision variables input to aprimeFn are d3
-aprimeFn=@(buyhouse, solarpv) ElectrifyHousing_aprimeFn(buyhouse, solarpv); % Will return the value of aprime (solarpv)
+aprimeFn=@(buyhouse, solarpv, pv_delta_pp) ElectrifyHousing_aprimeFn(buyhouse, solarpv, pv_delta_pp); % Will return the value of aprime (solarpv)
 
 %% Put the experience asset into vfoptions and simoptions
 vfoptions.aprimeFn=aprimeFn;

@@ -8,9 +8,9 @@
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
 
-solve_setup=true;
+solve_setup=false;
 test_Lhscale=false;
-solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
+solve_GE=2; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=false; % n_z=1; n_e=0
 small_model=false; % Minimal vs. maximal grid sizes
@@ -57,7 +57,7 @@ energy_pct_cost=[0,0.07,0.07,0.05]; % Electricity: 3%; Gas: 1-2%; Petrol: 1-2%; 
 
 % Demographics
 % Population growth rate
-n=0.02; % percentage rate (expressed as fraction) of population growth per period
+n=[0.02,0.02,0.01,0.01]; % percentage rate (expressed as fraction) of population growth per period
 
 % Age-dependent labor productivity units
 % Stage 1: starting out (typ. first 25-30 years)
@@ -98,7 +98,7 @@ if Params.scenario==4
     Params.Ek=1; Params.ek=1;
     Params.carbon_tax=35;
     Params.energy_pct_brown=0.8;
-    Params.pv_delta=0.02; % Annual depreciation of PVs
+    Params.pv_delta_pp=(1+0.02)^Params.ypp-1; % Depreciation of PVs per period
 end
 
 %% Government spending (to be found in GE)
@@ -131,7 +131,7 @@ Params.pv_pct_cost=0.033; % modeling a $15K install for a 5kW unit install
 % Production
 Params.alpha_k=0.311; % diminishing returns to capital and energy inputs
 Params.alpha_l=0.650; % diminishing returns to labor input
-Params.delta=0.054; % Annual depreciation of physical capital
+Params.delta_pp=(1+0.054)^Params.ypp-1; % Depreciation of physical capital per period
 % Capital adjustment costs
 Params.capadjconstant=1.21; % term in the capital adjustment cost
 
@@ -155,7 +155,7 @@ Params.sigma_z_e_energy=0.211;
 if small_T==2
     jpT=3;
 else
-    jpT=1; % Default: one transition period=1 time period; Could have multiple j's per T
+    jpT=1; % Default: one transition period=1 time period; Could have multiple j's per T when ypp>1
 end
 
 T=ceil(Params.J*1.4/jpT);
@@ -212,33 +212,33 @@ Params.cpi_energy=0; % Initial condition
 % Scaling the household labor supply; we scale model and GE finds its own equilibrium
 % This is vaguely scenario-by-ypp, set for small_z_no_e=true
 Lhscale_small_z_no_e=[
-    [0.13,0.11,0.09,0.3];
-    [0.18,0.13,0.11,0.38];    % 2
-    [0.26,0.21,0.16,0.4];
-    [0.27,0.23,0.16,0.35];  % 4
+    [0.13,0.11,0.09,0.3];     % firm breaks at ypp=1
+    [0.18,0.13,0.11,0.18];    % 2
+    [0.26,0.21,0.16,0.25];
+    [0.27,0.23,0.16,0.24];  % 4
     [0.33,0.5,0.16,0.33];
-    [1.4,1.4,0.8,0.24];     % 6
-    [1.9,1.5,1.3,0.27];
-    [2.4,1.6,1.3,0.31];     % 8
-    [2.7,1.6,1.5,0.4];
-    [3.1,2.1,1.7,0.5];    % 10
-    [3.5,2.2,1.7,0.35];
-    [3.6,2.9,1.8,0.25];    % 12
+    [1.4,1.4,0.8,0.29];     % 6
+    [1.9,1.5,1.3,0.40];
+    [2.4,1.6,1.3,0.55];     % 8
+    [2.7,1.6,1.5,0.42];
+    [3.1,2.1,1.7,0.45];    % 10
+    [3.5,2.2,1.7,0.90];
+    [3.6,2.9,1.8,1.4];    % 12
     ]; 
 
 Lhscale_z_and_e=[
-    [0.12,0.09,0.10,0.8];
-    [0.25,0.18,0.14,0.52]; % 2
-    [0.27,0.20,0.15,0.42];
-    [0.31,0.24,0.16,0.38]; % 4
-    [0.40,0.26,0.18,0.37];
-    [0.45,0.4,0.23,0.18];   % 6
-    [0.8,0.8,0.7,1.9];
-    [1.3,1.1,0.5,2.1];     % 8
-    [2.2,1.6,1.1,2.1];
-    [3.1,2.3,1.7,2.2];     % 10
-    [4.0,2.7,1.8,2.3];
-    [5.0,3.0,2.0,2.2];      % 12
+    [0.12,0.09,0.10,0.20]; % firm breaks at ypp=1
+    [0.25,0.18,0.15,0.44]; % 2
+    [0.27,0.20,0.21,0.47];
+    [0.31,0.24,0.24,0.49]; % 4
+    [0.40,0.26,0.34,0.53];
+    [0.45,0.4,0.34,0.50];   % 6
+    [0.8,0.8,0.36,0.55];
+    [1.3,1.1,0.38,0.61];     % 8
+    [2.2,1.6,.44,0.65];
+    [3.1,2.3,0.5,0.69];     % 10
+    [4.0,2.7,0.0,1.0];
+    [5.0,3.0,1.33,1.34];      % 12
     ];
 
 if small_z_no_e
@@ -256,10 +256,16 @@ else
 end
 Params.Lhscale=ParamPath.Lhscale(1);
 
+Params.P0=2.05; % This price is not 1 because we need price for older and younger agents to balance
+% We build a simple model of acquiring and disposing of stock over a lifetime
+Params.S_agej_first=20; % the age at which we start acquiring more stock than noise
+Params.S_agej_peak_first=Params.Jr-1; % the age of first peak acquisition
+Params.S_agej_peak_last=Params.Jr+5; % the age of last peak acquisition
+Params.S_agej_last=Params.J-5; % the age of final disposal
+
 % Solved by GE
 
 % Some initial values/guesses for variables that will be determined in general eqm
-Params.P0=1;
 Params.w=1;
 Params.pension=0.4; % Initial guess (this will be determined in general eqm)
 % Params.G=0.1; % Government expenditure
@@ -302,9 +308,9 @@ GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue) PensionSpending-Pay
 % GeneralEqmEqns.firmdiscounting=@(firmbeta,r_pp,tau_cg) firmbeta-1/(1+r_pp/(1-tau_cg)); % Firms discount rate is related to market return rate
 if Params.scenario<4
     GeneralEqmEqns.dividends=@(dividend_pp,D_pp) (dividend_pp-D_pp); % That the dividend households receive equals that which firms give
+    GeneralEqmEqns.ShareIssuance=@(Sissued,P0,D_pp,tau_cg,tau_d,r_pp) ...
+        P0-((((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
 end
-GeneralEqmEqns.ShareIssuance=@(Sissued,P0,D_pp,tau_cg,tau_d,r_pp) ...
-    P0-((((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
 GeneralEqmEqns.CapitalOutputRatio=@(K,L_f,TargetKdivL) (K/L_f-TargetKdivL)/100; % Ratio not based on ypp
 
 % This takes little time, so give a graph to look at first
@@ -322,7 +328,7 @@ if Params.scenario==3
                 s_grid_firm(K,D)=0;
             else
                 % Exhaust capital stock and issue shares
-                s_grid_firm(K,D)=Electrify_FirmShareIssuance(d_grid.firm(D),k_grid(K),k_grid(K),1,Params.w,Params.ypp,Params.delta,Params.alpha_k,Params.alpha_l,Params.capadjconstant,Params.tau_corp,Params.phi);
+                s_grid_firm(K,D)=Electrify_FirmShareIssuance(d_grid.firm(D),k_grid(K),k_grid(K),1,Params.w,Params.ypp,Params.delta_pp,Params.alpha_k,Params.alpha_l,Params.capadjconstant,Params.tau_corp,Params.phi);
             end
         end
     end
@@ -429,6 +435,25 @@ end
 disp('Test StationaryDist')
 StationaryDist_init=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_init,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
 
+% Calculate the life-cycle profiles
+AgeConditionalStats_init=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2.S,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+Params.S_agej_first=max(find(AgeConditionalStats_init.household.Mean>0.1,1,'first')-1,1);
+Params.S_agej_last=min(find(AgeConditionalStats_init.household.Mean>0.5,1,'last')+1,length(AgeConditionalStats_init.household.Mean)); % warmglow creates extra long tail we want to ignore
+[~,S_agej_peak]=max(AgeConditionalStats_init.household.Mean);
+S_peak_inflection_value=0.95*AgeConditionalStats_init.household.Mean(S_agej_peak);
+for S_agej_peak_first=S_agej_peak:-1:Params.S_agej_first
+    if AgeConditionalStats_init.household.Mean(S_agej_peak_first)<S_peak_inflection_value
+        break
+    end
+end
+Params.S_agej_peak_first=S_agej_peak_first;
+for S_agej_peak_last=S_agej_peak:Params.S_agej_last
+    if AgeConditionalStats_init.household.Mean(S_agej_peak_last)<S_peak_inflection_value
+        break
+    end
+end
+Params.S_agej_peak_last=S_agej_peak_last;
+
 %% Test
 % Note: Because we used simoptions we must include this as an input
 disp('Test AggVars')
@@ -443,6 +468,8 @@ AggVars.K.Mean/AggVars.L_f.Mean
 if Params.scenario<3
     fprintf('Check: S \n')
     [AggVars.S.Mean]
+    % fprintf('Check: ShareIssuance GE condition \n')
+    Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Params.r_pp-Params.tau_cg))-AggVars.S.Mean)
 elseif Params.scenario<4
     fprintf('Check: S, A, H, PV_h\n')
     [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean]
@@ -450,14 +477,23 @@ else
     fprintf('Check: S, A, H, PV_h, pvnew_f, pv_f, Params.pvinstalled_firm\n')
     [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean,AggVars.pvnew_f.Mean,AggVars.pv_f.Mean,Params.pvinstalled_firm]
 end
-% fprintf('Check: ShareIssuance GE condition \n')
-Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Params.r_pp-Params.tau_cg))-AggVars.S.Mean)
+
 
 if Params.scenario==3
     Electrify_CustomModelStats(V_init,Policy_init,StationaryDist_init,Params,FnsToEvaluate2,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,[],vfoptions,simoptions)
 elseif Params.scenario==4
     Electrify_4CustomModelStats(V_init,Policy_init,StationaryDist_init,Params,FnsToEvaluate2,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,[],vfoptions,simoptions)
 end
+
+test_Lhscale_temp=test_Lhscale; clear test_Lhscale
+solve_GE_temp=solve_GE; clear solve_GE
+solve_TPath_temp=solve_TPath; clear solve_TPath
+save tpathElectrify0.mat
+test_Lhscale=test_Lhscale_temp; solve_GE=solve_GE_temp; solve_TPath=solve_TPath_temp;
+else
+    load tpathElectrify0.mat
+end % solve_setup
+clear test_Lhscale_temp solve_GE_temp solve_TPath_temp
 
 % Find parameters for Lhscale; note this is all small_z_no_e or all ~small_z_no_e
 if test_Lhscale
@@ -494,15 +530,6 @@ if test_Lhscale
         clear ReturnFn_Lh
     end
 end
-
-solve_GE_temp=solve_GE; clear solve_GE
-solve_TPath_temp=solve_TPath; clear solve_TPath
-save tpathElectrify0.mat
-solve_GE=solve_GE_temp; solve_TPath=solve_TPath_temp;
-else
-    load tpathElectrify0.mat
-end % solve_setup
-clear solve_GE_temp solve_TPath_temp
 
 %% Solve for the General Equilibrium
 if mod(solve_GE,2)==1
@@ -547,10 +574,10 @@ if mod(solve_GE,2)==1
     transpathoptions.initialvalues.pvinstalled_firm=0;
     transpathoptions.initialvalues.pvinstalled_energy=0;
 
+    Params.P0=p_eqm_init.P0;
     % Params.G=p_eqm_init.G;
     Params.w=p_eqm_init.w;
     % Params.firmbeta=p_eqm_init.firmbeta;
-    Params.P0=p_eqm_init.P0;
 
     % Re-Calculate a few things related to the general equilibrium.
     [V_init, Policy_init]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,ReturnFn,Params,DiscountFactorParamNames,vfoptions);
@@ -646,8 +673,8 @@ if solve_GE>=2
     ParamPath.mewj=cumprod([ones(T,1), ParamPath.sj(:,1:end-1)], 2); % mass of age jj is the mass of jj-1 that survive
     % Factor in population growth; In N_j dimension, older people are from earlier (smaller) populations
     % ...in the T dimension, we see overall population growth as T increases
-    ParamPath.mewj=ParamPath.mewj./((1+Params.n_pp).^((1:Params.J)-1)); % Population shrinks in the N_j dimension
-    ParamPath.mewj=ParamPath.mewj.*((1+Params.n_pp).^(jpT*((1:T)-1)))'; % Population grows in the T dimension
+    ParamPath.mewj=ParamPath.mewj./((1+Params.n_pp).^(Params.ypp*((1:Params.J)-1))); % Population shrinks in the N_j dimension
+    ParamPath.mewj=ParamPath.mewj.*((1+Params.n_pp).^(Params.ypp*jpT*((1:T)-1)))'; % Population grows in the T dimension
     ParamPath.mewj=ParamPath.mewj./sum(ParamPath.mewj,2); % normalize age-masses to sum to one
     % Looking at ParamPath.mewj you can see that as tt increases, the mass at older ages increases
 
@@ -670,6 +697,26 @@ if solve_GE>=2
     [V_final, Policy_final]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
     disp('Test StationaryDist')
     StationaryDist_final=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_final,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
+
+    % Calculate the life-cycle profiles
+    AgeConditionalStats_final=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_final,Policy_final,FnsToEvaluate2.S,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+    Params.S_agej_first=max(find(AgeConditionalStats_final.household.Mean>0.1,1,'first')-1,1);
+    Params.S_agej_last=min(find(AgeConditionalStats_final.household.Mean>0.5,1,'last')+1,length(AgeConditionalStats_final.household.Mean)); % warmglow creates extra long tail we want to ignore
+    [~,S_agej_peak]=max(AgeConditionalStats_final.household.Mean);
+    S_peak_inflection_value=0.95*AgeConditionalStats_final.household.Mean(S_agej_peak);
+    for S_agej_peak_first=S_agej_peak:-1:Params.S_agej_first
+        if AgeConditionalStats_final.household.Mean(S_agej_peak_first)<S_peak_inflection_value
+            break
+        end
+    end
+    Params.S_agej_peak_first=S_agej_peak_first;
+    for S_agej_peak_last=S_agej_peak:Params.S_agej_last
+        if AgeConditionalStats_final.household.Mean(S_agej_peak_last)<S_peak_inflection_value
+            break
+        end
+    end
+    Params.S_agej_peak_last=S_agej_peak_last;
+
     disp('Test AggVars')
     AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j,Names_i, d_grid, a_grid, z_grid,simoptions);
 
@@ -682,6 +729,8 @@ if solve_GE>=2
     if Params.scenario<3
         fprintf('Check: S \n')
         [AggVars.S.Mean]
+        fprintf('Check: ShareIssuance GE condition \n')
+        Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Params.r_pp-Params.tau_cg))-AggVars.S.Mean)
     elseif Params.scenario<4
         fprintf('Check: S, A, H, PV_h\n')
         [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean]
@@ -689,8 +738,6 @@ if solve_GE>=2
         fprintf('Check: S, A, H, PV_h, pvnew_f, pv_f, Params.pvinstalled_firm \n')
         [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean,AggVars.pvnew_f.Mean,AggVars.pv_f.Mean,Params.pvinstalled_firm]
     end
-    fprintf('Check: ShareIssuance GE condition \n')
-    Params.P0-((((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D_pp)/(1+Params.r_pp-Params.tau_cg))-AggVars.S.Mean)
 
     % And now, the GE for the final conditions!
     [p_eqm_final,GEcondns_final]=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,[],pi_z,d_grid,a_grid,z_grid,jequaloneDist,ReturnFn,FnsToEvaluate,GeneralEqmEqns,Params,DiscountFactorParamNames,AgeWeightsParamNames,PTypeDistParamNames,GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
@@ -700,11 +747,13 @@ if solve_GE>=2
     p_eqm_final.AccidentBeqS_pp=Params.AccidentBeqS_pp;
     if Params.scenario>2
         p_eqm_final.AccidentBeqAH_pp=Params.AccidentBeqAH_pp;
+    else
+        % Params.firmbeta=p_eqm_final.firmbeta;
+        Params.P0=p_eqm_final.P0;
     end
     p_eqm_final.G=Params.tau_d*Params.D_pp+AggVars.CapitalGainsTaxRevenue.household.Mean+AggVars.CorpTaxRevenue.firm.Mean;
     Params.w=p_eqm_final.w;
-    % Params.firmbeta=p_eqm_final.firmbeta;
-    Params.P0=p_eqm_final.P0;
+
 
     % Calculate various stats
     AllStats_final=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
@@ -762,12 +811,14 @@ if solve_TPath
 
     PricePath0.w=[linspace(p_eqm_init.w, p_eqm_final.w,T_eq), p_eqm_final.w*ones(1,T_end-T_eq)];
     % PricePath0.firmbeta=[linspace(p_eqm_init.firmbeta, p_eqm_final.firmbeta,T_eq), p_eqm_final.firmbeta*ones(1,T_end-T_eq)];
-    PricePath0.P0=[linspace(p_eqm_init.P0, p_eqm_final.P0,T_eq), p_eqm_final.P0*ones(1,T_end-T_eq)];
+    if isfield(p_eqm_init, 'P0')
+        PricePath0.P0=[linspace(p_eqm_init.P0, p_eqm_final.P0,T_eq), p_eqm_final.P0*ones(1,T_end-T_eq)];
+    end
     PricePath0.pension=[linspace(p_eqm_init.pension, p_eqm_final.pension,T_eq), p_eqm_final.pension*ones(1,T_end-T_eq)];
     % PricePath0.TargetKdivL=2.03*ones(1,T_end);
 
     % General eqm eqns, same idea as with the stationary general eqm
-    % GeneralEqmEqns_Transition.capitalmarket=@(r_pp,alpha_k,alpha_l,delta,K,L,ypp) r_pp-(alpha_k*(K^(alpha_k-1))*(L^(alpha_l))-((delta+1)^ypp-1)); % r=marginal product of capital
+    % GeneralEqmEqns_Transition.capitalmarket=@(r_pp,alpha_k,alpha_l,delta_pp,K,L,ypp) r_pp-(alpha_k*(K^(alpha_k-1))*(L^(alpha_l))-delta_pp); % r=marginal product of capital
     GeneralEqmEqns_Transition.labormarket=@(w,alpha_k,alpha_l,K,L_f) w-(alpha_l)*(K^alpha_k)*(L_f^(alpha_l-1)); % w=marginal product of labor
     % GeneralEqmEqns_Transition.firmdiscounting=GeneralEqmEqns.firmdiscounting;
     % GeneralEqmEqns_Transition.dividends=GeneralEqmEqns.dividends;

@@ -9,9 +9,9 @@ ReturnFn=Electrify_Scenario_ReturnFn_Setup(Params.scenario);
 
 % experienceasset: aprime_val=aprimeFn(d,a)
 % vfoptions.refine_d: the decision variables input to aprimeFn are d3
-aprimeFn.household=@(buyhouse, solarpv, ypp) ElectrifyHousing_aprimeFn(buyhouse, solarpv, ypp); % Will return the value of aprime (solarpv)
-aprimeFn.firm=@(pvnew, pv, ypp,pvinstalled_firm,pvmax_firm,pv_delta) ElectrifyFirm_aprimeFn(pvnew, pv, ypp,pvinstalled_firm,pvmax_firm,pv_delta); % Will return the value of aprime (solarpv)
-aprimeFn.energy=@(pvnew, pv, ypp,pvinstalled_firm,pvmax_firm,pv_delta) ElectrifyEnergy_aprimeFn(pvnew, pv, ypp,pvinstalled_firm,pvmax_firm,pv_delta); % Will return the value of aprime (solarpv)
+aprimeFn.household=@(buyhouse, solarpv, pv_delta_pp) ElectrifyHousing_aprimeFn(buyhouse, solarpv, pv_delta_pp); % Will return the value of aprime (solarpv)
+aprimeFn.firm=@(pvnew, pv, ypp,pvinstalled_firm,pvmax_firm,pv_delta_pp) ElectrifyFirm_aprimeFn(pvnew, pv, ypp,pvinstalled_firm,pvmax_firm,pv_delta_pp); % Will return the value of aprime (solarpv)
+aprimeFn.energy=@(pvnew, pv, ypp,pvinstalled_firm,pvmax_firm,pv_delta_pp) ElectrifyEnergy_aprimeFn(pvnew, pv, ypp,pvinstalled_firm,pvmax_firm,pv_delta_pp); % Will return the value of aprime (solarpv)
 
 %% Put aprimeFns into vfoptions and simoptions (household, firm, and energy)
 vfoptions.aprimeFn=aprimeFn;
@@ -52,10 +52,11 @@ FnsToEvaluate_4.PensionSpending.household=@(labor,buyhouse,sprime,aprime,cprime,
     (agej>=Jr)*pension; % Total spending on pensions
 FnsToEvaluate_4.PayrollTaxRevenue.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,ypp,agej,Jr,tau_l,w,kappa_j,Lhscale) ...
     (agej<Jr)*tau_l*labor*w*kappa_j*exp(z+e); % Total spending on payroll taxes
-FnsToEvaluate_4.CapitalGainsTaxRevenue.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,tau_cg,P0,D_pp,tau_d,r_pp) ...
-    tau_cg*(P0-(((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg)))*s+(1-tau_d)*r_pp*max(a,0); % tau_cg*(P0-Plag)*s + deposit interest, but substitute P=Plag, and then substitute for P
-FnsToEvaluate_4.BeqleftS_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,sj) ...
-    sprime*(1-sj); % Accidental share bequests left by people who die
+FnsToEvaluate_4.CapitalGainsTaxRevenue.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,ypp,agej,P0,AccidentBeqS_pp,r_pp,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last) ...
+    Electrify_4HouseholdCapitalGainsFn(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,ypp,agej,0,P0,AccidentBeqS_pp,r_pp,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last);
+FnsToEvaluate_4.BeqleftS_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,sj,n_pp,ypp,agej,P0,AccidentBeqS_pp,r_pp,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last) ... % Accidental bequests left by people who die, (possibly after estate taxes) and dilution to dependents
+    (sprime-Electrify_4HouseholdCapitalGainsFn(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,ypp,agej,1,P0,AccidentBeqS_pp,r_pp,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last))*(1-sj)/(1+n_pp);
+
 % AccidentalBeqAHLeft is zero (if in debt) or accidental asset+house bequests left by people who die
 FnsToEvaluate_4.BeqleftAH_pp.household=@(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e,scenario,sj,cpi) ...
     max(0,(aprime+(1+cpi)*hprime)*(1-sj));
@@ -70,10 +71,10 @@ FnsToEvaluate_12.L_f.firm=@(d,kprime,k,z,w,alpha_k,alpha_l) ...
     (w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % (effective units of) labor demanded by firm, not scaled by ypp
 FnsToEvaluate_12.K.firm=@(d,kprime,k,z) k; % physical capital
 FnsToEvaluate_12.dividend_pp.firm=@(d,kprime,k,z,ypp) (1+d)^ypp-1; % dividend paid by firm
-FnsToEvaluate_12.Sissued.firm=@(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
-    Electrify_FirmShareIssuance(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % Share issuance
-FnsToEvaluate_12.CorpTaxRevenue.firm=@(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
-    Electrify_FirmCorporateTaxRevenue(d,kprime,k,z,w,ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % revenue from the corporate profits tax
+FnsToEvaluate_12.Sissued.firm=@(d,kprime,k,z,w,ypp,delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
+    Electrify_FirmShareIssuance(d,kprime,k,z,w,ypp,delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % Share issuance
+FnsToEvaluate_12.CorpTaxRevenue.firm=@(d,kprime,k,z,w,ypp,delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi) ...
+    Electrify_FirmCorporateTaxRevenue(d,kprime,k,z,w,ypp,delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi); % revenue from the corporate profits tax
 fnnames=fieldnames(FnsToEvaluate_12);
 for ff=1:length(fnnames)
     if isfield(FnsToEvaluate_12.(fnnames{ff}), 'firm')
@@ -85,16 +86,16 @@ FnsToEvaluate_4.L_f.firm=@(pvnew,kprime,k,pv,z,w,alpha_k,alpha_l) ...
 FnsToEvaluate_4.K.firm=@(pvnew,kprime,k,pv,z) k; % physical capital
 FnsToEvaluate_4.pvnew_f.firm=@(pvnew,kprime,k,pv,z,pvinstalled_firm,pvmax_firm) pvnew;
 FnsToEvaluate_4.pv_f.firm=@(pvnew,kprime,k,pv,z,pvinstalled_firm,pvmax_firm) pv;
-FnsToEvaluate_4.D_pp.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax) ...
-    Electrify_4FirmDividend(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax); % dividend paid by firm
-FnsToEvaluate_4.Sissued.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax) ...
-    Electrify_4FirmShareIssuance(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax); % Share issuance
-FnsToEvaluate_4.CorpTaxRevenue.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax) ...
-    Electrify_4FirmCorporateTaxRevenue(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax); % revenue from the corporate profits tax
-FnsToEvaluate_4.EnergyCosts_f.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,Ek,ek,carbon_tax) ...
-    Electrify_4FirmEnergyCosts(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,Ek,ek,carbon_tax);
-FnsToEvaluate_4.CarbonCosts_f.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,Ek,ek,energy_pct_brown,carbon_tax) ...
-    Electrify_4FirmCarbonCosts(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,Ek,ek,energy_pct_brown,carbon_tax);
+FnsToEvaluate_4.D_pp.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta_pp,pv_delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax) ...
+    Electrify_4FirmDividend(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta_pp,pv_delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax); % dividend paid by firm
+FnsToEvaluate_4.Sissued.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta_pp,pv_delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax) ...
+    Electrify_4FirmShareIssuance(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta_pp,pv_delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax); % Share issuance
+FnsToEvaluate_4.CorpTaxRevenue.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta_pp,pv_delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax) ...
+    Electrify_4FirmCorporateTaxRevenue(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta_pp,pv_delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi,Ek,ek,energy_pct_brown,carbon_tax); % revenue from the corporate profits tax
+FnsToEvaluate_4.EnergyCosts_f.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta_pp,pv_delta_pp,alpha_k,alpha_l,Ek,ek,carbon_tax) ...
+    Electrify_4FirmEnergyCosts(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta_pp,pv_delta_pp,alpha_k,alpha_l,Ek,ek,carbon_tax);
+FnsToEvaluate_4.CarbonCosts_f.firm=@(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta_pp,pv_delta_pp,alpha_k,alpha_l,Ek,ek,energy_pct_brown,carbon_tax) ...
+    Electrify_4FirmCarbonCosts(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta_pp,pv_delta_pp,alpha_k,alpha_l,Ek,ek,energy_pct_brown,carbon_tax);
 
 % From energy -- there must be at least one
 FnsToEvaluate_12.EnergyRevenue.energy=@(aprime,a,z) 0;
