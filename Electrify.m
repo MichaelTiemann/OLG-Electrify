@@ -824,7 +824,12 @@ if solve_TPath
     GeneralEqmEqns_Transition.labormarket=@(w,alpha_k,alpha_l,K,L_f) w-(alpha_l)*(K^alpha_k)*(L_f^(alpha_l-1)); % w=marginal product of labor
     % GeneralEqmEqns_Transition.firmdiscounting=GeneralEqmEqns.firmdiscounting;
     % GeneralEqmEqns_Transition.dividends=GeneralEqmEqns.dividends;
-    GeneralEqmEqns_Transition.ShareIssuance=GeneralEqmEqns.ShareIssuance;
+    if Params.scenario<4
+        GeneralEqmEqns_Transition.ShareIssuance=GeneralEqmEqns.ShareIssuance;
+    else
+        GeneralEqmEqns_Transition.ShareIssuance=@(Sissued,P0,D_pp,tau_cg,tau_d,r_pp) ...
+            P0-((((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
+    end
     GeneralEqmEqns_Transition.pensions=GeneralEqmEqns.pensions;
     % GeneralEqmEqns_Transition.govbudgetbalance=GeneralEqmEqns.govbudget;
     % Note: bequests are left in t-1 and received in t
