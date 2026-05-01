@@ -8,9 +8,9 @@
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
 
-solve_setup=false;
-test_Lhscale=false;
-solve_GE=2; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
+solve_setup=true;
+test_Lhscale=true;
+solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=false; % n_z=1; n_e=0
 small_model=false; % Minimal vs. maximal grid sizes
@@ -195,7 +195,7 @@ end
 % If gridinterplayer=1, then you must set vfoptions.divideandconquer=1 (required for transition).
 vfoptions.gridinterplayer.household  = 0;
 vfoptions.level1n.household          = 5;
-vfoptions.divideandconquer.household = 1;
+vfoptions.divideandconquer.household = 0; % Divide and conquer presently works with at most 2 endogenous states; we have 4+Experience Asset
 vfoptions.gridinterplayer.firm       = 0;
 vfoptions.divideandconquer.firm      = 0;
 simoptions.gridinterplayer = vfoptions.gridinterplayer;
@@ -258,10 +258,10 @@ Params.Lhscale=ParamPath.Lhscale(1);
 
 Params.P0=2.05; % This price is not 1 because we need price for older and younger agents to balance
 % We build a simple model of acquiring and disposing of stock over a lifetime
-Params.S_agej_first=20; % the age at which we start acquiring more stock than noise
+Params.S_agej_first=ceil(20/Params.ypp); % the age at which we start acquiring more stock than noise
 Params.S_agej_peak_first=Params.Jr-1; % the age of first peak acquisition
-Params.S_agej_peak_last=Params.Jr+5; % the age of last peak acquisition
-Params.S_agej_last=Params.J-5; % the age of final disposal
+Params.S_agej_peak_last=Params.Jr+ceil(5/Params.ypp); % the age of last peak acquisition
+Params.S_agej_last=Params.J-ceil(5/Params.ypp); % the age of final disposal
 
 % Solved by GE
 
