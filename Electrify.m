@@ -195,7 +195,7 @@ end
 % If gridinterplayer=1, then you must set vfoptions.divideandconquer=1 (required for transition).
 vfoptions.gridinterplayer.household  = 0;
 vfoptions.level1n.household          = 5;
-vfoptions.divideandconquer.household = logical(Params.scenario<3);
+vfoptions.divideandconquer.household = 1;
 vfoptions.gridinterplayer.firm       = 0;
 vfoptions.divideandconquer.firm      = 0;
 simoptions.gridinterplayer = vfoptions.gridinterplayer;
@@ -248,10 +248,10 @@ else
 end
 
 if Params.ypp<=size(Lhscale,1)
-    Lhscale_final=Lhscale(Params.ypp,Params.scenario)*1.1;
+    Lhscale_final=Lhscale(Params.ypp,Params.scenario)*0.85;
     ParamPath.Lhscale=linspace(Lhscale(Params.ypp,Params.scenario),Lhscale_final,T);
 else
-    Lhscale_final=Lhscale(end,Params.scenario)*1.1;
+    Lhscale_final=Lhscale(end,Params.scenario)*0.85;
     ParamPath.Lhscale=linspace(Lhscale(end,Params.scenario),Lhscale_final,T);
 end
 Params.Lhscale=ParamPath.Lhscale(1);
@@ -663,6 +663,8 @@ ParamPath.cpi_energy(end+1:T*jpT)=ParamPath.cpi_energy(end); % Energy cost incre
 ParamPath.cpi_energy=ParamPath.cpi_energy(1:T); % Energy cost increases on a per transition period basis
 Params.cpi_energy=ParamPath.cpi_energy(1);
 
+Params.P0=1.9;
+
 if solve_GE>=2
     % 40 years of changing demographics
     % 60 years in final demographic state (to allow time to converge to final stationary general eqm)
@@ -673,8 +675,8 @@ if solve_GE>=2
     ParamPath.mewj=cumprod([ones(T,1), ParamPath.sj(:,1:end-1)], 2); % mass of age jj is the mass of jj-1 that survive
     % Factor in population growth; In N_j dimension, older people are from earlier (smaller) populations
     % ...in the T dimension, we see overall population growth as T increases
-    ParamPath.mewj=ParamPath.mewj./((1+Params.n_pp).^(Params.ypp*((1:Params.J)-1))); % Population shrinks in the N_j dimension
-    ParamPath.mewj=ParamPath.mewj.*((1+Params.n_pp).^(Params.ypp*jpT*((1:T)-1)))'; % Population grows in the T dimension
+    ParamPath.mewj=ParamPath.mewj./((1+Params.n_pp).^((1:Params.J)-1)); % Population shrinks in the N_j dimension
+    ParamPath.mewj=ParamPath.mewj.*((1+Params.n_pp).^(jpT*((1:T)-1)))'; % Population grows in the T dimension
     ParamPath.mewj=ParamPath.mewj./sum(ParamPath.mewj,2); % normalize age-masses to sum to one
     % Looking at ParamPath.mewj you can see that as tt increases, the mass at older ages increases
 
@@ -715,6 +717,7 @@ if solve_GE>=2
             break
         end
     end
+    % Could shift S_agej_peak_last to S_agej_peak if S_agej_peak < S_agej_last and S_agej_peak_last==S_agej_last 
     Params.S_agej_peak_last=S_agej_peak_last;
 
     disp('Test AggVars')
@@ -747,10 +750,9 @@ if solve_GE>=2
     p_eqm_final.AccidentBeqS_pp=Params.AccidentBeqS_pp;
     if Params.scenario>2
         p_eqm_final.AccidentBeqAH_pp=Params.AccidentBeqAH_pp;
-    else
-        % Params.firmbeta=p_eqm_final.firmbeta;
-        Params.P0=p_eqm_final.P0;
     end
+    % Params.firmbeta=p_eqm_final.firmbeta;
+    Params.P0=p_eqm_final.P0;
     p_eqm_final.G=Params.tau_d*Params.D_pp+AggVars.CapitalGainsTaxRevenue.household.Mean+AggVars.CorpTaxRevenue.firm.Mean;
     Params.w=p_eqm_final.w;
 
