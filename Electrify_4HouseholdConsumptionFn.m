@@ -1,5 +1,5 @@
 function c_pp=Electrify_4HouseholdConsumptionFn( ...
-    labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
+    labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
     ypp,agej,Jr,r_pp,r_wedge_pp,f_htc,rentprice,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax)
@@ -11,6 +11,8 @@ function c_pp=Electrify_4HouseholdConsumptionFn( ...
 
 % Note: experienceasset, so first inputs are (d,a,z,e,...)
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
+
+[sprime,aprime,s,a]=decode_sa(saprime,sa);
 
 carcost=0;
 if h==0
@@ -138,6 +140,27 @@ energy_cost_pp=energy_cost_pp+(1+cpi_energy)*energy_pct_cost*(max(h^1.5,1)-solar
 carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/3500;
 
 c_pp=c_pp-energy_cost_pp-carbon_tax_pp;
+
+
+end
+
+function [sprime,aprime,s,a]=decode_sa(saprime,sa)
+
+if saprime<1
+    sprime=0;
+    aprime=saprime;
+else
+    sprime=floor(saprime);
+    aprime=rem(saprime,1);
+end
+
+if sa<1
+    s=0;
+    a=sa;
+else
+    s=floor(sa);
+    a=rem(sa,1);
+end
 
 
 end

@@ -62,6 +62,8 @@ Alas, while these and many other problems are very interesting, we believe the a
 Households earn a "standard" wage of 1, which is influenced in the usual way by "work experience" (abbreviated as $`\kappa_j`$), ranging from 0.5 to 2.0,
 and also influenced by exogenous $`z`$ and idiosyncratic $`e`$ shocks.  We note that there are three parameterizations to consider for linking this abstract wage to realities in New Zealand:
 the living wage (approximately NZD \$55,000/a), the median wage (NZD \$70,000/a), and the average wage (NZD \$80,000).
+Many households have multiple wage earners, and the average household income (HHI) is reported to be \$114,000, or two minimum living wage salaries.
+Exogenous $z$ (-15%..+18%) and i.i.d. $e$ (-13%..+15%) shocks can increase or decrease this by -26%..+36%.
 
 Houses of size 1, 2, 3, and 4 provide increasingly valuable "housing services" that factor into the consumption function.
 Renters achieve 50% of the "housing services" satisfaction of a size 1 house owner).
@@ -108,7 +110,7 @@ mid_dividend_pp=0.2;
 dividend=shares_to_sell+(profit-tau_corp*T)-invest-capitaladjcost;
 if dividend<0
     % We will issue new shares and provide a discounted dividend
-    low_dividend=0.1;
+    low_dividend=mid_dividend/2;
     % We will completely make up the shortfall (including a paradoxically negative dividend) by selling shares
     shares_to_sell=low_dividend-dividend;
     dividend=low_dividend;

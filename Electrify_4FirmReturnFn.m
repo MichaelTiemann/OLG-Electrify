@@ -51,7 +51,7 @@ profit_pp=y_pp-w*l*ypp-pvnew_cost-pv_delta_pp*pvinstalled_cost-y_energy_cost_pp+
 
 % Capital-adjustment costs (k>0 always)
 if invest_pp>=0
-    k_pp=k+ypp;
+    k_pp=k*ypp;
     capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k_pp-delta_pp)^2)*k_pp;
 else
     capitaladjcost_pp=0;

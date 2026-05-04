@@ -11,10 +11,10 @@ addpath(genpath('./MatlabToolkits/'))
 solve_setup=true;
 test_Lhscale=true;
 solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
-solve_TPath=true;
+solve_TPath=false;
 small_z_no_e=false; % n_z=1; n_e=0
 small_model=false; % Minimal vs. maximal grid sizes
-small_T=0; % small_T==1 means just do T=1, T=2 (or smallest not-to-be-confused-with-dimension); small_T==2 means use jpT
+small_T=1; % small_T==1 means just do T=1, T=2 (or smallest not-to-be-confused-with-dimension); small_T==2 means use jpT
 
 if solve_setup
 
@@ -98,7 +98,6 @@ if Params.scenario==4
     Params.Ek=1; Params.ek=1;
     Params.carbon_tax=35;
     Params.energy_pct_brown=0.8;
-    Params.pv_delta_pp=(1+0.02)^Params.ypp-1; % Depreciation of PVs per period
 end
 
 %% Government spending (to be found in GE)
@@ -131,7 +130,6 @@ Params.pv_pct_cost=0.033; % modeling a $15K install for a 5kW unit install
 % Production
 Params.alpha_k=0.311; % diminishing returns to capital and energy inputs
 Params.alpha_l=0.650; % diminishing returns to labor input
-Params.delta_pp=(1+0.054)^Params.ypp-1; % Depreciation of physical capital per period
 % Capital adjustment costs
 Params.capadjconstant=1.21; % term in the capital adjustment cost
 
@@ -149,7 +147,7 @@ Params.sigma_z_e_energy=0.211;
 
 %% Create our Grids from Scenario and Parameters
 [n_d,n_a,n_z,N_j,vfoptions]=Electrify_GridSizeSetup(Params.scenario, Params.J, small_z_no_e, small_model, vfoptions);
-[d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_grid,house_grid,pv_grid_hh,k_grid,pv_grid_firm,pv_grid_energy,Params,vfoptions,simoptions]=Electrify_GridSetup(Params.scenario, Params.ypp, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions);
+[d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_asset_grid,house_grid,pv_grid_hh,k_grid,pv_grid_firm,pv_grid_energy,Params,vfoptions,simoptions]=Electrify_GridSetup(Params.scenario, Params.ypp, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions);
 
 % Set up Transition Path control parameters
 if small_T==2
@@ -187,7 +185,7 @@ DiscountFactorParamNames.energy={'energybeta'};
 if Params.scenario<3 && small_model==false
     vfoptions.tolerance=10^(-9);
 else
-    vfoptions.tolerance=10^(-4);
+    vfoptions.tolerance=10^(-6);
 end
 % Note that simoptions.tolerance is used very differently than vfoptions.tolerance
 
@@ -212,33 +210,33 @@ Params.cpi_energy=0; % Initial condition
 % Scaling the household labor supply; we scale model and GE finds its own equilibrium
 % This is vaguely scenario-by-ypp, set for small_z_no_e=true
 Lhscale_small_z_no_e=[
-    [0.13,0.11,0.09,0.3];     % firm breaks at ypp=1
+    [0.13,0.11,0.09,0.3];
     [0.18,0.13,0.11,0.18];    % 2
     [0.26,0.21,0.16,0.25];
-    [0.27,0.23,0.16,0.24];  % 4
+    [0.27,0.23,0.16,0.24];    % 4
     [0.33,0.5,0.16,0.33];
-    [1.4,1.4,0.8,0.29];     % 6
+    [1.4,1.4,0.8,0.29];       % 6
     [1.9,1.5,1.3,0.40];
-    [2.4,1.6,1.3,0.55];     % 8
+    [2.4,1.6,1.3,0.55];       % 8
     [2.7,1.6,1.5,0.42];
-    [3.1,2.1,1.7,0.45];    % 10
+    [3.1,2.1,1.7,0.45];      % 10
     [3.5,2.2,1.7,0.90];
-    [3.6,2.9,1.8,1.4];    % 12
+    [3.6,2.9,1.8,1.4];       % 12
     ]; 
 
 Lhscale_z_and_e=[
-    [0.12,0.09,0.10,0.20]; % firm breaks at ypp=1
-    [0.25,0.18,0.15,0.44]; % 2
-    [0.27,0.20,0.21,0.47];
-    [0.31,0.24,0.24,0.49]; % 4
-    [0.40,0.26,0.34,0.53];
-    [0.45,0.4,0.34,0.50];   % 6
-    [0.8,0.8,0.36,0.55];
-    [1.3,1.1,0.38,0.61];     % 8
-    [2.2,1.6,.44,0.65];
-    [3.1,2.3,0.5,0.69];     % 10
-    [4.0,2.7,0.0,1.0];
-    [5.0,3.0,1.33,1.34];      % 12
+    [0.24,0.19,0.19,0.30];
+    [0.48,0.37,0.35,0.38];    % 2
+    [0.47,0.36,0.30,0.43];
+    [0.49,0.37,0.29,0.45];    % 4
+    [0.54,0.41,0.31,0.47];
+    [0.55,0.41,0.30,0.42];    % 6
+    [0.56,0.43,0.29,0.39];
+    [0.57,0.43,0.30,0.37];    % 8
+    [0.68,0.51,0.31,0.37];
+    [0.77,0.57,0.34,0.30];   % 10
+    [0.87,0.65,0.36,0.22];
+    [1.21,0.87,0.48,0.04];   % 12; Broken for Scenario 4
     ];
 
 if small_z_no_e
@@ -248,20 +246,24 @@ else
 end
 
 if Params.ypp<=size(Lhscale,1)
-    Lhscale_final=Lhscale(Params.ypp,Params.scenario)*0.85;
+    Lhscale_final=Lhscale(Params.ypp,Params.scenario)*1.2;
     ParamPath.Lhscale=linspace(Lhscale(Params.ypp,Params.scenario),Lhscale_final,T);
 else
-    Lhscale_final=Lhscale(end,Params.scenario)*0.85;
+    Lhscale_final=Lhscale(end,Params.scenario)*1.2;
     ParamPath.Lhscale=linspace(Lhscale(end,Params.scenario),Lhscale_final,T);
 end
 Params.Lhscale=ParamPath.Lhscale(1);
 
-Params.P0=2.05; % This price is not 1 because we need price for older and younger agents to balance
+P0=[2,2,3.8,2.3];
+Params.P0=P0(Params.scenario); % This price is not 1 because we need price for older and younger agents to balance
 % We build a simple model of acquiring and disposing of stock over a lifetime
 Params.S_agej_first=ceil(20/Params.ypp); % the age at which we start acquiring more stock than noise
 Params.S_agej_peak_first=Params.Jr-1; % the age of first peak acquisition
 Params.S_agej_peak_last=Params.Jr+ceil(5/Params.ypp); % the age of last peak acquisition
 Params.S_agej_last=Params.J-ceil(5/Params.ypp); % the age of final disposal
+
+%% Agents age distribution
+AgeWeightsParamNames=struct('household',{{'mewj'}}); % So VFI Toolkit knows which parameter is the mass of agents of each age
 
 % Solved by GE
 
@@ -271,7 +273,6 @@ Params.pension=0.4; % Initial guess (this will be determined in general eqm)
 % Params.G=0.1; % Government expenditure
 
 % And some initial values/guesses for AggVar values that will be calculated while calculating the general eqm
-Params.D_pp=(1+0.20)^Params.ypp-1; % The dividends paid by the firm per period
 Params.EnergyCosts_h=0.3; % Energy used by households
 Params.EnergyCosts_f=0.7; % Energy used by firms
 Params.CarbonCosts_h=0.05; % Carbon tax paid by households
@@ -307,14 +308,37 @@ GeneralEqmEqns.labormarket=@(L_h,L_f) (L_h-L_f)*max(2,Params.ypp); % labor suppl
 GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue) PensionSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue: pension*fractionretired-tau*w*H
 % GeneralEqmEqns.firmdiscounting=@(firmbeta,r_pp,tau_cg) firmbeta-1/(1+r_pp/(1-tau_cg)); % Firms discount rate is related to market return rate
 if Params.scenario<4
-    GeneralEqmEqns.dividends=@(dividend_pp,D_pp) (dividend_pp-D_pp); % That the dividend households receive equals that which firms give
+    GeneralEqmEqns.dividends=@(dividend_pp,D_pp) dividend_pp-D_pp; % That the dividend households receive equals that which firms give
     GeneralEqmEqns.ShareIssuance=@(Sissued,P0,D_pp,tau_cg,tau_d,r_pp) ...
         P0-((((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
 end
 GeneralEqmEqns.CapitalOutputRatio=@(K,L_f,TargetKdivL) (K/L_f-TargetKdivL)/100; % Ratio not based on ypp
 
 % This takes little time, so give a graph to look at first
-if Params.scenario==3
+if Params.scenario<3
+    [V_f, Policy_f]=ValueFnIter_Case1_PType(n_d,n_a,n_z,{'firm'},d_grid, a_grid, z_grid, pi_z,ReturnFn, Params, DiscountFactorParamNames, vfoptions);
+    PTypeDistParamNames_temp={'ptypemass_temp'};
+    Params.ptypemass_temp=[1];
+    StationaryDist_f=StationaryDist_Case1_PType(PTypeDistParamNames_temp, Policy_f,n_d,n_a,n_z,{'firm'},pi_z,Params,simoptions);
+    rmfield(Params,'ptypemass_temp');
+
+    %% Test
+    % Note: Because we used simoptions we must include this as an input
+    disp('Test AggVars')
+    FnsToEvaluateF.L_f=FnsToEvaluate.L_f;
+    FnsToEvaluateF.K=FnsToEvaluate.K;
+    FnsToEvaluateF.Sissued=FnsToEvaluate.Sissued;
+    AggVars=EvalFnOnAgentDist_AggVars_Case1_PType(StationaryDist_f,Policy_f, FnsToEvaluateF, Params, n_d, n_a, n_z,{'firm'},d_grid, a_grid, z_grid,simoptions);
+
+    % Next few lines were used to try a few parameter values so as to get a
+    % decent initial guess before actually solving the general equilibrium
+    fprintf('Check: L_f, K \n')
+    [AggVars.L_f.Mean,AggVars.K.Mean]
+    fprintf('Check: K/L_f (should be about 2.03) \n')
+    AggVars.K.Mean/AggVars.L_f.Mean
+    fprintf('Check: S \n')
+    [AggVars.Sissued.Mean]
+elseif Params.scenario==3
     [V_f, Policy_f]=ValueFnIter_Case1_PType(n_d,n_a,n_z, {'firm'}, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
     % We can plot V as a 3d plot (surf is matlab command for 3d plot)
     figure(5)
@@ -343,9 +367,9 @@ elseif Params.scenario==4
     subplot(2,1,1);
     % Plot F as K vs PV
     if small_z_no_e
-        surf(pv_grid_firm,k_grid,V_f.firm)
+        surf(pv_grid_firm,k_grid,max(V_f.firm,0))
     else
-        surf(pv_grid_firm,k_grid,sum(V_f.firm,3))
+        surf(pv_grid_firm,k_grid,sum(max(V_f.firm,0),3))
     end
     title('Value function: F as K vs PV')
     xlabel('PV')
@@ -360,9 +384,10 @@ tic;
 toc
 
 if Params.scenario>=3 % shares vs. assets not possible in Scenarios 1 and 2
-    % household = [S, A, H, PV, z, agej]
-    share_grid=a_grid.household(1:n_a.household(1));
-    asset_grid=a_grid.household(n_a.household(1)+1:n_a.household(1)+n_a.household(2));
+    % household = [S+A, Car, House, PV, z, agej]
+    [~,unitassetindex]=min(abs(share_asset_grid-1));
+    asset_grid=share_asset_grid(share_asset_grid<=1);
+    share_grid=share_asset_grid(share_asset_grid>=1);
     % We can plot V as a 3d plot (surf is matlab command for 3d plot)
     figure(6)
     for row=1:3
@@ -373,22 +398,31 @@ if Params.scenario>=3 % shares vs. assets not possible in Scenarios 1 and 2
             else
                 agej=(row-1)*3+col;
             end
-            % Plot F as K vs PV
             % Plot F as S vs H
             if small_z_no_e
-                if Params.scenario<4
-                    surf(asset_grid,share_grid,V_init.household(:,:,2-small_model,2,1,agej), V_init.household(:,:,2-small_model,2,1,agej)-V_init.household(:,:,1,1,1,agej))
-                else
-                    surf(asset_grid,share_grid,V_init.household(:,:,2-small_model,2,2,1,agej), V_init.household(:,:,2-small_model,2,2,1,agej)-V_init.household(:,:,1,1,1,1,agej))
-                end
-                colorbar
+                zval=1;
             else
-                if Params.scenario<4
-                    surf(asset_grid,share_grid,V_init.household(:,:,1,1,4,Params.Jr))
-                else
-                    surf(asset_grid,share_grid,V_init.household(:,:,1,1,1,4,Params.Jr))
-                end
+                zval=4;
             end
+            if Params.scenario<4
+                z_assets_top=V_init.household(1:length(asset_grid),2,1,zval,agej); z_assets_bot=V_init.household(1:length(asset_grid),1,1,zval,agej);
+                z_shares_top=V_init.household(length(asset_grid):end-1,2,1,zval,agej); z_shares_bot=V_init.household(length(asset_grid):end-1,1,1,zval,agej);
+            else
+                z_assets_top=V_init.household(1:length(asset_grid),2-small_model,2,2,zval,agej); z_assets_bot=V_init.household(1:length(asset_grid),1,1,1,zval,agej);
+                z_shares_top=V_init.household(length(asset_grid):end-1,2-small_model,2,2,zval,agej); z_shares_bot=V_init.household(length(asset_grid):end-1,1,1,1,zval,agej);
+            end
+            % z_mat=[(z_assets_top(ceil(linspace(1,length(asset_grid)/2,8)))-z_assets_bot(ceil(linspace(1,length(asset_grid)/2,8))))'; ...
+            %     (z_assets_top(ceil(linspace(length(asset_grid)/2,length(asset_grid),8)))-z_assets_bot(ceil(linspace(length(asset_grid)/2,length(asset_grid),8))))'; ...
+            %     reshape(z_shares_top,[14,8])-reshape(z_shares_bot,[14,8]) ];
+            if small_model
+                stride=5;
+            else
+                stride=8;
+            end
+            z_mat=[(z_assets_top(ceil(linspace(1,length(asset_grid)/2,stride))))'; ...
+                (z_assets_top(ceil(linspace(length(asset_grid)/2,length(asset_grid),stride))))'; ...
+                reshape(z_shares_top,[14,stride]) ];
+            surf(linspace(asset_grid(ceil(end/2)),asset_grid(end),stride),-1:14,z_mat)
             title(sprintf('Value function: F as S vs A at age %d', (agej-1)*Params.ypp+agejshifter+1))
             xlabel('A')
             ylabel('S')
@@ -396,9 +430,6 @@ if Params.scenario>=3 % shares vs. assets not possible in Scenarios 1 and 2
     end
 end
 
-
-%% Agents age distribution
-AgeWeightsParamNames=struct('household',{{'mewj'}}); % So VFI Toolkit knows which parameter is the mass of agents of each age
 
 %% Let's take a quick look at what we have calculated, namely V and Policy
 
@@ -502,15 +533,15 @@ if test_Lhscale
     else
         small_z_no_e_string="false";
     end
-    for scenario=4:-1:1
+    for scenario=4:4 % 4:-1:1
         ReturnFn_Lh=Electrify_Scenario_ReturnFn_Setup(scenario);
-        for ypp=[12:-2:6, 5:-1:1]
+        for ypp=12:-1:1 % [12:-2:6, 5:-1:1]
             vfoptions_Lh=struct(); simoptions_Lh=struct();
             Params_Lh=Electrify_Scenario_YPP_Setup(Params,scenario,ypp,small_z_no_e,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,Params.tau_cg,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
             [ReturnFn_Lh,~,FnsToEvaluate2_Lh,~,vfoptions_Lh,simoptions_Lh]=Electrify_Scenario_Fn_Setup(Params_Lh,vfoptions_Lh,simoptions_Lh);
 
             [n_d_Lh,n_a_Lh,n_z_Lh,N_j_Lh,vfoptions_Lh]=Electrify_GridSizeSetup(scenario, Params_Lh.J, small_z_no_e, small_model, vfoptions_Lh);
-            [d_grid_Lh,a_grid_Lh,z_grid_Lh,pi_z_Lh,jequaloneDist_Lh,share_grid_Lh,house_grid_Lh,pv_grid_hh_Lh,k_grid_Lh,pv_grid_firm_Lh,pv_grid_energy_Lh,Params_Lh,vfoptions_Lh,simoptions_Lh]=Electrify_GridSetup(scenario, ypp, n_d_Lh, n_a_Lh, n_z_Lh, small_z_no_e, Params_Lh, vfoptions_Lh, simoptions_Lh);
+            [d_grid_Lh,a_grid_Lh,z_grid_Lh,pi_z_Lh,jequaloneDist_Lh,~,~,pv_grid_hh_Lh,k_grid_Lh,pv_grid_firm_Lh,pv_grid_energy_Lh,Params_Lh,vfoptions_Lh,simoptions_Lh]=Electrify_GridSetup(scenario, ypp, n_d_Lh, n_a_Lh, n_z_Lh, small_z_no_e, Params_Lh, vfoptions_Lh, simoptions_Lh);
             if ypp<=size(Lhscale,1)
                 Params_Lh.Lhscale=Lhscale(ypp,scenario);
             else
@@ -543,9 +574,9 @@ if mod(solve_GE,2)==1
             % heteroagentoptions.maxiter=200;
         end
     else
-        heteroagentoptions.toleranceGEprices=10^(-2);
-        heteroagentoptions.toleranceGEcondns=10^(-1); % This is the hard one
-        heteroagentoptions.maxiter=35*(1+logical(small_z_no_e)+logical(small_model));                % About 3 hours for 35 iterations
+        heteroagentoptions.toleranceGEprices=10^(-3);
+        heteroagentoptions.toleranceGEcondns=10^(-2); % This is the hard one
+        heteroagentoptions.maxiter=75*(1+logical(small_z_no_e)+logical(small_model));                % About 3 hours for 35 iterations
 
         if Params.scenario<4
             heteroagentoptions.CustomModelStats=@(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions) ...
@@ -565,11 +596,11 @@ if mod(solve_GE,2)==1
     p_eqm_init.AccidentBeqS_pp=Params.AccidentBeqS_pp;
     p_eqm_init.G=Params.tau_d*Params.D_pp+AggVars.CapitalGainsTaxRevenue.household.Mean+AggVars.CorpTaxRevenue.firm.Mean;
     % To use a '_tminus1' variable we must include its initial value
-    transpathoptions.initialvalues.BeqleftS_pp= Params.AccidentBeqS_pp;
+    % transpathoptions.initialvalues.BeqleftS_pp= Params.AccidentBeqS_pp;
     if Params.scenario>2
         % Plot twist as above...
         p_eqm_init.AccidentBeqAH_pp=Params.AccidentBeqAH_pp;
-        transpathoptions.initialvalues.BeqleftAH_pp= Params.AccidentBeqAH_pp;
+        % transpathoptions.initialvalues.BeqleftAH_pp= Params.AccidentBeqAH_pp;
     end
     transpathoptions.initialvalues.pvinstalled_firm=0;
     transpathoptions.initialvalues.pvinstalled_energy=0;
@@ -663,7 +694,7 @@ ParamPath.cpi_energy(end+1:T*jpT)=ParamPath.cpi_energy(end); % Energy cost incre
 ParamPath.cpi_energy=ParamPath.cpi_energy(1:T); % Energy cost increases on a per transition period basis
 Params.cpi_energy=ParamPath.cpi_energy(1);
 
-Params.P0=1.9;
+% Params.P0=2.05;
 
 if solve_GE>=2
     % 40 years of changing demographics

@@ -1,7 +1,7 @@
 function F=Electrify_HouseholdReturnFn( ...
-    labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+    labor,buyhouse,saprime,hprime,sa,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
-    sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,warmglow1,warmglow2,ypp,agej,Jr,J,...
+    sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last,warmglow1,warmglow2,ypp,agej,Jr,J,...
     scenario,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,cpi,pv_pct_cost,energy_pct_cost ...
     )
 
@@ -9,6 +9,8 @@ function F=Electrify_HouseholdReturnFn( ...
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
 F=-Inf;
+
+[sprime,aprime,s,a]=decode_sa(saprime,sa);
 
 % buyhouse decisions
 %  0=no house/sell house
@@ -78,10 +80,41 @@ end
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
 % We are looking at stationary general eqm, so
 % Plag=P;
-% And thus we have
-P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
+% And thus we have P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
 
-Plag=P; % As stationary general eqm
+% But in fact the price does not meaningfully represent the acquisition
+% cost by a younger generation that is now older in this stationary
+% distribution.  However, we can use the history of acquisition and
+% disposals to impute when agents are buying and selling, and thus what
+% capital gains they should pay.  We imagine that stocks earn 2x the
+% risk-free rate of return (i.e., 2*r_pp) and that if we are selling before
+% they peak, we are selling recently acquired stocks, whereas if we are
+% selling at or after the peak of acquisition, we are selling long-term
+% gains in a LIFO fashion.
+
+% We take P0 as the price of the current stationary distribution, and we
+% back-calculate what the price Plag may have been in the past.
+
+P=P0;
+r=(1+r_pp)^(1/ypp)-1;
+if sprime>=s
+    cg=0; % We are holding or buying, so no capital gains
+else
+    if agej<=S_agej_peak_first
+        Plag=P0*(1-2*r)^ypp; % Dispose of shares presumably acquired recently
+    elseif S_agej_peak_last==S_agej_last % Bulk liquidation
+        % Sell all remaining shares from first acquisition to buy-point (using geometric mean to average acquisition cost)
+        agej_bought=S_agej_peak_first-sqrt(S_agej_peak_first-S_agej_first);
+        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+    else
+        % Estimate where we are past peak accumulation and mirror around to
+        % proportional acquisition point
+        agej_selling_pct=(agej-S_agej_peak_last)/(S_agej_last-S_agej_peak_last);
+        agej_bought=S_agej_peak_first-agej_selling_pct*(S_agej_peak_first-S_agej_first);
+        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+    end
+    cg=tau_cg*(P0-Plag)*(s+AccidentBeqS_pp-sprime);
+end
 
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
@@ -101,7 +134,7 @@ else
     c=c+(1+r_pp)*a;
 end
 % ...subtract capital gains tax and next period share, asset holdings
-c=c-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
+c=c-cg-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation, and scaled energy costs
 c=c-htc-rentalcosts_pp-hcost*0.02*ypp-pvinstallcost-(1+cpi)*energy_pct_cost*max(h^1.5,1)*ypp;
 
@@ -136,6 +169,27 @@ if agej==J % Final period
         warmglow=warmglow1*(net_worth_prime^(1-warmglow2))/(1-warmglow2);
         F=F+warmglow;
     end
+end
+
+
+end
+
+function [sprime,aprime,s,a]=decode_sa(saprime,sa)
+
+if saprime<1
+    sprime=0;
+    aprime=saprime;
+else
+    sprime=floor(saprime);
+    aprime=rem(saprime,1);
+end
+
+if sa<1
+    s=0;
+    a=sa;
+else
+    s=floor(sa);
+    a=rem(sa,1);
 end
 
 

@@ -1,7 +1,7 @@
 function F=Electrify_FirmReturnFn( ...
     dividend,kprime,k,z, ...
     w, D_pp_target, ...
-    ypp,delta,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg)
+    ypp,delta_pp,alpha_k,alpha_l,capadjconstant,tau_corp,phi,tau_d,tau_cg)
 % Whether we set it up so that dividends or equity issuance is the decision
 % variable is unimportant, here I use dividends as the decision variable.
 
@@ -27,11 +27,15 @@ y_pp=z*(k^alpha_k)*(l^alpha_l)*ypp;
 profit_pp=y_pp-w*l*ypp;
 
 % Investment
-delta_pp=(1+delta)^ypp-1;
-invest_pp=kprime-(1-delta)^ypp*k; % largely tracks delta*k = 0.054*k
+invest_pp=kprime-(1-delta_pp)*k; % largely tracks delta*k = 0.054*k
 
 % Capital-adjustment costs (k>0 always)
-capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k-delta_pp)^2)*k*ypp; 
+if invest_pp>=0
+    k_pp=k*ypp;
+    capitaladjcost_pp=(capadjconstant/2)*((invest_pp/k_pp-delta_pp)^2)*k_pp;
+else
+    capitaladjcost_pp=0;
+end
 
 % Taxable corporate income
 T=profit_pp-delta_pp*k-phi*capitaladjcost_pp;

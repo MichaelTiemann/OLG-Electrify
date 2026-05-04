@@ -1,4 +1,4 @@
-function [d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_grid,house_grid,pv_grid_hh,k_grid,pvnew_grid_firm,pvnew_grid_energy,Params,vfoptions,simoptions]=Electrify_GridSetup(scenario, ypp, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions)
+function [d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_asset_grid,house_grid,pv_grid_hh,k_grid,pvnew_grid_firm,pvnew_grid_energy,Params,vfoptions,simoptions]=Electrify_GridSetup(scenario, ypp, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions)
 
 %% Grids for household
 
@@ -18,8 +18,8 @@ if scenario<3
     % Grid for share holdings, always > 0
     s_grid_cubed=linspace(0,1,ceil(n_a.household(1)/3)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
     s_grid_linear=linspace(1,16,floor(n_a.household(1)*2/3)+1);
-    share_grid=[s_grid_cubed, s_grid_linear(2:end)]';
-    a_grid.household=share_grid;
+    share_asset_grid=[s_grid_cubed, s_grid_linear(2:end)]';
+    a_grid.household=share_asset_grid;
     Params.minhouse=1;
     pv_grid_hh=NaN;
 
@@ -28,32 +28,29 @@ if scenario<3
     house_grid=0;
     pv_grid_hh=0;
 else
-    % Grid for share holdings, always > 0; Small max due to other assets
-    share_grid=8*linspace(0,1,n_a.household(1))';
-
-    % Grid for bank account; a negative balance implies a mortgage
-    a_grid_cubed=linspace(-1,0,ceil(n_a.household(2)/2)-1).^3;
-    a_grid_linear=linspace(0,16,floor(n_a.household(2)/2)+2);
-    asset_grid=[a_grid_cubed, a_grid_linear(2:end)]';
+    % Joint grid for shares and bank account; a negative balance implies a mortgage
+    a_grid_cubed=linspace(-1,1,ceil(n_a.household(1)/4)+1).^3;
+    a_grid_linear=linspace(1,15,floor(3*n_a.household(1)/4));
+    share_asset_grid=[a_grid_cubed, a_grid_linear(2:end)]';
     
     % Make it so that there is a zero assets
     % Find closest to zero assets
-    [~,zeroassetindex]=min(abs(asset_grid));
-    asset_grid(zeroassetindex)=0;
+    [~,zeroassetindex]=min(abs(share_asset_grid));
+    share_asset_grid(zeroassetindex)=0;
 
     % PV grid is 5 kW per grid element (approx 20kWh/day)
     if scenario<4
         car_grid=zeros(0);
+        house_grid=(0:1:n_a.household(2)-1)';
+        pv_grid_hh=(0:1:n_a.household(3)-1)';
+    else
+        car_grid=(0:1:n_a.household(2)-1)'; % car assets: no car; petrol car; EV car
         house_grid=(0:1:n_a.household(3)-1)';
         pv_grid_hh=(0:1:n_a.household(4)-1)';
-    else
-        car_grid=(0:1:n_a.household(3)-1)'; % car assets: no car; petrol car; EV car
-        house_grid=(0:1:n_a.household(4)-1)';
-        pv_grid_hh=(0:1:n_a.household(5)-1)';
     end
 
     Params.minhouse=house_grid(2); % first is zero (no house)
-    
+
     % buyhouse decisions
     %  0=no house
     %  1=buy house w/o pv this period
@@ -64,7 +61,7 @@ else
     buyhouse_grid=(0:1:n_d.household(2)-1)';
     
     d_grid.household=[labor_grid; buyhouse_grid];
-    a_grid.household=[share_grid; asset_grid; car_grid; house_grid; pv_grid_hh];
+    a_grid.household=[share_asset_grid; car_grid; house_grid; pv_grid_hh];
 
     %% Solar PV is an experience asset
     vfoptions.experienceasset.household=1;
@@ -214,11 +211,11 @@ if small_z_no_e
         % All agents start with zero shares, and the median shocks
         jequaloneDist.household(1,floor((n_z.household+1)/2))=1;
     elseif scenario<4
-        % All agents start with zero shares, assets, houses, solarpv, and median shocks
-        jequaloneDist.household(1,zeroassetindex,1,1,floor((n_z.household+1)/2))=1;
+        % All agents start with zero shares and assets, zero houses, zero solarpv, and median shocks
+        jequaloneDist.household(zeroassetindex,1,1,floor((n_z.household+1)/2))=1;
     else
-        % All agents start with zero shares, assets, cars, houses, solarpv, and median shocks
-        jequaloneDist.household(1,zeroassetindex,1,1,1,floor((n_z.household+1)/2))=1;
+        % All agents start with zero shares and assets, zero cars, zero houses, zero solarpv, and median shocks
+        jequaloneDist.household(zeroassetindex,1,1,1,floor((n_z.household+1)/2))=1;
     end
 else
     jequaloneDist.household=zeros([n_a.household,n_z.household,vfoptions.n_e.household],'gpuArray'); % Put no households anywhere on grid
@@ -226,11 +223,11 @@ else
         % All agents start with zero shares, and the median shocks
         jequaloneDist.household(1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;
     elseif scenario<4
-        % All agents start with zero shares, assets, houses, solarpv, and median shocks
-        jequaloneDist.household(1,zeroassetindex,1,1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;
+        % All agents start with zero shares and assets, zero houses, zero solarpv, and median shocks
+        jequaloneDist.household(zeroassetindex,1,1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;
     else
         % All agents start with zero shares, assets, cars, houses, solarpv, and median shocks
-        jequaloneDist.household(1,zeroassetindex,1,1,1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;
+        jequaloneDist.household(zeroassetindex,1,1,1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;
     end
 end
 

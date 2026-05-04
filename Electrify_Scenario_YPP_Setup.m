@@ -134,8 +134,11 @@ if scenario==4
     Params.energy_pct_brown=0.8;
 end
 
+Params.delta_pp=(1+0.054)^ypp-1; % Depreciation of physical capital per period
 Params.G_pp=G*ypp; % Government expenditure
 Params.D_pp=(1+D)^ypp-1; % The dividends paid by the firm per period
-
+if scenario>=3
+    Params.pv_delta_pp=(1+0.02)^ypp-1; % Depreciation of PVs per period
+end
 
 end

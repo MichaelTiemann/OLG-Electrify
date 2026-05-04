@@ -1,8 +1,10 @@
 function c_pp=Electrify_HouseholdConsumptionFn( ...
-    labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+    labor,buyhouse,saprime,hprime,sa,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
-    kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
+    kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last,ypp,agej,Jr, ...
     r_pp,r_wedge_pp,f_htc,rentprice,cpi,pv_pct_cost,energy_pct_cost)
+
+[sprime,aprime,s,a]=decode_sa(saprime,sa);
 
 % Housing matters
 rentalcosts=0;
@@ -41,10 +43,28 @@ end
 % 1+r = (P0 +(1-tau_d)D - tau_cg(P0-P))/Plag
 % We are looking at stationary general eqm, so
 % Plag=P;
-% And thus we have
-P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
+% And thus we have P=((1-tau_cg)*P0 + (1-tau_d)*D_pp)/(1+r_pp-tau_cg);
 
-Plag=P; % As stationary general eqm
+P=P0;
+r=(1+r_pp)^(1/ypp)-1;
+if sprime>=s
+    cg=0; % We are holding or buying, so no capital gains
+else
+    if agej<=S_agej_peak_first
+        Plag=P0*(1-2*r)^ypp; % Dispose of shares presumably acquired recently
+    elseif S_agej_peak_last==S_agej_last % Bulk liquidation
+        % Sell all remaining shares from first acquisition to buy-point (using geometric mean to average acquisition cost)
+        agej_bought=S_agej_peak_first-sqrt(S_agej_peak_first-S_agej_first);
+        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+    else
+        % Estimate where we are past peak accumulation and mirror around to
+        % proportional acquisition point
+        agej_selling_pct=(agej-S_agej_peak_last)/(S_agej_last-S_agej_peak_last);
+        agej_bought=S_agej_peak_first-agej_selling_pct*(S_agej_peak_first-S_agej_first);
+        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+    end
+    cg=tau_cg*(P0-Plag)*(s+AccidentBeqS_pp-sprime);
+end
 
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
@@ -64,7 +84,7 @@ else
     c_pp=c_pp+(1+r_pp)*a;
 end
 % ...subtract capital gains tax and next period share, asset holdings
-c_pp=c_pp-tau_cg*(P0-Plag)*(s+AccidentBeqS_pp)-P*sprime-aprime;
+c_pp=c_pp-cg-P*sprime-aprime;
 % ...subtract housing-related costs:  pv installation/upgrade, house transaction costs, rental or home maintenance costs, and scaled energy costs
 c_pp=c_pp-htc-rentalcosts-hcost*0.02*ypp-pvinstallcost-(1+cpi)*energy_pct_cost*max(h^1.5,1)*ypp;
 

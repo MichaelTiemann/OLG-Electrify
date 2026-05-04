@@ -1,8 +1,16 @@
 function income_pp=Electrify_HouseholdIncomeFn( ...
-    labor,buyhouse,sprime,aprime,hprime,s,a,h,solarpv,z,e, ...
+    labor,buyhouse,saprime,hprime,sa,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
     r_pp,cpi,energy_pct_cost)
+
+if sa<1
+    s=0;
+    a=sa;
+else
+    s=floor(sa);
+    a=rem(sa,1);
+end
 
 hcost=0;
 hprimecost=0;

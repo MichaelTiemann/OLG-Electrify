@@ -1,5 +1,5 @@
 function F=Electrify_4HouseholdReturnFn( ...
-    labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
+    labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp,sigma,psi,eta,sigma_h,sigma_c,kappa_j,warmglow1,warmglow2,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
     ypp,agej,Jr,J,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax ...
     )
@@ -12,6 +12,8 @@ function F=Electrify_4HouseholdReturnFn( ...
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
 F=-Inf;
+
+[sprime,aprime,s,a]=decode_sa(saprime,sa);
 
 %% Housing matters
 % buyhouse decisions--needed for solarpv experience asset
@@ -219,6 +221,27 @@ if agej==J % Final period
         warmglow=warmglow1*(net_worth_prime^(1-warmglow2))/(1-warmglow2);
         F=F+warmglow;
     end
+end
+
+
+end
+
+function [sprime,aprime,s,a]=decode_sa(saprime,sa)
+
+if saprime<1
+    sprime=0;
+    aprime=saprime;
+else
+    sprime=floor(saprime);
+    aprime=rem(saprime,1);
+end
+
+if sa<1
+    s=0;
+    a=sa;
+else
+    s=floor(sa);
+    a=rem(sa,1);
 end
 
 

@@ -1,8 +1,10 @@
 function income_pp=Electrify_4HouseholdIncomeFn( ...
-    labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e, ...
+    labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e, ...
     pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
     kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
     ypp,agej,Jr,r_pp,cpi_energy,energy_pct_cost,energy_pct_brown,carbon_tax)
+
+[sprime,aprime,s,a]=decode_sa(saprime,sa);
 
 hcost=0;
 hprimecost=0;
@@ -53,5 +55,26 @@ if a>0
     % Add deposit interest
     income_pp=income_pp+r_pp*a;
 end
+
+end
+
+function [sprime,aprime,s,a]=decode_sa(saprime,sa)
+
+if saprime<1
+    sprime=0;
+    aprime=saprime;
+else
+    sprime=floor(saprime);
+    aprime=rem(saprime,1);
+end
+
+if sa<1
+    s=0;
+    a=sa;
+else
+    s=floor(sa);
+    a=rem(sa,1);
+end
+
 
 end

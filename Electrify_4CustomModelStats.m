@@ -4,22 +4,22 @@ CustomStats=struct();
 simoptions.whichstats=zeros(1,7);
 simoptions.whichstats([1,2,5])=1;
 
-CFnsToEvaluate.H1buy = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && hprime==1;
-CFnsToEvaluate.H2buy = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && hprime==2;
-CFnsToEvaluate.H3buy = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && hprime==3;
-CFnsToEvaluate.H4buy = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && hprime==4;
-CFnsToEvaluate.H1sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && h==1;
-CFnsToEvaluate.H2sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && h==2;
-CFnsToEvaluate.H3sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && h==3;
-CFnsToEvaluate.H4sell = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h~=hprime && h==4;
-CFnsToEvaluate.H1 = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h==1; % Total H1 house holdings
-CFnsToEvaluate.H2 = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h==2; % Total H2 house holdings
-CFnsToEvaluate.H3 = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) h==3; % Total H3 house holdings
-CFnsToEvaluate.H_u = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (h>0); % Unit house holdings
-CFnsToEvaluate.PV_h = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) solarpv; % total solarpv holdings
-CFnsToEvaluate.PV_u = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (solarpv>0); % Unit solarpv holdings
-CFnsToEvaluate.petrol_car = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (car==1);
-CFnsToEvaluate.ev_car = @(labor,buyhouse,sprime,aprime,cprime,hprime,s,a,car,h,solarpv,z,e) (car==2);
+CFnsToEvaluate.H1buy = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) h~=hprime && hprime==1;
+CFnsToEvaluate.H2buy = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) h~=hprime && hprime==2;
+CFnsToEvaluate.H3buy = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) h~=hprime && hprime==3;
+CFnsToEvaluate.H4buy = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) h~=hprime && hprime==4;
+CFnsToEvaluate.H1sell = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) h~=hprime && h==1;
+CFnsToEvaluate.H2sell = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) h~=hprime && h==2;
+CFnsToEvaluate.H3sell = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) h~=hprime && h==3;
+CFnsToEvaluate.H4sell = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) h~=hprime && h==4;
+CFnsToEvaluate.H1 = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) h==1; % Total H1 house holdings
+CFnsToEvaluate.H2 = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) h==2; % Total H2 house holdings
+CFnsToEvaluate.H3 = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) h==3; % Total H3 house holdings
+CFnsToEvaluate.H_u = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) (h>0); % Unit house holdings
+CFnsToEvaluate.PV_h = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) solarpv; % total solarpv holdings
+CFnsToEvaluate.PV_u = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) (solarpv>0); % Unit solarpv holdings
+CFnsToEvaluate.petrol_car = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) (car==1);
+CFnsToEvaluate.ev_car = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) (car==2);
 
 [~,ii] = find(strcmp(Names_i, 'household'));
 AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist.household,Policy.household,CFnsToEvaluate,Parameters,[],n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,z_grid.household,PType_Options(simoptions,Names_i,ii));
@@ -54,3 +54,5 @@ CustomStats.pvnew_f=AggVars.pvnew_f.Mean;
 CustomStats.pv_f=AggVars.pv_f.Mean;
 
 return
+
+end
