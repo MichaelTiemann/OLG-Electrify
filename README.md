@@ -106,7 +106,7 @@ After doing the usual tax and expense calculations, the firm is left with the jo
 
 ```
 shares_to_sell=0;
-mid_dividend_pp=0.2;
+mid_dividend=0.2;
 dividend=shares_to_sell+(profit-tau_corp*T)-invest-capitaladjcost;
 if dividend<0
     % We will issue new shares and provide a discounted dividend

@@ -11,13 +11,17 @@ else
         % Endogenous shares+assets (>=6), housing (>=2), and solarpv (>=2) x5kW PV
         if small_model
             n_d.household=[21,3]; % Decisions: labor, buyhouse (3 w/o PV; 5 w/PV)
-            n_a.household=[151,2,2]; 
+            n_a.household=[95,2,2]; 
         else
             n_d.household=[21,5]; % Decisions: labor, buyhouse (3 w/o PV; 5 w/PV)
             n_a.household=[151,5,7];
         end
         if small_z_no_e
-            vfoptions.lowmemory.household=0;
+            if scenario<3
+                vfoptions.lowmemory.household=0;
+            else
+                vfoptions.lowmemory.household=1;
+            end
         elseif small_model
             vfoptions.lowmemory.household=1;
         else
@@ -57,9 +61,9 @@ else
     vfoptions.experienceasset.firm=1;
 end
 if small_z_no_e
-    n_z.firm=1;
+    n_z.firm=3;
 else
-    n_z.firm=3+2*floor(log(min(J,60))); % Productivity shock; scaled to model, not firm horizon
+    n_z.firm=11; % Productivity shock
 end
 N_j.firm=Inf; % Infinite horizon
 vfoptions.lowmemory.firm=logical(scenario==4 && ~small_z_no_e);
@@ -77,7 +81,7 @@ end
 if small_z_no_e
     n_z.energy=1;
 else
-    n_z.energy=3+2*floor(log(min(J,60))); % Productivity shock; scaled to model, not firm horizon
+    n_z.energy=11; % Productivity shock
 end
 N_j.energy=Inf; % Infinite horizon
 vfoptions.lowmemory.energy=0;

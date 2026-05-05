@@ -12,7 +12,7 @@ solve_setup=true;
 test_Lhscale=true;
 solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=false;
-small_z_no_e=false; % n_z=1; n_e=0
+small_z_no_e=true; % n_z=1; n_e=0
 small_model=false; % Minimal vs. maximal grid sizes
 small_T=1; % small_T==1 means just do T=1, T=2 (or smallest not-to-be-confused-with-dimension); small_T==2 means use jpT
 
@@ -27,7 +27,7 @@ Params.ptypemass=[1,1,1]; % Mass of households and firms are each equal to one
 % Scenario 2: add rental+energy costs, but no housing/assets/inflation
 % Scenario 3: add housing/assets/pv/inflation
 % Scenario 4: add cars/detailed energy
-Params.scenario=4;
+Params.scenario=1;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolution).
@@ -210,26 +210,26 @@ Params.cpi_energy=0; % Initial condition
 % Scaling the household labor supply; we scale model and GE finds its own equilibrium
 % This is vaguely scenario-by-ypp, set for small_z_no_e=true
 Lhscale_small_z_no_e=[
-    [0.13,0.11,0.09,0.3];
-    [0.18,0.13,0.11,0.18];    % 2
-    [0.26,0.21,0.16,0.25];
-    [0.27,0.23,0.16,0.24];    % 4
-    [0.33,0.5,0.16,0.33];
-    [1.4,1.4,0.8,0.29];       % 6
-    [1.9,1.5,1.3,0.40];
-    [2.4,1.6,1.3,0.55];       % 8
-    [2.7,1.6,1.5,0.42];
-    [3.1,2.1,1.7,0.45];      % 10
-    [3.5,2.2,1.7,0.90];
-    [3.6,2.9,1.8,1.4];       % 12
+    [1.26,1.07,1.03,2.0];
+    [1.07,0.83,0.78,2.11];    % 2
+    [1.02,0.79,0.66,1.75];
+    [1.05,0.81,0.65,1.85];    % 4
+    [1.29,0.97,0.73,1.96];
+    [1.38,1.18,0.80,2.39];       % 6
+    [1.82,1.45,1.07,2.16];
+    [0.92,0.68,0.46,0.85];       % 8
+    [1.27,0.84,0.50,0.49];
+    [1.20,0.88,0.50,0.15];      % 10 broken scenario 4, 10-12
+    [1.41,1.08,0.62,0.15];
+    [1.57,1.13,0.61,0.15];       % 12
     ]; 
 
 Lhscale_z_and_e=[
-    [0.24,0.19,0.19,0.30];
-    [0.48,0.37,0.35,0.38];    % 2
-    [0.47,0.36,0.30,0.43];
-    [0.49,0.37,0.29,0.45];    % 4
-    [0.54,0.41,0.31,0.47];
+    [0.24,0.19,0.19,0.93];
+    [0.48,0.37,0.35,0.71];    % 2
+    [0.47,0.36,0.30,0.53];
+    [0.49,0.37,0.29,0.49];    % 4
+    [0.54,0.41,0.31,0.48];
     [0.55,0.41,0.30,0.42];    % 6
     [0.56,0.43,0.29,0.39];
     [0.57,0.43,0.30,0.37];    % 8
@@ -533,9 +533,9 @@ if test_Lhscale
     else
         small_z_no_e_string="false";
     end
-    for scenario=4:4 % 4:-1:1
+    for scenario=1:4 % 4:-1:1
         ReturnFn_Lh=Electrify_Scenario_ReturnFn_Setup(scenario);
-        for ypp=12:-1:1 % [12:-2:6, 5:-1:1]
+        for ypp=5:8 % [12:-2:6, 5:-1:1]
             vfoptions_Lh=struct(); simoptions_Lh=struct();
             Params_Lh=Electrify_Scenario_YPP_Setup(Params,scenario,ypp,small_z_no_e,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,Params.tau_cg,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
             [ReturnFn_Lh,~,FnsToEvaluate2_Lh,~,vfoptions_Lh,simoptions_Lh]=Electrify_Scenario_Fn_Setup(Params_Lh,vfoptions_Lh,simoptions_Lh);

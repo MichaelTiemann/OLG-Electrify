@@ -90,7 +90,7 @@ else
     % n_d must be set up as n_d=[n_d1, n_d2, n_d3]
     % d_grid must be set up as d_grid=[d1_grid; d2_grid; d3_grid];
 end
-if small_z_no_e
+if n_z.household==1 && small_z_no_e
     z_grid_J=zeros(n_z.household,Params.J);
     pi_z_J=ones(n_z.household,n_z.household,Params.J);
 else
@@ -99,17 +99,19 @@ else
     % z_grid_J is n_z-by-J, so z_grid_J(:,j) is the grid for age j
     % pi_z_J is n_z-by-n_z-by-J, so pi_z_J(:,:,j) is the transition matrix for age j
 
-    % Second, e, the iid normal with age-dependent parameters
-    [e_grid_J, pi_e_J] = discretizeLifeCycleAR1_FellaGallipoliPan(zeros(1,Params.J),Params.sigma_e,vfoptions.n_e.household,Params.J); % Note: AR(1) with rho=0 is iid normal
-    % Because e is iid we actually just use
-    pi_e_J=shiftdim(pi_e_J(1,:,:),1);
-
-    % Any (iid) e variable always has to go into vfoptions and simoptions
-    vfoptions.e_grid.household=e_grid_J;
-    vfoptions.pi_e.household=pi_e_J;
-    simoptions.n_e.household=vfoptions.n_e.household;
-    simoptions.e_grid.household=e_grid_J;
-    simoptions.pi_e.household=pi_e_J;
+    if ~small_z_no_e
+        % Second, e, the iid normal with age-dependent parameters
+        [e_grid_J, pi_e_J] = discretizeLifeCycleAR1_FellaGallipoliPan(zeros(1,Params.J),Params.sigma_e,vfoptions.n_e.household,Params.J); % Note: AR(1) with rho=0 is iid normal
+        % Because e is iid we actually just use
+        pi_e_J=shiftdim(pi_e_J(1,:,:),1);
+    
+        % Any (iid) e variable always has to go into vfoptions and simoptions
+        vfoptions.e_grid.household=e_grid_J;
+        vfoptions.pi_e.household=pi_e_J;
+        simoptions.n_e.household=vfoptions.n_e.household;
+        simoptions.e_grid.household=e_grid_J;
+        simoptions.pi_e.household=pi_e_J;
+    end
 end
 
 % z_grid and pi_z for household (we use exp in household functions)
@@ -194,7 +196,7 @@ else
     % d_grid must be set up as d_grid=[d1_grid; d2_grid; d3_grid];
 end
 
-if small_z_no_e
+if n_z.energy==1
     z_grid.energy=zeros(n_z.energy,1);
     pi_z.energy=ones(n_z.energy,n_z.energy);
 else
