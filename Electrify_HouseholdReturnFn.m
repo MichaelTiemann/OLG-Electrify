@@ -1,8 +1,8 @@
 function F=Electrify_HouseholdReturnFn( ...
     labor,buyhouse,saprime,hprime,sa,h,solarpv,z,e, ...
-    pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp, ...
+    pension,AccidentBeqS,AccidentBeqAH,w,P0,D, ...
     sigma,psi,eta,sigma_h,kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last,warmglow1,warmglow2,ypp,agej,Jr,J,...
-    scenario,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,cpi,pv_pct_cost,energy_pct_cost ...
+    scenario,r,r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,cpi,pv_pct_cost,energy_pct_cost ...
     )
 
 % Note: experienceasset, so first inputs are (d,a,z,e,...)
@@ -96,24 +96,23 @@ end
 % back-calculate what the price Plag may have been in the past.
 
 P=P0;
-r=(1+r_pp)^(1/ypp)-1;
 if sprime>=s
     cg=0; % We are holding or buying, so no capital gains
 else
     if agej<=S_agej_peak_first
-        Plag=P0*(1-2*r)^ypp; % Dispose of shares presumably acquired recently
+        Plag=P0*(1-r)^ypp; % Dispose of shares presumably acquired recently
     elseif S_agej_peak_last==S_agej_last % Bulk liquidation
         % Sell all remaining shares from first acquisition to buy-point (using geometric mean to average acquisition cost)
         agej_bought=S_agej_peak_first-sqrt(S_agej_peak_first-S_agej_first);
-        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+        Plag=P0*(1-r)^(ypp*(agej-agej_bought));
     else
         % Estimate where we are past peak accumulation and mirror around to
         % proportional acquisition point
         agej_selling_pct=(agej-S_agej_peak_last)/(S_agej_last-S_agej_peak_last);
         agej_bought=S_agej_peak_first-agej_selling_pct*(S_agej_peak_first-S_agej_first);
-        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+        Plag=P0*(1-r)^(ypp*(agej-agej_bought));
     end
-    cg=tau_cg*(P0-Plag)*(s+AccidentBeqS_pp-sprime);
+    cg=tau_cg*(P0-Plag)*(s+AccidentBeqS-sprime);
 end
 
 if agej<Jr % If working age
@@ -123,15 +122,15 @@ else % Retirement
     c=pension*ypp;
 end
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + (inflation-shock adjusted) net housing assets
-c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqAH_pp+(hcost-hprimecost);
+c=c+((1-tau_d)*D*ypp+P0)*(s+AccidentBeqS)+AccidentBeqAH+(hcost-hprimecost);
 % PV generation: 30kW (2 solar units) meets h==1 energy needs
 %%% WTF c=c+(1+cpi)*energy_pct_cost*(solarpv/2)*ypp;
 if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
     % Subtract loan interest by adding diminishing assets
-    c=c+(1+r_pp+r_wedge_pp)*a;
+    c=c+(1+r+r_wedge)^ypp*a;
 else
     % Deposit interest included in augmented assets
-    c=c+(1+r_pp)*a;
+    c=c+(1+r)^ypp*a;
 end
 % ...subtract capital gains tax and next period share, asset holdings
 c=c-cg-P*sprime-aprime;

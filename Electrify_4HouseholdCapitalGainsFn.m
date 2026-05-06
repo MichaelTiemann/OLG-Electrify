@@ -1,6 +1,6 @@
 function cg=Electrify_4HouseholdCapitalGainsFn( ...
     labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e, ...
-    ypp,agej,at_death,P0,AccidentBeqS_pp,r_pp,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last)
+    ypp,agej,at_death,P0,AccidentBeqS,r,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last)
 % Replace assets with 'share holdings'
 % Get rid of progressive taxes
 % Add Lhnormalize
@@ -22,7 +22,6 @@ else
     s=floor(sa);
 end
 
-r=(1+r_pp)^(1/ypp)-1;
 if sprime>=s
     agej_bought=agej;
     cg=0; % We are holding or buying, so no capital gains
@@ -42,7 +41,7 @@ else
         agej_bought=S_agej_peak_first-agej_selling_pct*(S_agej_peak_first-S_agej_first);
         Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
     end
-    cg=tau_cg*(P0-Plag)*(s+AccidentBeqS_pp-sprime);
+    cg=tau_cg*(P0-Plag)*(s+AccidentBeqS-sprime);
 end
 
 if at_death && agej_bought>=S_agej_first

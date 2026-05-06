@@ -1,7 +1,7 @@
 function F=Electrify_4HouseholdReturnFn( ...
     labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e, ...
-    pension,AccidentBeqS_pp,AccidentBeqAH_pp,w,P0,D_pp,sigma,psi,eta,sigma_h,sigma_c,kappa_j,warmglow1,warmglow2,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
-    ypp,agej,Jr,J,r_pp,r_wedge_pp,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax ...
+    pension,AccidentBeqS,AccidentBeqAH,w,P0,D,sigma,psi,eta,sigma_h,sigma_c,kappa_j,warmglow1,warmglow2,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
+    ypp,agej,Jr,J,r,r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax ...
     )
 % Implement depreciation model:
 %   Car services A(t) = (1-delta_a)*A(t-1) + I(a,t)
@@ -47,18 +47,18 @@ if (sprime-s>0 && aprime+hcost<0 ...                  % Cannot buy shares with n
 end
 
 carcost=0;
-rentalcosts=rentprice*sqrt(kappa_j)*ypp;
+rentalcosts_pp=rentprice*sqrt(kappa_j)*ypp;
 htc=0; % house transaction cost
 pvinstallcost=0;
 % A Tally of energy costs, which will be deducted at the end
-energy_cost_pp=0;
+energy_cost=0;
 
 % Housing services (based on housing stock)
 if h==0
     hs=0.5*houseservices*minhouse;
 else
     hs=houseservices*h;
-    rentalcosts=0;
+    rentalcosts_pp=0;
 end
 % Make buying/selling a house costly/illiquid
 if hprime~=h
@@ -82,10 +82,14 @@ end
 %% Car matters
 % Car costs 50% annual wage, or can trade at 25% annual wage
 if cprime==0
-    if car==1 % Selling a car: get back <= 1/2 of what was paid for it
-        carcost=-0.15*w;
-    elseif car==2
-        carcost=-0.37*w;
+    carcost_pp=0;
+    if car~=0
+        carcost_pp=carcost+0.02*w*ypp;
+        if car==1 % Selling a car: get back <= 1/2 of what was paid for it
+            carcost=-0.15*w;
+        elseif car==2
+            carcost=-0.37*w;
+        end
     end
 else
     if car==0
@@ -100,7 +104,7 @@ else
         carcost=-0.05*w; % Get some money back from the trade
     end
     % annual insurance, maintenance, WOF, etc.
-    carcost=carcost+0.02*w*ypp;
+    carcost_pp=carcost+0.02*w*ypp;
 end
 
 
@@ -114,8 +118,9 @@ end
 % cost by a younger generation that is now older in this stationary
 % distribution.  However, we can use the history of acquisition and
 % disposals to impute when agents are buying and selling, and thus what
-% capital gains they should pay.  We imagine that stocks earn 2x the
-% risk-free rate of return (i.e., 2*r_pp) and that if we are selling before
+% capital gains they should pay.  We imagine that stocks earn more than the
+% risk-free rate of return, but they do so in combination of both share
+% price growth and dividend returns.  In any case, if we are selling before
 % they peak, we are selling recently acquired stocks, whereas if we are
 % selling at or after the peak of acquisition, we are selling long-term
 % gains in a LIFO fashion.
@@ -124,82 +129,80 @@ end
 % back-calculate what the price Plag may have been in the past.
 
 P=P0;
-r=(1+r_pp)^(1/ypp)-1;
 if sprime>=s
     cg=0; % We are holding or buying, so no capital gains
 else
     if agej<=S_agej_peak_first
-        Plag=P0*(1-2*r)^ypp; % Dispose of shares presumably acquired recently
+        Plag=P0*(1-r)^ypp; % Dispose of shares presumably acquired recently
     elseif S_agej_peak_last==S_agej_last % Bulk liquidation
         % Sell all remaining shares from first acquisition to buy-point (using geometric mean to average acquisition cost)
         agej_bought=S_agej_peak_first-sqrt(S_agej_peak_first-S_agej_first);
-        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+        Plag=P0*(1-r)^(ypp*(agej-agej_bought));
     else
         % Estimate where we are past peak accumulation and mirror around to
         % proportional acquisition point
         agej_selling_pct=(agej-S_agej_peak_last)/(S_agej_last-S_agej_peak_last);
         agej_bought=S_agej_peak_first-agej_selling_pct*(S_agej_peak_first-S_agej_first);
-        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+        Plag=P0*(1-r)^(ypp*(agej-agej_bought));
     end
-    cg=tau_cg*(P0-Plag)*(s+AccidentBeqS_pp-sprime);
+    cg=tau_cg*(P0-Plag)*(s+AccidentBeqS-sprime);
 end
 
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
-    c=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
+    c_pp=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
 else % Retirement
-    c=pension*ypp;
+    c_pp=pension*ypp;
 end
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + net housing assets
-c=c+((1-tau_d)*D_pp+P0)*(s+AccidentBeqS_pp)+AccidentBeqAH_pp+(hcost-hprimecost);
+c_pp=c_pp+((1-tau_d)*D*ypp+P0)*(s+AccidentBeqS)+AccidentBeqAH+(hcost-hprimecost);
 if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
     % Subtract loan interest by adding diminishing assets
-    c=c+(1+r_pp+r_wedge_pp)*a;
+    c_pp=c_pp+(1+r+r_wedge)^ypp*a;
 else
     % Deposit interest included in augmented assets
-    c=c+(1+r_pp)*a;
+    c_pp=c_pp+(1+r)^ypp*a;
 end
 % ...subtract capital gains tax and next period share, asset holdings
-c=c-cg-P*sprime-aprime;
+c_pp=c_pp-cg-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation
-c=c-htc-rentalcosts-hcost*0.01*ypp-pvinstallcost;
+c_pp=c_pp-htc-rentalcosts_pp-hcost*0.01*ypp-pvinstallcost;
 
 % ...subtract car costs (purchase, sale, and/or maintenance)
-if carcost~=0
-    c=c-carcost;
+if carcost_pp~=0
+    c_pp=c_pp-carcost_pp;
     % Energy costs...
     if car==1
-        energy_cost_pp=energy_cost_pp+0.041*w*ypp;
+        energy_cost=energy_cost+0.041*w;
     else
         if solarpv>=0.5
             solarpv=solarpv-0.5;
         else
-            energy_cost_pp=energy_cost_pp+0.02*w*ypp;
+            energy_cost=energy_cost+0.02*w;
         end
     end
 else
     % Public transportation cost...
-    c=c-0.2*w*ypp;
+    c_pp=c_pp-0.1*w*ypp;
 end
 
 
 % Add cost of housing energy; PV generation: 30kW (2 solar units) meets h==1 energy needs
 % Does owning an EV help with solarPV offset?
-energy_cost_pp=energy_cost_pp+(1+cpi_energy)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
-carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/200; % Magic divisor to hit 0.7% hh income at $42/t CO2e
+energy_cost=energy_cost+(1+cpi_energy)*energy_pct_cost*(max(h^1.5,1)-solarpv/2);
 
-c=c-energy_cost_pp-carbon_tax_pp;
+c_pp=c_pp-energy_cost*(1+energy_pct_brown*carbon_tax/200)*ypp; % Magic divisor to hit 0.7% hh income at $42/t CO2e
 
 % If we are aiming for a starter loan, what loan can we afford?  Car not included
 net_worth_prime=P*sprime+aprime+hprimecost;
 if aprime<0 && agej*ypp<11
     maxloan=-0.5*((10+ypp)-agej*ypp)/10;
     if net_worth_prime<maxloan
-        if net_worth_prime+c>maxloan
+        if net_worth_prime+c_pp>maxloan
             % We could have put this into aprime ...
             % ... but asset_grid might be too small
             % This keeps state feasible, but disfavored
-            c=exp(-500);
+            c_pp=exp(-500);
         else
             % Limit starter loan needed to get people going
             return
@@ -207,8 +210,8 @@ if aprime<0 && agej*ypp<11
     end
 end
 
-if c>0
-    F=(((c^(1-sigma_h-sigma_c))*(hs^sigma_h)*(carservices_j^sigma_c))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
+if c_pp>0
+    F=(((c_pp^(1-sigma_h-sigma_c))*(hs^sigma_h)*(carservices_j^sigma_c))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
 end
 
 % Warm-glow bequest; must handle aprime<0

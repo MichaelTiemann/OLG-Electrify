@@ -26,9 +26,9 @@ kappa_j=[kappa_j12, kappa_j2s, kappa_j23, kappa_jr];
 % If Params.J is rounded up, don't add extra zeros
 Params.kappa_j=kappa_j(1:Params.J);
 
-Params.r_wedge_pp=(1+r_wedge)^ypp-1;
-Params.beta_pp = beta(scenario)^ypp;
-Params.n_pp=(1+n(scenario))^ypp-1; % percentage rate (expressed as fraction) of population growth per period
+Params.r_wedge=r_wedge;
+Params.beta = beta(scenario);
+Params.n=n(scenario); % percentage rate (expressed as fraction) of population growth per period
 
 Params.carservices_j=0.1*ones(Params.J,1);
 % Cars start to be useful as people ramp up family life
@@ -104,7 +104,7 @@ Params.sj_final=sj_final;
 % We defer doing transition maths until we calculate GE final
 Params.sj=sj_init;
 Params.mewj=cumprod([1,Params.sj(1:end-1)],2); % mass of age jj is the mass of jj-1 that survive
-Params.mewj=Params.mewj./((1+Params.n_pp).^((1:Params.J)-1)); % Population shrinks in the N_j dimension
+Params.mewj=Params.mewj./((1+Params.n).^(ypp*(1:Params.J)-1)); % Population shrinks in the N_j dimension
 Params.mewj=Params.mewj./sum(Params.mewj); % normalize age-masses to sum to one
 
 % Note: This is rather incomplete, as really you should also have
@@ -115,13 +115,13 @@ Params.mewj=Params.mewj./sum(Params.mewj); % normalize age-masses to sum to one
 % do this with the toolkit does not change.
 
 % The warmglow parameters will help us find the GE solution to actual bequest rates/values
-Params.AccidentBeqS_pp=AccidentBeqS(scenario)*ypp;
+Params.AccidentBeqS=AccidentBeqS(scenario);
 if scenario>2
-    Params.AccidentBeqAH_pp=AccidentBeqAH(scenario)*ypp;
+    Params.AccidentBeqAH=AccidentBeqAH(scenario);
 end
-Params.r_pp=(1+r)^ypp-1;
-Params.firmbeta=1/(1+Params.r_pp/(1-tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
-Params.energybeta=1/(1+Params.r_pp/(1-tau_cg)); % 1/(1+r_pp) but returns net of capital gains tax
+Params.r=r;
+Params.firmbeta=1/(1+r/(1-tau_cg)); % 1/(1+r) but returns net of capital gains tax
+Params.energybeta=1/(1+r/(1-tau_cg)); % 1/(1+r) but returns net of capital gains tax
 
 Params.sigma_h=sigma_h(scenario);
 Params.sigma_c=sigma_c(scenario);
@@ -134,11 +134,11 @@ if scenario==4
     Params.energy_pct_brown=0.8;
 end
 
-Params.delta_pp=(1+0.054)^ypp-1; % Depreciation of physical capital per period
-Params.G_pp=G*ypp; % Government expenditure
-Params.D_pp=(1+D)^ypp-1; % The dividends paid by the firm per period
+Params.delta=0.054; % Depreciation of physical capital per period
+Params.G=G; % Government expenditure
+Params.D=D; % The dividends paid by the firm per period
 if scenario>=3
-    Params.pv_delta_pp=(1+0.02)^ypp-1; % Depreciation of PVs per period
+    Params.pv_delta=0.02; % Depreciation of PVs per period
 end
 
 end

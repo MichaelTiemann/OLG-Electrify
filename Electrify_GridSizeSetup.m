@@ -61,7 +61,7 @@ else
     vfoptions.experienceasset.firm=1;
 end
 if small_z_no_e
-    n_z.firm=3;
+    n_z.firm=5;
 else
     n_z.firm=11; % Productivity shock
 end
