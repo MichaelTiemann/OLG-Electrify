@@ -1,8 +1,14 @@
 function income_pp=Electrify_HouseholdIncomeFn( ...
     labor,buyhouse,saprime,hprime,sa,h,solarpv,z,e, ...
     pension,AccidentBeqS,AccidentBeqAH,w,P0,D, ...
-    kappa_j,tau_l,tau_d,tau_cg,ypp,agej,Jr, ...
-    r,cpi,energy_pct_cost)
+    kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
+    ypp,agej,Jr,r,cpi,energy_pct_cost)
+
+if saprime<1
+    sprime=0;
+else
+    sprime=floor(saprime);
+end
 
 if sa<1
     s=0;
@@ -27,7 +33,7 @@ end
 % And thus we have P=((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg);
 
 P=P0;
-if sprime>=s
+if saprime>=s
     cg=0; % We are holding or buying, so no capital gains
 else
     if agej<=S_agej_peak_first

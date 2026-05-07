@@ -26,7 +26,7 @@ Params.ptypemass=[1,1,1]; % Mass of households and firms are each equal to one
 % Scenario 2: add rental+energy costs, but no housing/assets/inflation
 % Scenario 3: add housing/assets/pv/inflation
 % Scenario 4: add cars/detailed energy
-Params.scenario=1;
+Params.scenario=4;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolution).
@@ -206,7 +206,7 @@ Params.TargetKdivL=2.03;
 Params.cpi=0; % Initial condition
 Params.cpi_energy=0; % Initial condition
 
-P0=[2,2,3.8,2.3];
+P0=[2,2,3.8,1.0];
 Params.P0=P0(Params.scenario); % This price is not 1 because we need price for older and younger agents to balance
 % We build a simple model of acquiring and disposing of stock over a lifetime
 Params.S_agej_first=ceil(20/Params.ypp); % the age at which we start acquiring more stock than noise
@@ -279,12 +279,18 @@ FnsToEvaluate_Lhscale.L_h=FnsToEvaluate.L_h;
 FnsToEvaluate_Lhscale.L_f=FnsToEvaluate.L_f;
 AggVars_Lhscale=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_Lhscale,Policy_Lhscale, FnsToEvaluate_Lhscale, Params_Lhscale, n_d, n_a, n_z,N_j,{'firm','household'},d_grid, a_grid, z_grid,simoptions);
 Params.Lhscale=Params_Lhscale.Lhscale*AggVars_Lhscale.L_f.Mean/AggVars_Lhscale.L_h.Mean;
-fprintf("Setting Lhscale to %.2f (with Lhscale==%.2f, L_h was %.2f, L_f was %.2f) \n", Params.Lhscale, Params_Lhscale.Lhscale, AggVars_Lhscale.L_f.Mean, AggVars_Lhscale.L_h.Mean);
+fprintf("Setting Lhscale to %.2f (with Lhscale==%.2f, L_h was %.2f, L_f was %.2f) \n", Params.Lhscale, Params_Lhscale.Lhscale, AggVars_Lhscale.L_h.Mean, AggVars_Lhscale.L_f.Mean);
 clear Params_Lhscale V_Lhscale Policy_Lhscale PTypeDistParamNames_Lhscale StationaryDist_Lhscale FnsToEvaluate_Lhscale AggVars_Lhscale
 
-% This takes little time, so give a graph to look at first
+%% Now solve the whole value function iteration problem with Lhscale set, just to check that things are working before we go to General Equilbrium
+disp('Test ValueFnIter')
+tic;
+% Note: z_grid and pi_z, this will be ignored due to presence of vfoptions.z_grid_J and vfoptions.pi_z_J
+[V_init, Policy_init]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
+toc
+
+% Plot some things from the firm perspective
 if Params.scenario==3
-    [V_Lhscale, Policy_Lhscale]=ValueFnIter_Case1_PType(n_d,n_a,n_z, {'firm'}, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
     % We can plot V as a 3d plot (surf is matlab command for 3d plot)
     figure(5)
     subplot(2,1,1);
@@ -306,27 +312,15 @@ if Params.scenario==3
     xlabel('D')
     ylabel('K')
 elseif Params.scenario==4
-    [V_Lhscale, Policy_Lhscale]=ValueFnIter_Case1_PType(n_d,n_a,n_z, {'firm'}, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
     % We can plot V as a 3d plot (surf is matlab command for 3d plot)
     figure(5)
     subplot(2,1,1);
     % Plot F as K vs PV
-    if small_z_no_e
-        surf(pv_grid_firm,k_grid,max(V_Lhscale.firm,0))
-    else
-        surf(pv_grid_firm,k_grid,sum(max(V_Lhscale.firm,0),3))
-    end
+    surf(pv_grid_firm,k_grid,max(sum(V_init.firm.*reshape(pi_z.firm(:,ceil(n_z.firm/2)),1,1,[]),3),0))
     title('Value function: F as K vs PV')
     xlabel('PV')
     ylabel('K')
 end
-
-%% Now solve the whole value function iteration problem, just to check that things are working before we go to General Equilbrium
-disp('Test ValueFnIter')
-tic;
-% Note: z_grid and pi_z, this will be ignored due to presence of vfoptions.z_grid_J and vfoptions.pi_z_J
-[V_init, Policy_init]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
-toc
 
 if Params.scenario>=3 % shares vs. assets not possible in Scenarios 1 and 2
     % household = [S+A, Car, House, PV, z, agej]
@@ -819,7 +813,7 @@ if solve_TPath
     %% Solve the transition path
     % Setup the options relating to the transition path
     transpathoptions.verbose=1;
-    transpathoptions.maxiter=100; % default is 1000
+    transpathoptions.maxiter=10; % default is 1000
     transpathoptions.fastOLG=0; % PTypes will force this on `simoptions`; must we match that energy?
     transpathoptions.graphpricepath=1; % plots of the ParamPath that get updated every interation
     transpathoptions.graphaggvarspath=1; % plots of the AggVarsPath that get updated every iteration

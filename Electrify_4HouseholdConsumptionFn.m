@@ -50,18 +50,26 @@ end
 %% Car matters
 % Car costs 50% annual wage, or can trade at 25% annual wage
 if cprime==0
-    if car>0
-        carcost=-0.25*w; % Selling a car: get back 1/2 of what was paid for it
+    carcost_pp=0;
+    if car~=0
+        carcost_pp=carcost+0.02*w*ypp;
+        if car==1 % Selling a car: get back <= 1/2 of what was paid for it
+            carcost=-0.15*w;
+        elseif car==2
+            carcost=-0.37*w;
+        end
     end
 else
     if car==0
         if cprime==1
-            carcost=0.25*w; % Buying from scratch; cheap petrol car
+            carcost=0.3*w; % Buying from scratch; cheap petrol car
         else
-            carcost=0.5*w; % Buying from scratch; pay full price (50% of w)
+            carcost=0.75*w; % Buying from scratch; pay full price (50% of w)
         end
-    elseif cprime~=car
-        carcost=0.25*w; % Trading cars; pay half price (25%) with trade-in
+    elseif car<cprime
+        carcost=0.6*w; % Minescule trade-in value of petrol car
+    else
+        carcost=-0.05*w; % Get some money back from the trade
     end
     % annual insurance, maintenance, WOF, etc.
     carcost_pp=carcost+0.02*w*ypp;
