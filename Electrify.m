@@ -9,10 +9,10 @@
 addpath(genpath('./MatlabToolkits/'))
 
 solve_setup=true;
-solve_GE=0; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
+solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=true; % n_z=1; n_e=0
-small_model=false; % Minimal vs. maximal grid sizes
+small_model=true; % Minimal vs. maximal grid sizes
 small_T=1; % small_T==1 means just do T=1, T=2 (or smallest not-to-be-confused-with-dimension); small_T==2 means use jpT
 
 if solve_setup
@@ -26,7 +26,7 @@ Params.ptypemass=[1,1,1]; % Mass of households and firms are each equal to one
 % Scenario 2: add rental+energy costs, but no housing/assets/inflation
 % Scenario 3: add housing/assets/pv/inflation
 % Scenario 4: add cars/detailed energy
-Params.scenario=4;
+Params.scenario=3;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolution).
@@ -34,7 +34,7 @@ Params.scenario=4;
 Params.ypp=5; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
-max_age=100;
+max_age=80;
 agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 
 %% Global parameters (applies to household and firm)
@@ -188,6 +188,8 @@ else
 end
 % Note that simoptions.tolerance is used very differently than vfoptions.tolerance
 
+vfoptions.fastOLG.household=1; simoptions.fastOLG.household=vfoptions.fastOLG.household;
+
 % The user can experiment with gridinterplayer=0 (pure discretization) or gridinterplayer=1 (linear interpolation b/w grid points).
 % If gridinterplayer=1, then you must set vfoptions.divideandconquer=1 (required for transition).
 vfoptions.gridinterplayer.household  = 0;
@@ -206,7 +208,7 @@ Params.TargetKdivL=2.03;
 Params.cpi=0; % Initial condition
 Params.cpi_energy=0; % Initial condition
 
-P0=[2,2,3.8,1.0];
+P0=[2,2,4.8,1.0];
 Params.P0=P0(Params.scenario); % This price is not 1 because we need price for older and younger agents to balance
 % We build a simple model of acquiring and disposing of stock over a lifetime
 Params.S_agej_first=ceil(20/Params.ypp); % the age at which we start acquiring more stock than noise
@@ -268,16 +270,16 @@ GeneralEqmEqns.CapitalOutputRatio=@(K,L_f,TargetKdivL) (K/L_f-TargetKdivL)/100; 
 
 Params_Lhscale=Params;
 Params_Lhscale.Lhscale=1;
-[V_Lhscale, Policy_Lhscale]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,{'firm','household'},d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_Lhscale, DiscountFactorParamNames, vfoptions);
+[V_Lhscale, Policy_Lhscale]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,{'firm','household'},d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_Lhscale, DiscountFactorParamNames, vfoptions);
 PTypeDistParamNames_Lhscale={'ptypemass_temp'};
 Params_Lhscale.ptypemass_temp=[1,1];
-StationaryDist_Lhscale=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames_Lhscale, Policy_Lhscale,n_d,n_a,n_z,N_j,{'firm','household'},pi_z,Params_Lhscale,simoptions);
+StationaryDist_Lhscale=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames_Lhscale, Policy_Lhscale,n_d,n_a,n_z,N_j,{'firm','household'},pi_z,Params_Lhscale,simoptions);
 
 %% Test
 % Note: Because we used simoptions we must include this as an input
 FnsToEvaluate_Lhscale.L_h=FnsToEvaluate.L_h;
 FnsToEvaluate_Lhscale.L_f=FnsToEvaluate.L_f;
-AggVars_Lhscale=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_Lhscale,Policy_Lhscale, FnsToEvaluate_Lhscale, Params_Lhscale, n_d, n_a, n_z,N_j,{'firm','household'},d_grid, a_grid, z_grid,simoptions);
+AggVars_Lhscale=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_Lhscale,Policy_Lhscale, FnsToEvaluate_Lhscale, Params_Lhscale, n_d, n_a, n_z,N_j,{'firm','household'},d_grid, a_grid, z_grid,simoptions);
 Params.Lhscale=Params_Lhscale.Lhscale*AggVars_Lhscale.L_f.Mean/AggVars_Lhscale.L_h.Mean;
 fprintf("Setting Lhscale to %.2f (with Lhscale==%.2f, L_h was %.2f, L_f was %.2f) \n", Params.Lhscale, Params_Lhscale.Lhscale, AggVars_Lhscale.L_h.Mean, AggVars_Lhscale.L_f.Mean);
 clear Params_Lhscale V_Lhscale Policy_Lhscale PTypeDistParamNames_Lhscale StationaryDist_Lhscale FnsToEvaluate_Lhscale AggVars_Lhscale
@@ -286,7 +288,7 @@ clear Params_Lhscale V_Lhscale Policy_Lhscale PTypeDistParamNames_Lhscale Statio
 disp('Test ValueFnIter')
 tic;
 % Note: z_grid and pi_z, this will be ignored due to presence of vfoptions.z_grid_J and vfoptions.pi_z_J
-[V_init, Policy_init]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
+[V_init, Policy_init]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
 toc
 
 % Plot some things from the firm perspective
@@ -336,6 +338,10 @@ if Params.scenario>=3 % shares vs. assets not possible in Scenarios 1 and 2
                 agej=(row-1)*6+col*2-1;
             else
                 agej=(row-1)*3+col;
+            end
+            if agej>Params.J
+                % This happens when max_age < 100
+                break
             end
             % Plot F as S vs H
             if small_z_no_e
@@ -403,7 +409,7 @@ end
 
 %% Test
 disp('Test StationaryDist')
-StationaryDist_init=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_init,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
+StationaryDist_init=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_init,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
 
 % Calculate the life-cycle profiles
 AgeConditionalStats_init=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2.S,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
@@ -427,7 +433,7 @@ Params.S_agej_peak_last=S_agej_peak_last;
 %% Test
 % Note: Because we used simoptions we must include this as an input
 disp('Test AggVars')
-AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j,Names_i, d_grid, a_grid, z_grid,simoptions);
+AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j,Names_i, d_grid, a_grid, z_grid,simoptions);
 
 % Next few lines were used to try a few parameter values so as to get a
 % decent initial guess before actually solving the general equilibrium
@@ -479,7 +485,7 @@ if mod(solve_GE,2)==1
     else
         heteroagentoptions.toleranceGEprices=10^(-3);
         heteroagentoptions.toleranceGEcondns=10^(-2); % This is the hard one
-        heteroagentoptions.maxiter=75*(1+logical(small_z_no_e)+logical(small_model));                % About 3 hours for 35 iterations
+        heteroagentoptions.maxiter=15*(1+logical(small_z_no_e)+logical(small_model));                % About 3 hours for 35 iterations
 
         if Params.scenario<4
             heteroagentoptions.CustomModelStats=@(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions) ...
@@ -490,7 +496,7 @@ if mod(solve_GE,2)==1
         end
     end
 
-    [p_eqm_init,GEcondns_init]=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d, n_a, n_z, N_j,Names_i,[],pi_z,d_grid,a_grid,z_grid,jequaloneDist,ReturnFn,FnsToEvaluate,GeneralEqmEqns,Params,DiscountFactorParamNames,AgeWeightsParamNames,PTypeDistParamNames,GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
+    [p_eqm_init,GEcondns_init]=HeteroAgentStationaryEqm_MixHorz_PType(n_d, n_a, n_z, N_j,Names_i,[],pi_z,d_grid,a_grid,z_grid,jequaloneDist,ReturnFn,FnsToEvaluate,GeneralEqmEqns,Params,DiscountFactorParamNames,AgeWeightsParamNames,PTypeDistParamNames,GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
     % p_eqm contains the general equilibrium parameter values
     % Put this into Params so we can calculate things about the initial equilibrium
     % GEcondns tells us the values of the GeneralEqmEqns, should be near zero
@@ -514,11 +520,11 @@ if mod(solve_GE,2)==1
     % Params.firmbeta=p_eqm_init.firmbeta;
 
     % Re-Calculate a few things related to the general equilibrium.
-    [V_init, Policy_init]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,ReturnFn,Params,DiscountFactorParamNames,vfoptions);
-    StationaryDist_init=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_init,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
+    [V_init, Policy_init]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,ReturnFn,Params,DiscountFactorParamNames,vfoptions);
+    StationaryDist_init=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_init,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
 
     % Calculate various stats
-    AllStats_init=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+    AllStats_init=EvalFnOnAgentDist_AllStats_MixHorz_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
     % Calculate the life-cycle profiles
     AgeConditionalStats_init=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
     
@@ -632,9 +638,9 @@ if solve_GE>=2
 
     % Evaluate the final stationary general eqm
     disp('Test ValueFnIter')
-    [V_final, Policy_final]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
+    [V_final, Policy_final]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
     disp('Test StationaryDist')
-    StationaryDist_final=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_final,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
+    StationaryDist_final=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_final,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
 
 
     % Calculate the life-cycle profiles
@@ -658,7 +664,7 @@ if solve_GE>=2
     Params.S_agej_peak_last=S_agej_peak_last;
 
     disp('Test AggVars')
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j,Names_i, d_grid, a_grid, z_grid,simoptions);
+    AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j,Names_i, d_grid, a_grid, z_grid,simoptions);
 
     % Next few lines were used to try a few parameter values so as to get a
     % decent initial guess before actually solving the general equilibrium
@@ -680,7 +686,7 @@ if solve_GE>=2
     end
 
     % And now, the GE for the final conditions!
-    [p_eqm_final,GEcondns_final]=HeteroAgentStationaryEqm_Case1_FHorz_PType(n_d,n_a,n_z,N_j,Names_i,[],pi_z,d_grid,a_grid,z_grid,jequaloneDist,ReturnFn,FnsToEvaluate,GeneralEqmEqns,Params,DiscountFactorParamNames,AgeWeightsParamNames,PTypeDistParamNames,GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
+    [p_eqm_final,GEcondns_final]=HeteroAgentStationaryEqm_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,[],pi_z,d_grid,a_grid,z_grid,jequaloneDist,ReturnFn,FnsToEvaluate,GeneralEqmEqns,Params,DiscountFactorParamNames,AgeWeightsParamNames,PTypeDistParamNames,GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
     % Done, the general eqm prices are in p_eqm
     % GEcondns tells us the values of the GeneralEqmEqns, should be near zero
     Params.pension=p_eqm_final.pension;
@@ -695,7 +701,7 @@ if solve_GE>=2
 
 
     % Calculate various stats
-    AllStats_final=EvalFnOnAgentDist_AllStats_FHorz_Case1_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
+    AllStats_final=EvalFnOnAgentDist_AllStats_MixHorz_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
     % Calculate the life-cycle profiles
     AgeConditionalStats_final=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_final,Policy_final, FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
 
@@ -836,7 +842,7 @@ if solve_TPath
     vfoptions.refine_d.firm=[1,0,1];
     vfoptions.refine_d.energy=[1,0,1];
     vfoptions.policy_forceintegertype=0; % Ugh.  Need to initialize this elsewhere (and fix defaults)
-    [PricePath,GECondnsPath]=TransitionPath_Case1_FHorz_PType(PricePath0, ParamPath0, T_end, V_final, AgentDist_init, jequaloneDist, n_d, n_a, n_z, N_j, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate2, GeneralEqmEqns_Transition, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions);
+    [PricePath,GECondnsPath]=TransitionPath_MixHorz_PType(PricePath0, ParamPath0, T_end, V_final, AgentDist_init, jequaloneDist, n_d, n_a, n_z, N_j, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate2, GeneralEqmEqns_Transition, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions);
 
     %%
     solve_TPath_temp=solve_TPath; clear solve_TPath
@@ -849,14 +855,14 @@ clear solve_TPath_temp
 
     %% Now calculate some things about the transition path (path for Value fn, Policy fn, Agent Distribution)
     % You can calculate the value and policy functions for the transition path
-    [VPath,PolicyPath]=ValueFnOnTransPath_Case1_FHorz_PType(PricePath, ParamPath0, T_end, V_final, Policy_final, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
+    [VPath,PolicyPath]=ValueFnOnTransPath_MixHorz_PType(PricePath, ParamPath0, T_end, V_final, Policy_final, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
     
     % You can then use these to calculate the agent distribution for the transition path
-    AgentDistPath=AgentDistOnTransPath_Case1_FHorz_PType(StationaryDist_init, jequaloneDist, PricePath, ParamPath0, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z,T_end, Params, transpathoptions, simoptions);
+    AgentDistPath=AgentDistOnTransPath_MixHorz_PType(StationaryDist_init, jequaloneDist, PricePath, ParamPath0, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z,T_end, Params, transpathoptions, simoptions);
     
     %% Analyse the transition path
     % And then we can calculate AggVars for the path
-    AggVarsPath=EvalFnOnTransPath_AggVars_Case1_FHorz_PType(FnsToEvaluate, AgentDistPath,PolicyPath, PricePath, ParamPath0, Params, T_end, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, transpathoptions, simoptions);
+    AggVarsPath=EvalFnOnTransPath_AggVars_MixHorz_PType(FnsToEvaluate, AgentDistPath,PolicyPath, PricePath, ParamPath0, Params, T_end, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, transpathoptions, simoptions);
     
     %% Plot some paths
     figure(1)
@@ -920,7 +926,7 @@ saveas(figure_c,'./SavedOutput/Graphs/Electrify_LifeCycleProfiles','pdf')
 
 %% Calculate some aggregates and print findings about them
 
-AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate3, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
+AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate3, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
 
 Y=AggVars.Output_f.Mean;
 
