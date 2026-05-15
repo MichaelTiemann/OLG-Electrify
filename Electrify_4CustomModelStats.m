@@ -49,7 +49,7 @@ FnsToEvaluate2.pvnew_f=@(pvnew,kprime,k,pv,z,pvinstalled_firm,pvmax_firm) pvnew;
 FnsToEvaluate2.pv_f=@(pvnew,kprime,k,pv,z,pvinstalled_firm,pvmax_firm) pv;
 simoptions_temp=PType_Options(simoptions,Names_i,find(strcmp(Names_i, 'firm')));
 simoptions_temp.parallel=2;
-AggVars=EvalFnOnAgentDist_AggVars_Case1(StationaryDist.firm, Policy.firm, FnsToEvaluate2, Parameters, [], n_d.firm, n_a.firm, n_z.firm, d_grid.firm, a_grid.firm, z_grid.firm, simoptions_temp);
+AggVars=EvalFnOnAgentDist_AggVars_InfHorz(StationaryDist.firm, Policy.firm, FnsToEvaluate2, Parameters, [], n_d.firm, n_a.firm, n_z.firm, d_grid.firm, a_grid.firm, z_grid.firm, simoptions_temp);
 CustomStats.pvnew_f=AggVars.pvnew_f.Mean;
 CustomStats.pv_f=AggVars.pv_f.Mean;
 

@@ -8,12 +8,12 @@
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
 
-solve_setup=true;
-solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
+solve_setup=false;
+solve_GE=0; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
-small_z_no_e=true; % n_z=1; n_e=0
-small_model=true; % Minimal vs. maximal grid sizes
-small_T=1; % small_T==1 means just do T=1, T=2 (or smallest not-to-be-confused-with-dimension); small_T==2 means use jpT
+small_z_no_e=false; % n_z=1; n_e=0
+small_model=false; % Minimal vs. maximal grid sizes
+small_T=2; % small_T==1 means just do T=1, T=2 (or smallest not-to-be-confused-with-dimension); small_T==2 means use jpT
 
 if solve_setup
 
@@ -26,7 +26,7 @@ Params.ptypemass=[1,1,1]; % Mass of households and firms are each equal to one
 % Scenario 2: add rental+energy costs, but no housing/assets/inflation
 % Scenario 3: add housing/assets/pv/inflation
 % Scenario 4: add cars/detailed energy
-Params.scenario=3;
+Params.scenario=4;
 
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolution).
@@ -155,7 +155,7 @@ else
     jpT=1; % Default: one transition period=1 time period; Could have multiple j's per T when ypp>1
 end
 
-T=ceil(Params.J*1.4/jpT);
+T=ceil(Params.J*1.4/jpT)+1;
 if T==length(Names_i)
     T=T+1;
 end
@@ -574,7 +574,7 @@ while any(ismember(last_n_a_dims,T_end))
     T_end=T_end+1;
 end
 if T_end>T
-    error("impossible dimensions for T and ")
+    error("impossible dimensions for T and T_end")
 end
 
 % ParamPath on Ek (Energy Use) and ek (Energy Efficiency)
@@ -841,7 +841,6 @@ if solve_TPath
     % And go! (with FnsToEvaluate2)
     vfoptions.refine_d.firm=[1,0,1];
     vfoptions.refine_d.energy=[1,0,1];
-    vfoptions.policy_forceintegertype=0; % Ugh.  Need to initialize this elsewhere (and fix defaults)
     [PricePath,GECondnsPath]=TransitionPath_MixHorz_PType(PricePath0, ParamPath0, T_end, V_final, AgentDist_init, jequaloneDist, n_d, n_a, n_z, N_j, Names_i, d_grid,a_grid,z_grid, pi_z, ReturnFn, FnsToEvaluate2, GeneralEqmEqns_Transition, Params, DiscountFactorParamNames, AgeWeightsParamNames, PTypeDistParamNames, transpathoptions, simoptions, vfoptions);
 
     %%
