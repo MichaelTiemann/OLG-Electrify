@@ -34,7 +34,7 @@ Params.scenario=4;
 Params.ypp=5; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
-max_age=80;
+max_age=75;
 agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 
 %% Global parameters (applies to household and firm)
@@ -324,7 +324,7 @@ elseif Params.scenario==4
     ylabel('K')
 end
 
-if Params.scenario>=3 % shares vs. assets not possible in Scenarios 1 and 2
+if false && Params.scenario>=3 % shares vs. assets not possible in Scenarios 1 and 2
     % household = [S+A, Car, House, PV, z, agej]
     [~,unitassetindex]=min(abs(share_asset_grid-1));
     asset_grid=share_asset_grid(share_asset_grid<=1);
@@ -412,7 +412,7 @@ disp('Test StationaryDist')
 StationaryDist_init=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_init,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
 
 % Calculate the life-cycle profiles
-AgeConditionalStats_init=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2.S,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+AgeConditionalStats_init=LifeCycleProfiles_MixHorz_PType(StationaryDist_init,Policy_init,FnsToEvaluate2.S,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
 Params.S_agej_first=max(find(AgeConditionalStats_init.household.Mean>0.1,1,'first')-1,1);
 Params.S_agej_last=min(find(AgeConditionalStats_init.household.Mean>0.5,1,'last')+1,length(AgeConditionalStats_init.household.Mean)); % warmglow creates extra long tail we want to ignore
 [~,S_agej_peak]=max(AgeConditionalStats_init.household.Mean);
@@ -526,7 +526,7 @@ if mod(solve_GE,2)==1
     % Calculate various stats
     AllStats_init=EvalFnOnAgentDist_AllStats_MixHorz_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
     % Calculate the life-cycle profiles
-    AgeConditionalStats_init=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+    AgeConditionalStats_init=LifeCycleProfiles_MixHorz_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
     
     if abs(1-AllStats_init.L_h.household.Mean/AllStats_init.L_f.firm.Mean)>0.05
         warning("L_h and L_f have diverged; check Params.Lhscale")
@@ -644,7 +644,7 @@ if solve_GE>=2
 
 
     % Calculate the life-cycle profiles
-    AgeConditionalStats_final=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_final,Policy_final,FnsToEvaluate2.S,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+    AgeConditionalStats_final=LifeCycleProfiles_MixHorz_PType(StationaryDist_final,Policy_final,FnsToEvaluate2.S,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
     Params.S_agej_first=max(find(AgeConditionalStats_final.household.Mean>0.1,1,'first')-1,1);
     Params.S_agej_last=min(find(AgeConditionalStats_final.household.Mean>0.5,1,'last')+1,length(AgeConditionalStats_final.household.Mean)); % warmglow creates extra long tail we want to ignore
     [~,S_agej_peak]=max(AgeConditionalStats_final.household.Mean);
@@ -703,7 +703,7 @@ if solve_GE>=2
     % Calculate various stats
     AllStats_final=EvalFnOnAgentDist_AllStats_MixHorz_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
     % Calculate the life-cycle profiles
-    AgeConditionalStats_final=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_final,Policy_final, FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+    AgeConditionalStats_final=LifeCycleProfiles_MixHorz_PType(StationaryDist_final,Policy_final, FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
 
     % Note: Only part of this final stationary general eqm we actually 'need'
     % is the value fn (although we likely want p_eqm_final for initial guess of PricePath0). 
@@ -726,6 +726,9 @@ ParamPath.Lhscale=linspace(Params.Lhscale,Params.Lhscale*AggVars.L_f.Mean/AggVar
 Params.Lhscale=ParamPath.Lhscale(T_end);
 
 if solve_TPath
+    if Params.scenario==4
+        vfoptions.lowmemory.household=3;
+    end
     %% Setup for the transition path
     % T=100; % number of periods for transition path
     
@@ -820,7 +823,7 @@ if solve_TPath
     % Setup the options relating to the transition path
     transpathoptions.verbose=1;
     transpathoptions.maxiter=10; % default is 1000
-    transpathoptions.fastOLG=0; % PTypes will force this on `simoptions`; must we match that energy?
+    transpathoptions.fastOLG=1; % PTypes will force this on `simoptions`; must we match that energy?
     transpathoptions.graphpricepath=1; % plots of the ParamPath that get updated every interation
     transpathoptions.graphaggvarspath=1; % plots of the AggVarsPath that get updated every iteration
     
@@ -881,7 +884,7 @@ clear solve_TPath_temp
     title('Path of wage rate (w)')
 
 % Can just use the same FnsToEvaluate as before
-AgeConditionalStats=LifeCycleProfiles_FHorz_Case1_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+AgeConditionalStats=LifeCycleProfiles_MixHorz_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
 
 if max(AgeConditionalStats.S.Maximum)==share_asset_grid(end)
     warning("share_grid maximum reached")

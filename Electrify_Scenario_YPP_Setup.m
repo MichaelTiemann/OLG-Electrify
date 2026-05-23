@@ -39,7 +39,7 @@ age1=age2; age2=ceil((44-agejshifter)/ypp);
 Params.carservices_j(age1:age2)=2*ones(age2-age1+1,1);
 age1=age2; age2=ceil((65-agejshifter)/ypp);
 Params.carservices_j(age1:age2)=linspace(2,1,age2-age1+1);
-age1=age2; age2=ceil((80-agejshifter)/ypp);
+age1=age2; age2=min(Params.J,ceil((80-agejshifter)/ypp));
 Params.carservices_j(age1:age2)=linspace(1,0,age2-age1+1);
 Params.carservices_j(age2+1:end)=0;
 
