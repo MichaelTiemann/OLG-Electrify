@@ -206,7 +206,7 @@ Params.TargetKdivL=2.03;
 Params.cpi=0; % Initial condition
 Params.cpi_energy=0; % Initial condition
 
-P0=[2,2,4.8,3.3];
+P0=[2,2,4.8,2.6];
 Params.P0=P0(Params.scenario); % This price is not 1 because we need price for older and younger agents to balance
 % We build a simple model of acquiring and disposing of stock over a lifetime
 Params.S_agej_first=ceil(20/Params.ypp); % the age at which we start acquiring more stock than noise
