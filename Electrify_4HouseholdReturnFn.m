@@ -51,7 +51,7 @@ rentalcosts_pp=rentprice*sqrt(kappa_j)*ypp;
 htc=0; % house transaction cost
 pvinstallcost=0;
 % A Tally of energy costs, which will be deducted at the end
-energy_cost=0;
+energy_cost_pp=0;
 
 % Housing services (based on housing stock)
 if h==0
@@ -168,30 +168,32 @@ c_pp=c_pp-cg-P*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation
 c_pp=c_pp-htc-rentalcosts_pp-hcost*0.01*ypp-pvinstallcost;
 
-% ...subtract car costs (purchase, sale, and/or maintenance)
+% ...subtract car costs (purchase, sale, and/or maintenance); also calculate car services
 if carcost_pp~=0
     c_pp=c_pp-carcost_pp;
     % Energy costs...
     if car==1
-        energy_cost=energy_cost+0.041*w;
+        energy_cost_pp=energy_cost_pp+0.041*w*ypp;
     else
         if solarpv>=0.5
             solarpv=solarpv-0.5;
         else
-            energy_cost=energy_cost+0.02*w;
+            energy_cost_pp=energy_cost_pp+0.02*w*ypp;
         end
     end
+    carservices=carservices_j;
 else
     % Public transportation cost...
     c_pp=c_pp-0.1*w*ypp;
+    carservices=0.5;
 end
 
 
 % Add cost of housing energy; PV generation: 30kW (2 solar units) meets h==1 energy needs
 % Does owning an EV help with solarPV offset?
-energy_cost=energy_cost+(1+cpi_energy)*energy_pct_cost*(max(h^1.5,1)-solarpv/2);
+energy_cost_pp=energy_cost_pp+(1+cpi_energy)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
 
-c_pp=c_pp-energy_cost*(1+energy_pct_brown*carbon_tax/200)*ypp; % Magic divisor to hit 0.7% hh income at $42/t CO2e
+c_pp=c_pp-energy_cost_pp*(1+energy_pct_brown*carbon_tax/200); % Magic divisor to hit 0.7% hh income at $42/t CO2e
 
 % If we are aiming for a starter loan, what loan can we afford?  Car not included
 net_worth_prime=P*sprime+aprime+hprimecost;
@@ -211,7 +213,9 @@ if aprime<0 && agej*ypp<11
 end
 
 if c_pp>0
-    F=(((c_pp^(1-sigma_h-sigma_c))*(hs^sigma_h)*(carservices_j^sigma_c))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
+    % Adding one to all valid solutions doesn't alter results of searching
+    % for optima, but does make output more legible when debugging.
+    F=1+(((c_pp^(1-sigma_h-sigma_c))*(hs^sigma_h)*(carservices^sigma_c))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
 end
 
 % Warm-glow bequest; must handle aprime<0

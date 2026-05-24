@@ -11,16 +11,16 @@ function carbon_cost_pp=Electrify_4HouseholdCarbonCosts( ...
 % Note: experienceasset, so first inputs are (d,a,z,e,...)
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
-energy_cost=0;
+energy_cost_pp=0;
 
 % Car energy costs...
 if car==1
-    energy_cost=energy_cost+0.041*w;
+    energy_cost_pp=energy_cost_pp+0.041*w*ypp;
 elseif car==2
     if solarpv>0.5
         solarpv=solarpv-0.5;
     else
-        energy_cost=energy_cost+0.02*w;
+        energy_cost_pp=energy_cost_pp+0.02*w*ypp;
     end
 end
 
@@ -30,8 +30,8 @@ if car~=2
 end
 
 % Add cost of housing energy; PV generation: 30kW (2 solar units) meets h==1 energy needs
-energy_cost=energy_cost+(1+energy_cpi)*energy_pct_cost*(max(h^1.5,1)-solarpv/2);
-carbon_cost_pp=energy_cost*energy_pct_brown*carbon_tax*ypp/200; % Magic divisor to hit 0.7% hh income at $42/t CO2e
+energy_cost_pp=energy_cost_pp+(1+energy_cpi)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
+carbon_cost_pp=energy_cost_pp*energy_pct_brown*carbon_tax*ypp/200; % Magic divisor to hit 0.7% hh income at $42/t CO2e
 
 
 end

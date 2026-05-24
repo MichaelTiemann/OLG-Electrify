@@ -31,7 +31,7 @@ Params.beta = beta(scenario);
 Params.n=n(scenario); % percentage rate (expressed as fraction) of population growth per period
 
 Params.carservices_j=0.1*ones(Params.J,1);
-% Cars start to be useful as people ramp up family life
+% Cars start to be useful as people ramp up family life; range from 0.5-2
 age1=ceil((28-agejshifter)/ypp);
 age2=ceil((32-agejshifter)/ypp);
 Params.carservices_j(age1:age2)=linspace(0.5,2,age2-age1+1);
@@ -40,8 +40,8 @@ Params.carservices_j(age1:age2)=2*ones(age2-age1+1,1);
 age1=age2; age2=ceil((65-agejshifter)/ypp);
 Params.carservices_j(age1:age2)=linspace(2,1,age2-age1+1);
 age1=age2; age2=min(Params.J,ceil((80-agejshifter)/ypp));
-Params.carservices_j(age1:age2)=linspace(1,0,age2-age1+1);
-Params.carservices_j(age2+1:end)=0;
+Params.carservices_j(age1:age2)=linspace(1,0.5,age2-age1+1);
+Params.carservices_j(age2+1:end)=0.5;
 
 % Life-cycle AR(1) process z, on (log) labor productivity units
 % Chosen following Karahan & Ozkan (2013) [as used by Fella, Gallipoli & Pan (2019)]

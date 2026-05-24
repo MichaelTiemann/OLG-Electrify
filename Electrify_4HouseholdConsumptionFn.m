@@ -134,15 +134,12 @@ else
     c_pp=c_pp-0.1*w*ypp;
 end
 
-% Add cost of housing
-energy_cost_pp=energy_cost_pp+(1+cpi_energy)*energy_pct_cost*max(h^1.5,1)*ypp;
-
 if car~=2
     % car batteries make solarpv more effective...
     solarpv=solarpv/2;
 end
 
-% PV generation: 30kW (2 solar units) meets h==1 energy needs
+% Add energy cost of housing, less PV generation: 30kW (2 solar units) meets h==1 energy needs
 energy_cost_pp=energy_cost_pp+(1+cpi_energy)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
 carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/3500;
 

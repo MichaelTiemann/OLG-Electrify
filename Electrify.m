@@ -8,8 +8,8 @@
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
 
-solve_setup=false;
-solve_GE=0; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
+solve_setup=true;
+solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=false; % n_z=1; n_e=0
 small_model=false; % Minimal vs. maximal grid sizes
@@ -34,7 +34,7 @@ Params.scenario=4;
 Params.ypp=5; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
-max_age=75;
+max_age=80;
 agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 
 %% Global parameters (applies to household and firm)
@@ -83,7 +83,7 @@ AccidentBeqAH=[0,0,0.02,0.02]; % Accidental bequests (this is the lump sum trans
 
 % Preferences
 % Relative importance of housing services (vs consumption) in utility
-sigma_h=[0,0,0.5,0.2];
+sigma_h=[0,0,0.5,0.5];
 % Relative importance of car services (vs consumption) in utility
 sigma_c=[0,0,0.5,0.3];
 Params.eta=1.5; % Curvature of leisure (This will end up being 1/Frisch elasticity)
@@ -188,8 +188,6 @@ else
 end
 % Note that simoptions.tolerance is used very differently than vfoptions.tolerance
 
-vfoptions.fastOLG.household=1; simoptions.fastOLG.household=vfoptions.fastOLG.household;
-
 % The user can experiment with gridinterplayer=0 (pure discretization) or gridinterplayer=1 (linear interpolation b/w grid points).
 % If gridinterplayer=1, then you must set vfoptions.divideandconquer=1 (required for transition).
 vfoptions.gridinterplayer.household  = 0;
@@ -208,7 +206,7 @@ Params.TargetKdivL=2.03;
 Params.cpi=0; % Initial condition
 Params.cpi_energy=0; % Initial condition
 
-P0=[2,2,4.8,1.0];
+P0=[2,2,4.8,3.3];
 Params.P0=P0(Params.scenario); % This price is not 1 because we need price for older and younger agents to balance
 % We build a simple model of acquiring and disposing of stock over a lifetime
 Params.S_agej_first=ceil(20/Params.ypp); % the age at which we start acquiring more stock than noise
@@ -634,6 +632,36 @@ if solve_GE>=2
     Params.cpi=ParamPath.cpi(T_end);
     Params.cpi_energy=ParamPath.cpi_energy(T_end);
 
+    %% TEST
+    labor=0.85;
+    buyhouse=0;
+    saprime=0.25;
+    cprime=0;
+    hprime=0;
+    sa=1.0;
+    car=0;
+    h=0;
+    solarpv=0;
+    z=0;
+    e=0;
+    agej=6;
+    rentprice=Params.rentprice;
+    houseservices=Params.houseservices;
+    carservices_j=Params.carservices_j;
+    cpi_energy=Params.cpi_energy;
+    energy_pct_cost=Params.energy_pct_cost;
+    energy_pct_brown=Params.energy_pct_brown;
+    carbon_tax=Params.carbon_tax;
+    v1=Electrify_4HouseholdReturnFn( ...
+        labor,buyhouse,saprime,cprime+2,hprime,sa,car,h,solarpv,z,e, ...
+        Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
+        Params.ypp,agej,Params.Jr,Params.J,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,rentprice,Params.f_coll,houseservices,carservices_j(agej),cpi_energy,Params.pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax); % Level=0, Refine=0
+    v2=Electrify_4HouseholdReturnFn( ...
+        labor,buyhouse,saprime+0.45,cprime+1,hprime,sa,car,h,solarpv,z,e, ...
+        Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
+        Params.ypp,agej,Params.Jr,Params.J,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,rentprice,Params.f_coll,houseservices,carservices_j(agej),cpi_energy,Params.pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax); % Level=0, Refine=0
+    fprintf("v1-v2: %.2f - %.2f = %.2f \n", v1, v2, v1-v2);
+
     %% Let's take a quick look at what we have calculated, namely V and Policy
 
     % Evaluate the final stationary general eqm
@@ -820,10 +848,11 @@ if solve_TPath
     % transpathoptions.GEptype={'pensions'};
     
     %% Solve the transition path
+    vfoptions.fastOLG.household=1; simoptions.fastOLG.household=1; % Needs to be set up for transition paths
     % Setup the options relating to the transition path
     transpathoptions.verbose=1;
-    transpathoptions.maxiter=10; % default is 1000
-    transpathoptions.fastOLG=1; % PTypes will force this on `simoptions`; must we match that energy?
+    transpathoptions.maxiter=2; % default is 1000
+    transpathoptions.fastOLG=0; % PTypes will force this on `simoptions`; must we match that energy?
     transpathoptions.graphpricepath=1; % plots of the ParamPath that get updated every interation
     transpathoptions.graphaggvarspath=1; % plots of the AggVarsPath that get updated every iteration
     
