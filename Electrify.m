@@ -207,7 +207,7 @@ Params.cpi=0; % Initial condition
 Params.cpi_energy=0; % Initial condition
 
 if small_model
-    P0=[2,2,4.8,1.2];
+    P0=[2,2,4.8,1];
 else
     P0=[2,2,4.8,2.6];
 end
