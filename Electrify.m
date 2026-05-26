@@ -12,7 +12,7 @@ solve_setup=true;
 solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=false; % n_z=1; n_e=0
-small_model=false; % Minimal vs. maximal grid sizes
+small_model=true; % Minimal vs. maximal grid sizes
 small_T=2; % small_T==1 means just do T=1, T=2 (or smallest not-to-be-confused-with-dimension); small_T==2 means use jpT
 
 if solve_setup
@@ -34,7 +34,7 @@ Params.scenario=4;
 Params.ypp=5; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
-max_age=80;
+max_age=100;
 agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 
 %% Global parameters (applies to household and firm)
@@ -206,7 +206,11 @@ Params.TargetKdivL=2.03;
 Params.cpi=0; % Initial condition
 Params.cpi_energy=0; % Initial condition
 
-P0=[2,2,4.8,2.6];
+if small_model
+    P0=[2,2,4.8,1.2];
+else
+    P0=[2,2,4.8,2.6];
+end
 Params.P0=P0(Params.scenario); % This price is not 1 because we need price for older and younger agents to balance
 % We build a simple model of acquiring and disposing of stock over a lifetime
 Params.S_agej_first=ceil(20/Params.ypp); % the age at which we start acquiring more stock than noise
