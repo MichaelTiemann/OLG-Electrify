@@ -27,7 +27,7 @@ y_energy_cost=0.131*y/ek; % Assume energy cost is 13.1% of firm production
 pvnew_cost=pvnew*0.022;
 pvinstalled_cost=(pvinstalled_firm+pv)*0.022;
 % $30M/year revenues / $10B = 0.003 units of K per year (not period)
-pvoffset_cost=0* min((pvinstalled_firm+pv)*0.003,y_energy_cost);
+pvoffset_cost=min((pvinstalled_firm+pv)*0.003,y_energy_cost);
 
 % If Y is $110B, then Ek=96 TWh and ek=$110B/96TWh=$1146 Y/MWh
 % 53 TWh to be electrified (43 TWh already renewable); need 35,333 MW generation
@@ -38,16 +38,16 @@ pvoffset_cost=0* min((pvinstalled_firm+pv)*0.003,y_energy_cost);
 % We use a magic number to get cost of carbon tax to be $1.6B @ $42/ton,
 % which is 16% of a "unit of K", thus 0.16
 if y_energy_cost==0
-    y_carbon_tax=0;
+    y_carbon_cost=0;
 else
-    y_carbon_tax=76.4e6*0.51*carbon_tax*energy_pct_brown*(1-pvoffset_cost/y_energy_cost)/7e9;
+    y_carbon_cost=Electrify_4FirmCarbonCosts(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,Ek,ek,energy_pct_brown,carbon_tax);
 end
 
 % Investment
 invest=kprime-(1-delta)*k;
 
 % Profit
-profit=y-w*l-pvnew_cost-pv_delta*pvinstalled_cost-y_energy_cost+pvoffset_cost-y_carbon_tax;
+profit=y-w*l-pvnew_cost-pv_delta*pvinstalled_cost-y_energy_cost+pvoffset_cost-y_carbon_cost;
 
 % Capital-adjustment costs (k>0 always)
 if invest>=0

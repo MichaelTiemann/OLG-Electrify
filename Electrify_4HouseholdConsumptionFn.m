@@ -2,7 +2,7 @@ function c_pp=Electrify_4HouseholdConsumptionFn( ...
     labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e, ...
     pension,AccidentBeqS,AccidentBeqAH,w,P0,D, ...
     kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
-    ypp,agej,Jr,r,r_wedge,f_htc,rentprice,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax)
+    ypp,agej,Jr,r,r_wedge,f_htc,rentprice,energy_cpi,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax)
 
 % Implement depreciation model:
 %   Car services A(t) = (1-delta_a)*A(t-1) + I(a,t)
@@ -22,8 +22,6 @@ else
 end
 htc=0; % house transaction cost
 pvinstallcost=0;
-% A Tally of energy costs, which will be deducted at the end
-energy_cost_pp=0;
 
 % Houses start at 4x annual wage
 hcost=4*h*w;
@@ -67,7 +65,7 @@ else
             carcost=0.75*w; % Buying from scratch; pay full price (50% of w)
         end
     elseif car<cprime
-        carcost=0.6*w; % Minescule trade-in value of petrol car
+        carcost=0.6*w; % Minuscule trade-in value of petrol car
     else
         carcost=-0.05*w; % Get some money back from the trade
     end
@@ -75,7 +73,6 @@ else
     carcost_pp=carcost+0.02*w*ypp;
 end
 
-P=P0;
 if sprime>=s
     cg=0; % We are holding or buying, so no capital gains
 else
@@ -103,7 +100,7 @@ else % Retirement
 end
 
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + net housing assets
-c_pp=c_pp+((1-tau_d)*D*ypp+P)*(s+AccidentBeqS)+AccidentBeqAH+(hcost-hprimecost);
+c_pp=c_pp+((1-tau_d)*D*ypp+P0)*(s+AccidentBeqS)+AccidentBeqAH+(hcost-hprimecost);
 if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
     % Subtract loan interest by adding diminishing assets
     c_pp=c_pp+(1+r+r_wedge)^ypp*a;
@@ -112,36 +109,21 @@ else
     c_pp=c_pp+(1+r)^ypp*a;
 end
 % ...subtract capital gains, next period share, asset holdings
-c_pp=c_pp-cg-P*sprime-aprime;
+c_pp=c_pp-cg-P0*sprime-aprime;
 % ...subtract housing-related costs: transaction costs, rental or home maintenance costs, pv installation
 c_pp=c_pp-htc-rentalcosts_pp-hcost*0.01*ypp-pvinstallcost;
 
 % ...subtract car costs (purchase, sale, and/or maintenance)
 if carcost_pp~=0
     c_pp=c_pp-carcost_pp;
-    % Energy costs...
-    if car==1
-        energy_cost_pp=energy_cost_pp+0.02*w*ypp;
-    else
-        if solarpv>0.5
-            solarpv=solarpv-0.5;
-        else
-            energy_cost_pp=energy_cost_pp+0.02*w*ypp;
-        end
-    end
 else
     % Public transportation cost...
     c_pp=c_pp-0.1*w*ypp;
 end
 
-if car~=2
-    % car batteries make solarpv more effective...
-    solarpv=solarpv/2;
-end
-
 % Add energy cost of housing, less PV generation: 30kW (2 solar units) meets h==1 energy needs
-energy_cost_pp=energy_cost_pp+(1+cpi_energy)*energy_pct_cost*(max(h^1.5,1)-solarpv/2)*ypp;
-carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax/3500;
+energy_cost_pp=Electrify_4HouseholdEnergyCosts(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e,w,ypp,energy_cpi,energy_pct_cost);
+carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax*ypp/200;
 
 c_pp=c_pp-energy_cost_pp-carbon_tax_pp;
 

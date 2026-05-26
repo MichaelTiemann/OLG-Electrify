@@ -1,4 +1,4 @@
-function y_energy_cost_pp=Electrify_4FirmEnergyCosts( ...
+function y_energy_cost=Electrify_4FirmEnergyCosts( ...
     pvnew,kprime,k,pv,z, ...
     w, ...
     ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,Ek,ek,carbon_tax)
@@ -10,9 +10,9 @@ l=(w/(alpha_l*z*(k^alpha_k)))^(1/(alpha_l-1)); % This is just w=Marg. Prod. Labo
 
 % Output.  See https://profstevekeen.substack.com/p/the-role-of-energy-in-economics
 % We could use (Ek*ek)^alpha_k or (Ek*ek) as part of the TFP multiplier
-y_pp=(Ek*ek)*z*(k^alpha_k)*(l^alpha_l)*ypp;
+y=(Ek*ek)*z*(k^alpha_k)*(l^alpha_l);
 
-y_energy_cost_pp=0.131*y_pp/ek; % Assume energy cost is 13.1% of firm production
+y_energy_cost=0.131*y/ek; % Assume energy cost is 13.1% of firm production
 
 
 end

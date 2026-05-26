@@ -27,7 +27,7 @@ pv_cost_offset=min(pv*0.003,y_energy_cost);
 % Energy sector emitted 76.4 Mt CO2e; 49/51 HH/firm split; cost of carbon = NZD $42-$2450 / tCO2e
 % We use a magic number to get cost of carbon tax to be $1.6B @ $42/ton,
 % which is 16% of a "unit of K", thus 0.16
-y_carbon_tax=76.4e6*0.51*carbon_tax*energy_pct_brown*(1-pv_cost_offset/y_energy_cost)/7e9;
+y_carbon_tax=Electrify_4FirmCarbonCosts(pvnew,kprime,k,pv,z,w,ypp,pvinstalled_firm,pvmax_firm,delta,pv_delta,alpha_k,alpha_l,Ek,ek,energy_pct_brown,carbon_tax);
 
 % Profit; use 20 year capitalization for pv acquisition
 profit=y-w*l-new_pv_cost/20-y_energy_cost+pv_cost_offset-y_carbon_tax;
