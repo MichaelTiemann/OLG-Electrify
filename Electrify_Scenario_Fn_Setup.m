@@ -117,7 +117,9 @@ FnsToEvaluate2_3.BadDebt.household=@(labor,buyhouse,saprime,hprime,sa,h,solarpv,
     min(0,(logical(saprime<1)*saprime+logical(saprime>1)*rem(saprime,1)+(1+cpi)*hprime)*(1-sj));
 FnsToEvaluate2_4=FnsToEvaluate_4;
 FnsToEvaluate2_4.earnings.household=@(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e,w,kappa_j,Lhscale) w*kappa_j*labor*exp(z+e)*Lhscale; % w*kappa_j is the labor earnings
-FnsToEvaluate2_4.Car.household=@(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) car; % Aggregate house holdings
+FnsToEvaluate2_4.Car_none.household=@(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) car==0; % Aggregate house holdings
+FnsToEvaluate2_4.Car_petrol.household=@(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) car==1; % Aggregate house holdings
+FnsToEvaluate2_4.Car_ev.household=@(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) car==2; % Aggregate house holdings
 FnsToEvaluate2_4.A.household=@(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) logical(sa<1)*sa+logical(sa>1)*rem(sa,1); % Aggregate asset/mortgage holdings
 FnsToEvaluate2_4.H.household=@(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) h; % Aggregate house holdings
 FnsToEvaluate2_4.PV_h.household=@(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) solarpv; % Aggregate solarpv holdings

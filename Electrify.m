@@ -8,7 +8,7 @@
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
 
-solve_setup=true;
+solve_setup=false;
 solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=false; % n_z=1; n_e=0
@@ -31,10 +31,10 @@ Params.scenario=4;
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolution).
 % Discounting parameters (beta and sj) defined in terms of ypp
-Params.ypp=5; % model period, in years (just used this to modify some parameters from annual to model period)
+Params.ypp=2; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
-max_age=100;
+max_age=80;
 agejshifter=19; % Age 20 minus one. Makes keeping track of actual age easy in terms of model age
 
 %% Global parameters (applies to household and firm)
@@ -543,7 +543,104 @@ if mod(solve_GE,2)==1
     
     % Just to see it...
     GEcondns_init
-    
+
+
+    %% Plot the life cycle profiles of capital and labour for the initial eqm.
+    % Can just use the same FnsToEvaluate as before
+    AgeConditionalStats_init=LifeCycleProfiles_MixHorz_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+
+    figure_c=figure(10);
+    if Params.scenario==4
+        rows=4;
+    else
+        rows=3;
+    end
+    if Params.scenario<3
+        subplot(rows,1,1); plot(1:1:Params.J,AgeConditionalStats_init.L_h.Mean)
+        title('Life Cycle Profile: Effective Labour Supply')
+        subplot(rows,1,2); plot(1:1:Params.J,AgeConditionalStats_init.S.Mean)
+        title('Life Cycle Profile: Share holdings')
+        subplot(rows,1,3); plot(1:1:Params.J,Params.kappa_j)
+        title('Life Cycle Profile: kappa_j')
+    else
+        subplot(rows,2,1); plot(1:1:Params.J,AgeConditionalStats_init.L_h.Mean)
+        title('Life Cycle Profile: Effective Labour Supply')
+        subplot(rows,2,3); plot(1:1:Params.J,AgeConditionalStats_init.S.Mean)
+        title('Life Cycle Profile: Share holdings')
+        subplot(rows,2,5); plot(1:1:Params.J,Params.kappa_j)
+        title('Life Cycle Profile: kappa_j')
+    end
+    if Params.scenario>2
+        subplot(rows,2,2); plot(1:1:Params.J,AgeConditionalStats_init.A.Mean)
+        title('Life Cycle Profile: Asset holdings')
+        subplot(rows,2,4); plot(1:1:Params.J,AgeConditionalStats_init.H.Mean)
+        title('Life Cycle Profile: House holdings')
+        subplot(rows,2,6); plot(1:1:Params.J,AgeConditionalStats_init.PV_h.Mean)
+        title('Life Cycle Profile: Solar PV installed')
+    end
+    if Params.scenario>3
+        subplot(4,2,7); plot(1:1:Params.J,Params.carservices_j)
+        title('Life Cycle Profile: carservices_j')
+        subplot(4,2,8); plot(1:1:Params.J,AgeConditionalStats_init.Car_none.Mean)
+        title('Life Cycle Profile: Car (blue=none,red=petrol,yellow=ev)')
+        hold on
+        plot(1:1:Params.J,AgeConditionalStats_init.Car_petrol.Mean)
+        plot(1:1:Params.J,AgeConditionalStats_init.Car_ev.Mean)
+        hold off
+    end
+
+    saveas(figure_c,'./SavedOutput/Graphs/Electrify_LifeCycleProfiles_init','pdf')
+
+    if max(AgeConditionalStats_init.S.Maximum)==share_asset_grid(end)
+        warning("share_grid maximum reached")
+    end
+    if Params.scenario>2
+        if max(AgeConditionalStats_init.H.Maximum)==house_grid(end)
+            warning("house_grid maximum reached")
+        end
+        if max(AgeConditionalStats_init.PV_h.Maximum)==pv_grid_hh(end)
+            warning("pv_grid_hh maximum reached")
+        end
+    end
+
+    %% Calculate some aggregates and print findings about them
+
+    AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate3, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
+
+    Y=AggVars.Output_f.Mean;
+
+    P=((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D)/(1+Params.r-Params.tau_cg);
+
+    G=Params.tau_d*Params.D+AggVars.CapitalGainsTaxRevenue.household.Mean+AggVars.CorpTaxRevenue.firm.Mean; % If G influenced any GEqm equations, we'd need it to equilibrate with them
+
+    % Calculate the aggregate TFP as output/((capital^alpha_k)*(labor^alpha_l))
+    AggregateTFP=Y/((AggVars.K.Mean^Params.alpha_k)*(AggVars.L_f.Mean^Params.alpha_l));
+
+    % Total value of firms
+    temp=V_init.firm.*StationaryDist_init.firm;
+    temp(StationaryDist_init.firm==0)=0; % Get rid of points that have V=-inf but zero mass which would give nan
+    TotalValueOfFirms=sum(temp(isfinite(temp)));
+
+    fileID = fopen('SavedOutput\aggs_init.txt','w');
+    fprintf(fileID,'Following are some aggregates of the model economy (Scenario %d): \n', Params.scenario);
+    fprintf(fileID,'Output: Y=%8.2f \n',AggVars.Output_f.Mean);
+    fprintf(fileID,'Aggregate TFP: Y=%8.2f \n',AggregateTFP);
+    fprintf(fileID,'Capital-Output ratio (firm side): K/Y=%8.2f \n',AggVars.K.Mean/Y);
+    if Params.scenario<3
+        fprintf(fileID,'Total share value (HH side): P*S (%.2f) = %8.2f\n',P*AggVars.S.Mean,P*AggVars.S.Mean);
+    else
+        fprintf(fileID,'Total share+asset value (HH side): P*S (%.2f) + A (%.2f) = %8.2f\n',P*AggVars.S.Mean,AggVars.A.Mean,P*AggVars.S.Mean+AggVars.A.Mean);
+        fprintf(fileID,'Total house value (HH side): H=%8.2f \n',AggVars.H.Mean);
+        fprintf(fileID,'Total bad debt (HH side): P*S=%8.2f \n',AggVars.BadDebt.Mean);
+    end
+    fprintf(fileID,'Total firm value (firm side): Value of firm=%8.2f \n',TotalValueOfFirms);
+    fprintf(fileID,'Consumption-Output ratio: C/Y=%8.2f \n',AggVars.Consumption.Mean/(Y*Params.ypp));
+    fprintf(fileID,'Government-to-Output ratio: G/Y=%8.2f \n', G/Y);
+    fprintf(fileID,'Wage: w=%8.2f \n',Params.w);
+    fclose(fileID);
+
+    type 'SavedOutput\aggs_init.txt'
+
     %%
     solve_GE_temp=solve_GE; clear solve_GE
     solve_TPath_temp=solve_TPath; clear solve_TPath
@@ -602,7 +699,7 @@ ParamPath.cpi=ParamPath.cpi(1:T); % CPI on a per transition period basis
 Params.cpi=ParamPath.cpi(1);
 
 % Steady increase of fossil costs above "normal" cpi inflation
-ParamPath.cpi_energy=1.001.^((0:Params.J-1)*Params.ypp)-1; % Params.J periods of energy cost increases
+ParamPath.cpi_energy=1.01.^((0:Params.J-1)*Params.ypp)-1; % Params.J periods of energy cost increases
 % Translate energy periods (j) into transition periods
 ParamPath.cpi_energy(end+1:T*jpT)=ParamPath.cpi_energy(end); % Energy cost increases extended to the jth period implied by final T
 ParamPath.cpi_energy=ParamPath.cpi_energy(1:T); % Energy cost increases on a per transition period basis
@@ -745,6 +842,99 @@ if solve_GE>=2
     % transition path, because if it is not then it won't solve
     GEcondns_final
 
+    %% Plot the life cycle profiles of capital and labour for the final eqm.
+    AgeConditionalStats_final=LifeCycleProfiles_MixHorz_PType(StationaryDist_final,Policy_final,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+
+    figure_d=figure(11);
+    if Params.scenario==4
+        rows=4;
+    else
+        rows=3;
+    end
+    if Params.scenario<3
+        subplot(rows,1,1); plot(1:1:Params.J,AgeConditionalStats_final.L_h.Mean)
+        title('Life Cycle Profile: Effective Labour Supply')
+        subplot(rows,1,2); plot(1:1:Params.J,AgeConditionalStats_final.S.Mean)
+        title('Life Cycle Profile: Share holdings')
+        subplot(rows,1,3); plot(1:1:Params.J,Params.kappa_j)
+        title('Life Cycle Profile: kappa_j')
+    else
+        subplot(rows,2,1); plot(1:1:Params.J,AgeConditionalStats_final.L_h.Mean)
+        title('Life Cycle Profile: Effective Labour Supply')
+        subplot(rows,2,3); plot(1:1:Params.J,AgeConditionalStats_final.S.Mean)
+        title('Life Cycle Profile: Share holdings')
+        subplot(rows,2,5); plot(1:1:Params.J,Params.kappa_j)
+        title('Life Cycle Profile: kappa_j')
+    end
+    if Params.scenario>2
+        subplot(rows,2,2); plot(1:1:Params.J,AgeConditionalStats_final.A.Mean)
+        title('Life Cycle Profile: Asset holdings')
+        subplot(rows,2,4); plot(1:1:Params.J,AgeConditionalStats_final.H.Mean)
+        title('Life Cycle Profile: House holdings')
+        subplot(rows,2,6); plot(1:1:Params.J,AgeConditionalStats_final.PV_h.Mean)
+        title('Life Cycle Profile: Solar PV installed')
+    end
+    if Params.scenario>3
+        subplot(4,2,7); plot(1:1:Params.J,Params.carservices_j)
+        title('Life Cycle Profile: carservices_j')
+        subplot(4,2,8); plot(1:1:Params.J,AgeConditionalStats_final.Car_none.Mean)
+        title('Life Cycle Profile: Car (blue=none,red=petrol,yellow=ev)')
+        hold on
+        plot(1:1:Params.J,AgeConditionalStats_final.Car_petrol.Mean)
+        plot(1:1:Params.J,AgeConditionalStats_final.Car_ev.Mean)
+        hold off
+    end
+    saveas(figure_d,'./SavedOutput/Graphs/Electrify_LifeCycleProfiles_final','pdf')
+
+    if max(AgeConditionalStats_final.S.Maximum)==share_asset_grid(end)
+        warning("share_grid maximum reached")
+    end
+    if Params.scenario>2
+        if max(AgeConditionalStats_final.H.Maximum)==house_grid(end)
+            warning("house_grid maximum reached")
+        end
+        if max(AgeConditionalStats_final.PV_h.Maximum)==pv_grid_hh(end)
+            warning("pv_grid_hh maximum reached")
+        end
+    end
+
+    %% Calculate some aggregates and print findings about them
+
+    AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate3, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
+
+    Y=AggVars.Output_f.Mean;
+
+    P=((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D)/(1+Params.r-Params.tau_cg);
+
+    G=Params.tau_d*Params.D+AggVars.CapitalGainsTaxRevenue.household.Mean+AggVars.CorpTaxRevenue.firm.Mean; % If G influenced any GEqm equations, we'd need it to equilibrate with them
+
+    % Calculate the aggregate TFP as output/((capital^alpha_k)*(labor^alpha_l))
+    AggregateTFP=Y/((AggVars.K.Mean^Params.alpha_k)*(AggVars.L_f.Mean^Params.alpha_l));
+
+    % Total value of firms
+    temp=V_init.firm.*StationaryDist_init.firm;
+    temp(StationaryDist_init.firm==0)=0; % Get rid of points that have V=-inf but zero mass which would give nan
+    TotalValueOfFirms=sum(temp(isfinite(temp)));
+
+    fileID = fopen('SavedOutput\aggs_final.txt','w');
+    fprintf(fileID,'Following are some aggregates of the model economy (Scenario %d): \n', Params.scenario);
+    fprintf(fileID,'Output: Y=%8.2f \n',AggVars.Output_f.Mean);
+    fprintf(fileID,'Aggregate TFP: Y=%8.2f \n',AggregateTFP);
+    fprintf(fileID,'Capital-Output ratio (firm side): K/Y=%8.2f \n',AggVars.K.Mean/Y);
+    if Params.scenario<3
+        fprintf(fileID,'Total share value (HH side): P*S (%.2f) = %8.2f\n',P*AggVars.S.Mean,P*AggVars.S.Mean);
+    else
+        fprintf(fileID,'Total share+asset value (HH side): P*S (%.2f) + A (%.2f) = %8.2f\n',P*AggVars.S.Mean,AggVars.A.Mean,P*AggVars.S.Mean+AggVars.A.Mean);
+        fprintf(fileID,'Total house value (HH side): H=%8.2f \n',AggVars.H.Mean);
+        fprintf(fileID,'Total bad debt (HH side): P*S=%8.2f \n',AggVars.BadDebt.Mean);
+    end
+    fprintf(fileID,'Total firm value (firm side): Value of firm=%8.2f \n',TotalValueOfFirms);
+    fprintf(fileID,'Consumption-Output ratio: C/Y=%8.2f \n',AggVars.Consumption.Mean/(Y*Params.ypp));
+    fprintf(fileID,'Government-to-Output ratio: G/Y=%8.2f \n', G/Y);
+    fprintf(fileID,'Wage: w=%8.2f \n',Params.w);
+    fclose(fileID);
+
+    type 'SavedOutput\aggs_final.txt'
     %%
     solve_TPath_temp=solve_TPath; clear solve_TPath
     save tpathElectrifyB.mat
@@ -888,111 +1078,30 @@ else
 end % solve_TPath
 clear solve_TPath_temp
 
-    %% Now calculate some things about the transition path (path for Value fn, Policy fn, Agent Distribution)
-    % You can calculate the value and policy functions for the transition path
-    [VPath,PolicyPath]=ValueFnOnTransPath_MixHorz_PType(PricePath, ParamPath0, T_end, V_final, Policy_final, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
-    
-    % You can then use these to calculate the agent distribution for the transition path
-    AgentDistPath=AgentDistOnTransPath_MixHorz_PType(StationaryDist_init, jequaloneDist, PricePath, ParamPath0, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z,T_end, Params, transpathoptions, simoptions);
-    
-    %% Analyse the transition path
-    % And then we can calculate AggVars for the path
-    AggVarsPath=EvalFnOnTransPath_AggVars_MixHorz_PType(FnsToEvaluate, AgentDistPath,PolicyPath, PricePath, ParamPath0, Params, T_end, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, transpathoptions, simoptions);
-    
-    %% Plot some paths
-    figure(1)
-    % Plot of K and w
-    % Note: include periods -3 to 0 (the initial stationary eqm) so can see any jump in period 1
-    subplot(2,1,1); plot(1:1:T_end,AggVarsPath.K.Mean)
-    hold on
-    plot(-3:1:0,AllStats_init.K.Mean*ones(1,4),'w')
-    hold off
-    xlim([-3,T_end])
-    title('Path of aggregate capital (K)')
-    subplot(2,1,2); plot(1:1:T_end,PricePath.w)
-    hold on
-    plot(-3:1:0,p_eqm_init.w*ones(1,4),'w')
-    hold off
-    xlim([-3,T_end])
-    title('Path of wage rate (w)')
+%% Now calculate some things about the transition path (path for Value fn, Policy fn, Agent Distribution)
+% You can calculate the value and policy functions for the transition path
+[VPath,PolicyPath]=ValueFnOnTransPath_MixHorz_PType(PricePath, ParamPath0, T_end, V_final, Policy_final, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, pi_z, DiscountFactorParamNames, ReturnFn, transpathoptions, vfoptions);
 
-% Can just use the same FnsToEvaluate as before
-AgeConditionalStats=LifeCycleProfiles_MixHorz_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+% You can then use these to calculate the agent distribution for the transition path
+AgentDistPath=AgentDistOnTransPath_MixHorz_PType(StationaryDist_init, jequaloneDist, PricePath, ParamPath0, PolicyPath, AgeWeightsParamNames,n_d,n_a,n_z,N_j,Names_i,pi_z,T_end, Params, transpathoptions, simoptions);
 
-if max(AgeConditionalStats.S.Maximum)==share_asset_grid(end)
-    warning("share_grid maximum reached")
-end
-if Params.scenario>2
-    if max(AgeConditionalStats.H.Maximum)==house_grid(end)
-        warning("house_grid maximum reached")
-    end
-    if max(AgeConditionalStats.PV_h.Maximum)==pv_grid_hh(end)
-        warning("pv_grid_hh maximum reached")
-    end
-end
+%% Analyse the transition path
+% And then we can calculate AggVars for the path
+AggVarsPath=EvalFnOnTransPath_AggVars_MixHorz_PType(FnsToEvaluate, AgentDistPath,PolicyPath, PricePath, ParamPath0, Params, T_end, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid,z_grid, transpathoptions, simoptions);
 
-%% Plot the life cycle profiles of capital and labour for the initial and final eqm.
-
-figure_c=figure(10);
-if Params.scenario<3
-    subplot(3,1,1); plot(1:1:Params.J,AgeConditionalStats.L_h.Mean)
-    title('Life Cycle Profile: Effective Labour Supply')
-    subplot(3,1,2); plot(1:1:Params.J,AgeConditionalStats.S.Mean)
-    title('Life Cycle Profile: Share holdings')
-    subplot(3,1,3); plot(1:1:Params.J,Params.kappa_j)
-    title('Life Cycle Profile: kappa_j')
-else
-    subplot(3,2,1); plot(1:1:Params.J,AgeConditionalStats.L_h.Mean)
-    title('Life Cycle Profile: Effective Labour Supply')
-    subplot(3,2,3); plot(1:1:Params.J,AgeConditionalStats.S.Mean)
-    title('Life Cycle Profile: Share holdings')
-    subplot(3,2,5); plot(1:1:Params.J,Params.kappa_j)
-    title('Life Cycle Profile: kappa_j')
-end
-if Params.scenario>2
-    subplot(3,2,2); plot(1:1:Params.J,AgeConditionalStats.A.Mean)
-    title('Life Cycle Profile: Asset holdings')
-    subplot(3,2,4); plot(1:1:Params.J,AgeConditionalStats.H.Mean)
-    title('Life Cycle Profile: House holdings')
-    subplot(3,2,6); plot(1:1:Params.J,AgeConditionalStats.PV_h.Mean)
-    title('Life Cycle Profile: Solar PV installed')
-end
-saveas(figure_c,'./SavedOutput/Graphs/Electrify_LifeCycleProfiles','pdf')
-
-%% Calculate some aggregates and print findings about them
-
-AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_init, Policy_init, FnsToEvaluate3, Params, n_d, n_a, n_z,N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
-
-Y=AggVars.Output_f.Mean;
-
-P=((1-Params.tau_cg)*Params.P0 + (1-Params.tau_d)*Params.D)/(1+Params.r-Params.tau_cg);
-
-G=Params.tau_d*Params.D+AggVars.CapitalGainsTaxRevenue.household.Mean+AggVars.CorpTaxRevenue.firm.Mean; % If G influenced any GEqm equations, we'd need it to equilibrate with them
-
-% Calculate the aggregate TFP as output/((capital^alpha_k)*(labor^alpha_l))
-AggregateTFP=Y/((AggVars.K.Mean^Params.alpha_k)*(AggVars.L_f.Mean^Params.alpha_l));
-
-% Total value of firms
-temp=V_init.firm.*StationaryDist_init.firm;
-temp(StationaryDist_init.firm==0)=0; % Get rid of points that have V=-inf but zero mass which would give nan
-TotalValueOfFirms=sum(temp(isfinite(temp)));
-
-fileID = fopen('SavedOutput\aggs.txt','w');
-fprintf(fileID,'Following are some aggregates of the model economy (Scenario %d): \n', Params.scenario);
-fprintf(fileID,'Output: Y=%8.2f \n',AggVars.Output_f.Mean);
-fprintf(fileID,'Aggregate TFP: Y=%8.2f \n',AggregateTFP);
-fprintf(fileID,'Capital-Output ratio (firm side): K/Y=%8.2f \n',AggVars.K.Mean/Y);
-if Params.scenario<3
-    fprintf(fileID,'Total share value (HH side): P*S (%.2f) = %8.2f\n',P*AggVars.S.Mean,P*AggVars.S.Mean);
-else
-    fprintf(fileID,'Total share+asset value (HH side): P*S (%.2f) + A (%.2f) = %8.2f\n',P*AggVars.S.Mean,AggVars.A.Mean,P*AggVars.S.Mean+AggVars.A.Mean);
-    fprintf(fileID,'Total house value (HH side): H=%8.2f \n',AggVars.H.Mean);
-    fprintf(fileID,'Total bad debt (HH side): P*S=%8.2f \n',AggVars.BadDebt.Mean);
-end
-fprintf(fileID,'Total firm value (firm side): Value of firm=%8.2f \n',TotalValueOfFirms);
-fprintf(fileID,'Consumption-Output ratio: C/Y=%8.2f \n',AggVars.Consumption.Mean/(Y*Params.ypp));
-fprintf(fileID,'Government-to-Output ratio: G/Y=%8.2f \n', G/Y);
-fprintf(fileID,'Wage: w=%8.2f \n',Params.w);
-fclose(fileID);
-
-type 'SavedOutput\aggs.txt'
+%% Plot some paths
+figure(1)
+% Plot of K and w
+% Note: include periods -3 to 0 (the initial stationary eqm) so can see any jump in period 1
+subplot(2,1,1); plot(1:1:T_end,AggVarsPath.K.Mean)
+hold on
+plot(-3:1:0,AllStats_init.K.Mean*ones(1,4),'w')
+hold off
+xlim([-3,T_end])
+title('Path of aggregate capital (K)')
+subplot(2,1,2); plot(1:1:T_end,PricePath.w)
+hold on
+plot(-3:1:0,p_eqm_init.w*ones(1,4),'w')
+hold off
+xlim([-3,T_end])
+title('Path of wage rate (w)')

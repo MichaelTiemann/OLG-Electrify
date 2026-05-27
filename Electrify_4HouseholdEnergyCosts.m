@@ -3,24 +3,17 @@ function energy_cost_pp=Electrify_4HouseholdEnergyCosts( ...
     w, ...
     ypp,energy_cpi,energy_pct_cost ...
     )
-% Implement depreciation model:
-%   Car services A(t) = (1-delta_a)*A(t-1) + I(a,t)
-%   Housing services H(t) = (1-delta_h)*H(t-1) + I(h,t)
-%   delta_a is high depreciation; delta_h is low depreciation
-
-% Note: experienceasset, so first inputs are (d,a,z,e,...)
-% vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
 energy_cost_pp=0;
 
 % Car energy costs...
 if car==1
-    energy_cost_pp=energy_cost_pp+0.041*w*ypp;
+    energy_cost_pp=0.04*w*(1+energy_cpi)*ypp;
 elseif car==2
     if solarpv>0.5
         solarpv=solarpv-0.5;
     else
-        energy_cost_pp=energy_cost_pp+0.02*w*ypp;
+        energy_cost_pp=0.02*w*(1+energy_cpi)^0.5*ypp;
     end
 end
 

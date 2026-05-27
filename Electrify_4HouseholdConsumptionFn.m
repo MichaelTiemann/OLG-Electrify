@@ -52,22 +52,22 @@ if cprime==0
     if car~=0
         carcost_pp=carcost+0.02*w*ypp;
         if car==1 % Selling a car: get back <= 1/2 of what was paid for it
-            carcost=-0.15*w;
+            carcost=-0.2*w;
         elseif car==2
-            carcost=-0.37*w;
+            carcost=-0.4*w;
         end
     end
 else
     if car==0
         if cprime==1
-            carcost=0.3*w; % Buying from scratch; cheap petrol car
+            carcost=0.4*w; % Buying from scratch; cheap petrol car
         else
-            carcost=0.75*w; % Buying from scratch; pay full price (50% of w)
+            carcost=0.8*w; % Buying from scratch; pay full price (50% of w)
         end
     elseif car<cprime
-        carcost=0.6*w; % Minuscule trade-in value of petrol car
+        carcost=0.5*w; % Minuscule trade-in value of petrol car
     else
-        carcost=-0.05*w; % Get some money back from the trade
+        carcost=0.0*w; % Minimal extra cost to move backwards
     end
     % annual insurance, maintenance, WOF, etc.
     carcost_pp=carcost+0.02*w*ypp;
