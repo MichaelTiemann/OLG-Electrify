@@ -8,7 +8,7 @@
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
 
-solve_setup=false;
+solve_setup=true;
 solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=false; % n_z=1; n_e=0
@@ -31,7 +31,7 @@ Params.scenario=4;
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolution).
 % Discounting parameters (beta and sj) defined in terms of ypp
-Params.ypp=2; % model period, in years (just used this to modify some parameters from annual to model period)
+Params.ypp=1; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
 max_age=80;
