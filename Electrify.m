@@ -8,8 +8,8 @@
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
 
-solve_setup=false;
-solve_GE=2; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
+solve_setup=true;
+solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=false; % n_z=1; n_e=0
 small_model=true; % Minimal vs. maximal grid sizes
@@ -277,22 +277,22 @@ GeneralEqmEqns.CapitalOutputRatio=@(K,L_f,TargetKdivL) (K/L_f-TargetKdivL)/100; 
 
 Params_Lhscale=Params;
 Params_Lhscale.Lhscale=1;
-[V_Lhscale, Policy_Lhscale]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,{'firm','household'},d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_Lhscale, DiscountFactorParamNames, vfoptions);
-PTypeDistParamNames_Lhscale={'ptypemass_temp'};
-Params_Lhscale.ptypemass_temp=[1,1];
-StationaryDist_Lhscale=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames_Lhscale, Policy_Lhscale,n_d,n_a,n_z,N_j,{'firm','household'},pi_z,Params_Lhscale,simoptions);
+[V_Lhscale, Policy_Lhscale]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_Lhscale, DiscountFactorParamNames, vfoptions);
+StationaryDist_Lhscale=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames, Policy_Lhscale,n_d,n_a,n_z,N_j,Names_i,pi_z,Params_Lhscale,simoptions);
 
 %% Test
 % Note: Because we used simoptions we must include this as an input
 FnsToEvaluate_final.L_h=FnsToEvaluate.L_h;
 FnsToEvaluate_final.L_f=FnsToEvaluate.L_f;
-AggVars_final=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_Lhscale,Policy_Lhscale, FnsToEvaluate_final, Params_Lhscale, n_d, n_a, n_z,N_j,{'firm','household'},d_grid, a_grid, z_grid,simoptions);
+AggVars_final=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_Lhscale,Policy_Lhscale, FnsToEvaluate_final, Params_Lhscale, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
 Params.Lhscale=Params_Lhscale.Lhscale*AggVars_final.L_f.Mean/AggVars_final.L_h.Mean;
 fprintf("Setting Lhscale to %.2f (with Lhscale==%.2f, L_h was %.2f, L_f was %.2f) \n", Params.Lhscale, Params_Lhscale.Lhscale, AggVars_final.L_h.Mean, AggVars_final.L_f.Mean);
+clear FnsToEvaluate_final
+FnsToEvaluate_final.S=FnsToEvaluate.S;
+FnsToEvaluate_final.D=FnsToEvaluate.D;
+[Params.P0,Params.D,V_init,Policy_init,StationaryDist_init]=Calibrate_P0(Params,AgeWeightsParamNames,PTypeDistParamNames,DiscountFactorParamNames,FnsToEvaluate_final,ReturnFn,Policy_Lhscale,jequaloneDist,StationaryDist_Lhscale,n_d, n_a, n_z,N_j,{'household'},Names_i,d_grid,a_grid,z_grid,pi_z,vfoptions,simoptions);
 
-[Params.P0,V_init,Policy_init,StationaryDist_init]=Calibrate_P0(Params,AgeWeightsParamNames,DiscountFactorParamNames,FnsToEvaluate.S,ReturnFn,Policy_Lhscale,jequaloneDist,StationaryDist_Lhscale,n_d, n_a, n_z,N_j,{'household'},Names_i,d_grid,a_grid,z_grid,pi_z,vfoptions,simoptions);
-
-clear Params_Lhscale V_Lhscale Policy_Lhscale PTypeDistParamNames_Lhscale StationaryDist_Lhscale FnsToEvaluate_final AggVars_final
+clear Params_Lhscale V_Lhscale Policy_Lhscale StationaryDist_Lhscale FnsToEvaluate_final AggVars_final
 
 %% Now solve the whole value function iteration problem with Lhscale set, just to check that things are working before we go to General Equilbrium
 % disp('Test ValueFnIter')
@@ -780,7 +780,9 @@ if solve_GE>=2
     FnsToEvaluate_final.L_h=FnsToEvaluate.L_h;
     FnsToEvaluate_final.S=FnsToEvaluate.S;
     FnsToEvaluate_final.L_f=FnsToEvaluate.L_f;
+    FnsToEvaluate_final.D=FnsToEvaluate.D;
     AggVars_final=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_final,Policy_final, FnsToEvaluate_final, Params, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
+    Params.D=AggVars_final.D.firm.Mean;
     Lhscale_final_ratio=AggVars_final.L_f.Mean/AggVars_final.L_h.Mean;
     while abs(Lhscale_final_ratio-1)>0.1
         % Make these asymmetric in size so they don't oscillate too much
@@ -803,18 +805,14 @@ if solve_GE>=2
         [V_final, Policy_final]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
         StationaryDist_final=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_final,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
         AggVars_final=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_final,Policy_final, FnsToEvaluate_final, Params, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
+        Params.D=AggVars_final.D.firm.Mean;
         Lhscale_final_ratio=AggVars_final.L_f.Mean/AggVars_final.L_h.Mean;
     end
-    fprintf("Setting w to %.2f \n", Params.w);
+    fprintf("Setting w to %.2f, P0 to %.2f, D to %.2f \n", Params.w, Params.P0, Params.D);
     % Re-calculate P0 as we have changed some important parameters...
+    FnsToEvaluate_final=rmfield(FnsToEvaluate_final,{'L_h','L_f'});
     Plag=Params.P0;
-    [Params.P0,V_final,Policy_final,StationaryDist_final]=Calibrate_P0(Params,AgeWeightsParamNames,DiscountFactorParamNames,FnsToEvaluate.S,ReturnFn,Policy_final,jequaloneDist,StationaryDist_final,n_d, n_a, n_z,N_j,{'household'},Names_i,d_grid,a_grid,z_grid,pi_z,vfoptions,simoptions);
-    if abs(Params.P0/Plag-1)>0.05
-        % And re-calculate V and Policy if P0 change is large
-        [V_final, Policy_final]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
-        StationaryDist_final=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_final,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
-        [Params.P0,V_final,Policy_final,StationaryDist_final]=Calibrate_P0(Params,AgeWeightsParamNames,DiscountFactorParamNames,FnsToEvaluate.S,ReturnFn,Policy_final,jequaloneDist,StationaryDist_final,n_d, n_a, n_z,N_j,{'household'},Names_i,d_grid,a_grid,z_grid,pi_z,vfoptions,simoptions);
-    end
+    [Params.P0,Params.D,V_final,Policy_final,StationaryDist_final]=Calibrate_P0(Params,AgeWeightsParamNames,PTypeDistParamNames,DiscountFactorParamNames,FnsToEvaluate_final,ReturnFn,Policy_final,jequaloneDist,StationaryDist_final,n_d, n_a, n_z,N_j,{'household'},Names_i,d_grid,a_grid,z_grid,pi_z,vfoptions,simoptions);
 
     % Calculate the life-cycle profiles
     AgeConditionalStats_final=LifeCycleProfiles_MixHorz_PType(StationaryDist_final,Policy_final,FnsToEvaluate2.S,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
@@ -837,12 +835,15 @@ if solve_GE>=2
     Params.S_agej_peak_last=S_agej_peak_last;
 
     disp('Test AggVars')
+    % [V_final, Policy_final]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i, d_grid, a_grid, z_grid, pi_z, ReturnFn, Params, DiscountFactorParamNames, vfoptions);
+    % StationaryDist_final=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames,Policy_final,n_d,n_a,n_z,N_j,Names_i,pi_z,Params,simoptions);
     AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z,N_j,Names_i, d_grid, a_grid, z_grid,simoptions);
+    Params.D=AggVars.D.firm.Mean;
 
     % Next few lines were used to try a few parameter values so as to get a
     % decent initial guess before actually solving the general equilibrium
-    fprintf('Check: L_h, L_f, K \n')
-    [AggVars.L_h.Mean,AggVars.L_f.Mean,AggVars.K.Mean]
+    fprintf('Check: L_h, L_f, K, D \n')
+    [AggVars.L_h.Mean,AggVars.L_f.Mean,AggVars.K.Mean,AggVars.D.Mean]
     fprintf('Check: K/L_f (should be about 2.03) \n')
     AggVars.K.Mean/AggVars.L_f.Mean
     if Params.scenario<3
@@ -1151,25 +1152,25 @@ xlim([-3,T_end])
 title('Path of wage rate (w)')
 
 
-function [P0,V,Policy,StationaryDist]=Calibrate_P0(Params_S,AgeWeightsParamNames,DiscountFactorParamNames,S_function,ReturnFn,Policy,jequaloneDist,StationaryDist,n_d,n_a,n_z,N_j,FHorz_names,Names_i,d_grid,a_grid,z_grid,pi_z,vfoptions,simoptions)
-Params_S.ptypemass_temp=[1];
-PTypeDistParamNames_S={'ptypemass_temp'};
-FnsToEvaluate_S.S=S_function;
-AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate_S, Params_S, n_d, n_a, n_z,N_j,FHorz_names,d_grid, a_grid, z_grid,simoptions);
+function [P0,D,V,Policy,StationaryDist]=Calibrate_P0(Params_S,AgeWeightsParamNames,PTypeDistParamNames,DiscountFactorParamNames,FnsToEvaluate,ReturnFn,Policy,jequaloneDist,StationaryDist,n_d,n_a,n_z,N_j,FHorz_names,Names_i,d_grid,a_grid,z_grid,pi_z,vfoptions,simoptions)
+AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate, Params_S, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
 S=sum_S_FHorz(AggVars.S, FHorz_names);
+D=AggVars.D.firm.Mean;
 while S>1.4
     Params_S.P0=Params_S.P0*1.2;
-    [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,FHorz_names,d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_S, DiscountFactorParamNames,vfoptions);
-    StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames_S, Policy,n_d,n_a,n_z,N_j,FHorz_names,pi_z,Params_S,simoptions);
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate_S, Params_S, n_d, n_a, n_z,N_j,FHorz_names,d_grid, a_grid, z_grid,simoptions);
+    [V, Policy]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_S, DiscountFactorParamNames,vfoptions);
+    StationaryDist=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames, Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params_S,simoptions);
+    AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate, Params_S, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
     S=sum_S_FHorz(AggVars.S, FHorz_names);
+    D=AggVars.D.firm.Mean;
 end
 while S<0.5
     Params_S.P0=Params_S.P0*0.90;
-    [V, Policy]=ValueFnIter_Case1_FHorz_PType(n_d,n_a,n_z,N_j,FHorz_names,d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_S, DiscountFactorParamNames,vfoptions);
-    StationaryDist=StationaryDist_Case1_FHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames_S, Policy,n_d,n_a,n_z,N_j,FHorz_names,pi_z,Params_S,simoptions);
-    AggVars=EvalFnOnAgentDist_AggVars_FHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate_S, Params_S, n_d, n_a, n_z,N_j,FHorz_names,d_grid, a_grid, z_grid,simoptions);
+    [V, Policy]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_S, DiscountFactorParamNames,vfoptions);
+    StationaryDist=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames, Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params_S,simoptions);
+    AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate, Params_S, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
     S=sum_S_FHorz(AggVars.S, FHorz_names);
+    D=AggVars.D.firm.Mean;
 end
 if S>1.1
     P0=Params_S.P0*1.05;
@@ -1179,13 +1180,14 @@ else
     P0=Params_S.P0;
 end
 Params_S.P0=P0;
-fprintf("Setting P0 to %.2f \n", P0);
+Params_S.D=D;
+fprintf("Setting P0 to %.2f, D to %.2f \n", P0, D);
 
 [V, Policy]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_S, DiscountFactorParamNames,vfoptions);
-PTypeDistParamNames={'ptypemass'}; % This will pick up the original masses for all the names in Names_i
 StationaryDist=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames, Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params_S,simoptions);
-% AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate_S, Params_S, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
+% AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate, Params_S, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
 % S=sum_S_FHorz(AggVars.S, FHorz_names);
+% D=AggVars.D.firm.Mean;
 
 end
 
