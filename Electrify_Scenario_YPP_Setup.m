@@ -11,14 +11,15 @@ Params.J=ceil((max_age-agejshifter)/ypp); % =60/ypp, Number of period in life-cy
 Params.Jr=round((65-agejshifter)/ypp); % Age 65 (period 10 is ages 65-69 in the 5 year case)
 Params.agej=1:1:Params.J; % Is a vector of all the periods: 1,2,3,...,J
 
+kappa_j2s=k_j2(scenario)*ones(1,ceil(k_j2_length(scenario)/ypp));
 if Params.Jr>5
-    kappa_j12=linspace(k_j1(scenario),k_j2(scenario),Params.Jr-round((15+k_j2_length(scenario))/ypp));
-    kappa_j2s=k_j2(scenario)*ones(1,ceil(k_j2_length(scenario)/ypp));
-    kappa_j23=linspace(k_j2(scenario),k_j3(scenario),ceil(14/ypp));
+    kappaj_maxidx=round((50-agejshifter)/ypp);
+    kappa_j12=linspace(k_j1(scenario),k_j2(scenario),kappaj_maxidx);
+    kappa_j23=linspace(k_j2(scenario),k_j3(scenario),Params.Jr-(kappaj_maxidx+length(kappa_j2s)));
+    kappa_j23=kappa_j23(2:end); % don't double-count the peak wage we account for in kappa_j2s (or the end of kappa_j12 if kappa_j2s is empty)
 else
-    kappa_j12=linspace(k_j1(scenario),k_j2(scenario),Params.Jr-1-min(k_j2_length(scenario),1));
-    kappa_j2s=k_j2(scenario)*ones(1,min(k_j2_length(scenario),1)); % At most one period of max wage
     kappa_j23=k_j3(scenario)*ones(1,1); % One period of "pre-retirement" work
+    kappa_j12=linspace(k_j1(scenario),k_j2(scenario),Params.Jr-length(kappa_j2s)-1);
 end
 kappa_jr=zeros(1,Params.J-Params.Jr+1);
 kappa_j=[kappa_j12, kappa_j2s, kappa_j23, kappa_jr];
