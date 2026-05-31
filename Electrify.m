@@ -19,7 +19,7 @@ if solve_setup
 
 Names_i={'firm','household','energy'};
 PTypeDistParamNames={'ptypemass'};
-Params.ptypemass=[1,1,1]; % Mass of households and firms are each equal to one
+Params.ptypemass=[0.5,0.4,0.1]; % Mass of households, firms, and energy sum to one
 
 %% Parameters for household (4 scenarios)
 % Scenario 1: no housing, no assets, no inflation
@@ -31,7 +31,7 @@ Params.scenario=4;
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolution).
 % Discounting parameters (beta and sj) defined in terms of ypp
-Params.ypp=5; % model period, in years (just used this to modify some parameters from annual to model period)
+Params.ypp=2; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
 max_age=80;
@@ -52,7 +52,7 @@ beta=[0.95,0.95,0.99,0.99];
 
 Params.sigma = 2; % Coeff of relative risk aversion (curvature of consumption)
 
-energy_pct_cost=[0,0.07,0.07,0.05]; % Electricity: 3%; Gas: 1-2%; Petrol: 1-2%; Scenario 4 disaggregates petrol from this cost
+energy_pct_cost=[0,0.07,0.07,0.05]; % Electricity: 3%; Gas: 1-2%; Petrol: 1-2%; Scenario 4 dis-aggregates petrol from this cost
 
 % Demographics
 % Population growth rate
@@ -231,6 +231,7 @@ AgeWeightsParamNames=struct('household',{{'mewj'}}); % So VFI Toolkit knows whic
 % Some initial values/guesses for variables that will be determined in general eqm
 Params.w=1;
 Params.pension=0.4; % Initial guess (this will be determined in general eqm)
+Params.max_benefit=0.4; % Initial guess (this will be determined in general eqm)
 % Params.G=0.1; % Government expenditure
 
 % And some initial values/guesses for AggVar values that will be calculated while calculating the general eqm
@@ -245,7 +246,7 @@ if Params.scenario<3
 elseif Params.scenario<4
     GEPriceParamNames={'w','D','P0','pension'};
 else
-    GEPriceParamNames={'w','P0','pension'};
+    GEPriceParamNames={'w','P0','pension', 'max_benefit'};
 end
 heteroagentoptions.constrainpositive=GEPriceParamNames;
 
@@ -266,7 +267,8 @@ heteroagentoptions.constrainpositive=GEPriceParamNames;
 % General Equilibrium conditions (these should evaluate to zero in general equilibrium)
 GeneralEqmEqns.sharemarket=@(S) S-1; % mass of all shares equals one
 GeneralEqmEqns.labormarket=@(L_h,L_f) (L_h-L_f)*max(2,Params.ypp); % labor supply of households equals labor demand of firms (scaled by ypp)
-GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue) PensionSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue: pension*fractionretired-tau*w*H
+GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue,BenefitSpending) PensionSpending-(PayrollTaxRevenue-BenefitSpending); % Retirement benefits equal Payroll tax revenue (pension*fractionretired-tau*w*H) less benefit
+GeneralEqmEqns.benefits=@(PensionSpending,PayrollTaxRevenue,BenefitSpending) BenefitSpending-(PayrollTaxRevenue-PensionSpending); % Welfare benefits equal Payroll tax revenue (benefit-tau*w*H) less pendsions
 % GeneralEqmEqns.firmdiscounting=@(firmbeta,r,tau_cg) firmbeta-1/(1+r/(1-tau_cg)); % Firms discount rate is related to market return rate
 if Params.scenario<4
     GeneralEqmEqns.dividends=@(dividend,D) dividend-D; % That the dividend households receive equals that which firms give
@@ -460,8 +462,8 @@ elseif Params.scenario<4
     fprintf('Check: S, A, H, PV_h\n')
     [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean]
 else
-    fprintf('Check: S, A, H, PV_h, pvnew_f, pv_f, Params.pvinstalled_firm\n')
-    [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean,AggVars.pvnew_f.Mean,AggVars.pv_f.Mean,Params.pvinstalled_firm]
+    fprintf('Check: S, A, H, PV_h, Benefit, pvnew_f, pv_f, Params.pvinstalled_firm\n')
+    [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean,AggVars.Benefit.Mean,AggVars.pvnew_f.Mean,AggVars.pv_f.Mean,Params.pvinstalled_firm]
 end
 
 
@@ -511,6 +513,7 @@ if mod(solve_GE,2)==1
     % Put this into Params so we can calculate things about the initial equilibrium
     % GEcondns tells us the values of the GeneralEqmEqns, should be near zero
     Params.pension=p_eqm_init.pension;
+    Params.max_benefit=p_eqm_init.max_benefit;
     % Plot twist: we are going to use the good AggVar value of bequests as elements of the GEqm so that we can transition from init to final across demographic changes
     p_eqm_init.AccidentBeqS=Params.AccidentBeqS;
     p_eqm_init.G=Params.tau_d*Params.D*Params.ypp+AggVars.CapitalGainsTaxRevenue.household.Mean+AggVars.CorpTaxRevenue.firm.Mean;
@@ -761,11 +764,11 @@ if solve_GE>=2
     carbon_tax=Params.carbon_tax;
     v1=Electrify_4HouseholdReturnFn( ...
         labor,buyhouse,saprime,cprime+2,hprime,sa,car,h,solarpv,z,e, ...
-        Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
+        Params.pension,Params.max_benefit,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
         Params.ypp,agej,Params.Jr,Params.J,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,rentprice,Params.f_coll,houseservices,carservices_j(agej),cpi_energy,Params.pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax); % Level=0, Refine=0
     v2=Electrify_4HouseholdReturnFn( ...
         labor,buyhouse,saprime+0.45,cprime+1,hprime,sa,car,h,solarpv,z,e, ...
-        Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
+        Params.pension,Params.max_benefit,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
         Params.ypp,agej,Params.Jr,Params.J,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,rentprice,Params.f_coll,houseservices,carservices_j(agej),cpi_energy,Params.pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax); % Level=0, Refine=0
     fprintf("v1-v2: %.2f - %.2f = %.2f \n", v1, v2, v1-v2);
 
@@ -855,8 +858,8 @@ if solve_GE>=2
         fprintf('Check: S, A, H, PV_h\n')
         [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean]
     else
-        fprintf('Check: S, A, H, PV_h, pvnew_f, pv_f, Params.pvinstalled_firm \n')
-        [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean,AggVars.pvnew_f.Mean,AggVars.pv_f.Mean,Params.pvinstalled_firm]
+        fprintf('Check: S, A, H, PV_h, Benefit, pvnew_f, pv_f, Params.pvinstalled_firm \n')
+        [AggVars.S.Mean,AggVars.A.Mean,AggVars.H.Mean,AggVars.PV_h.Mean,AggVars.Benefit.Mean,AggVars.pvnew_f.Mean,AggVars.pv_f.Mean,Params.pvinstalled_firm]
     end
 
     % And now, the GE for the final conditions!
@@ -864,6 +867,7 @@ if solve_GE>=2
     % Done, the general eqm prices are in p_eqm
     % GEcondns tells us the values of the GeneralEqmEqns, should be near zero
     Params.pension=p_eqm_final.pension;
+    Params.max_benefit=p_eqm_final.max_benefit;
     p_eqm_final.AccidentBeqS=Params.AccidentBeqS;
     if Params.scenario>2
         p_eqm_final.AccidentBeqAH=Params.AccidentBeqAH;
@@ -1033,6 +1037,7 @@ if solve_TPath
         PricePath0.P0=[linspace(p_eqm_init.P0, p_eqm_final.P0,T_eq), p_eqm_final.P0*ones(1,T_end-T_eq)];
     end
     PricePath0.pension=[linspace(p_eqm_init.pension, p_eqm_final.pension,T_eq), p_eqm_final.pension*ones(1,T_end-T_eq)];
+    PricePath0.max_benefit=[linspace(p_eqm_init.max_benefit, p_eqm_final.max_benefit,T_eq), p_eqm_final.max_benefit*ones(1,T_end-T_eq)];
     % PricePath0.TargetKdivL=2.03*ones(1,T_end);
 
     % General eqm eqns, same idea as with the stationary general eqm
@@ -1047,6 +1052,7 @@ if solve_TPath
             P0-((((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
     end
     GeneralEqmEqns_Transition.pensions=GeneralEqmEqns.pensions;
+    GeneralEqmEqns_Transition.benefits=GeneralEqmEqns.benefits;
     % GeneralEqmEqns_Transition.govbudgetbalance=GeneralEqmEqns.govbudget;
     % Note: bequests are left in t-1 and received in t
     % GeneralEqmEqns_Transition.bequestsS=@(BeqleftS_tminus1,AccidentBeqS,n,ypp) BeqleftS_tminus1/(1+n)^ypp-AccidentBeqS; % Accidental share bequests received equal accidental share bequests left
@@ -1065,6 +1071,7 @@ if solve_TPath
         ... % 'firmdiscounting','firmbeta',0,0.03;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
         'ShareIssuance','P0',0,0.03;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
         'pensions','pension',0,0.03;... % pensions GE condition will be positive if pension is too big, so subtract
+        'benefits','max_benefit',0,0.03;... % benefits GE condition will be positive if pension is too big, so subtract
         ... % 'govbudgetbalance','G',0,0.03;... % govbudget GE condition will be positive if G is too big, so subtract
         ... % 'bequestsS','AccidentBeqS',1,0.03;... % bequests GE condition will be negative if BeqS is too big, so add
         ... % 'bequestsAH','AccidentBeqAH',1,0.03;... % bequests GE condition will be negative if BeqAH is too big, so add

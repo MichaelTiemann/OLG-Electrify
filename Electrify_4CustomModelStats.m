@@ -20,12 +20,23 @@ CFnsToEvaluate.PV_h = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,
 CFnsToEvaluate.PV_u = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) (solarpv>0); % Unit solarpv holdings
 CFnsToEvaluate.petrol_car = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) (car==1);
 CFnsToEvaluate.ev_car = @(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e) (car==2);
+CFnsToEvaluate.BenefitNeeded = @( ...
+        labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e, ...
+        pension,AccidentBeqS,AccidentBeqAH,w,P0,D, ...
+        kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
+        ypp,agej,Jr,r,r_wedge,f_htc,rentprice,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax...
+    ) Electrify_4HouseholdBenefitNeededFn( ...
+        labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e, ...
+        pension,AccidentBeqS,AccidentBeqAH,w,P0,D, ...
+        kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
+        ypp,agej,Jr,r,r_wedge,f_htc,rentprice,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax);
 
 [~,ii] = find(strcmp(Names_i, 'household'));
 AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist.household,Policy.household,CFnsToEvaluate,Parameters,[],n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,z_grid.household,PType_Options(simoptions,Names_i,ii));
 
 mean_buyers=[AgeConditionalStats.H1buy.Mean; AgeConditionalStats.H2buy.Mean; AgeConditionalStats.H3buy.Mean; AgeConditionalStats.H4buy.Mean];
 mean_sellers=[AgeConditionalStats.H1sell.Mean; AgeConditionalStats.H2sell.Mean; AgeConditionalStats.H3sell.Mean; AgeConditionalStats.H4sell.Mean];
+[max_benefit,max_benefit_J]=max(AgeConditionalStats.BenefitNeeded.Maximum);
 
 hbuyers=1000*mean_buyers.*Parameters.mewj;
 hsellers=1000*mean_sellers.*Parameters.mewj;
@@ -44,6 +55,11 @@ CustomStats.H3=sum(1000*AgeConditionalStats.H3.Mean.*Parameters.mewj);
 CustomStats.PV_h=sum(1000*AgeConditionalStats.PV_h.Mean.*Parameters.mewj);
 CustomStats.petrol_car=sum(1000*AgeConditionalStats.petrol_car.Mean.*Parameters.mewj);
 CustomStats.ev_car=sum(1000*AgeConditionalStats.ev_car.Mean.*Parameters.mewj);
+if max_benefit>0
+    CustomStats.max_benefit=max_benefit;
+    CustomStats.max_benefit_J=max_benefit_J;
+    % x=zeros((-1/2)^(-1/2));
+end
 
 FnsToEvaluate2.pvnew_f=@(pvnew,kprime,k,pv,z,pvinstalled_firm,pvmax_firm) pvnew;
 FnsToEvaluate2.pv_f=@(pvnew,kprime,k,pv,z,pvinstalled_firm,pvmax_firm) pv;

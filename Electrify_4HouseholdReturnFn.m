@@ -1,7 +1,7 @@
 function F=Electrify_4HouseholdReturnFn( ...
     labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e, ...
-    pension,AccidentBeqS,AccidentBeqAH,w,P0,D,sigma,psi,eta,sigma_h,sigma_c,kappa_j,warmglow1,warmglow2,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
-    ypp,agej,Jr,J,r,r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,energy_cpi,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax ...
+    pension,max_benefit,AccidentBeqS,AccidentBeqAH,w,P0,D,sigma,psi,eta,sigma_h,sigma_c,kappa_j,warmglow1,warmglow2,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
+    ypp,agej,Jr,J,r,r_wedge,f_htc,minhouse,rentprice,f_coll,houseservices,carservices_j,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax ...
     )
 % Implement depreciation model:
 %   Car services A(t) = (1-delta_a)*A(t-1) + I(a,t)
@@ -62,7 +62,7 @@ end
 c_pp=Electrify_4HouseholdConsumptionFn(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e, ...
     pension,AccidentBeqS,AccidentBeqAH,w,P0,D, ...
     kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
-    ypp,agej,Jr,r,r_wedge,f_htc,rentprice,energy_cpi,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax);
+    ypp,agej,Jr,r,r_wedge,f_htc,rentprice,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax);
 
 % If we are aiming for a starter loan, what loan can we afford?  Car not included
 net_worth_prime=P0*sprime+aprime+hprimecost;
@@ -81,10 +81,21 @@ if aprime<0 && agej*ypp<11
     end
 end
 
+benefit_used=0;
+if c_pp<=0 && saprime<1 && cprime==0 && hprime==0
+    % Agent can't make ends meet and sold down what they can sell: take the benefit
+    if c_pp+max_benefit>0.2
+        benefit_used=0.2-c_pp;
+        c_pp=0.2;
+    end
+end
+
 if c_pp>0
     % Adding one to all valid solutions doesn't alter results of searching
     % for optima, but does make output more legible when debugging.
     F=1+(((c_pp^(1-sigma_h-sigma_c))*(hs^sigma_h)*(carservices^sigma_c))^(1-sigma))/(1-sigma) -psi*(labor^(1+eta))/(1+eta); % The utility function
+    % Disfavor using benefit...forces max labor participation
+    F=F-100*benefit_used;
 end
 
 % Warm-glow bequest; must handle aprime<0

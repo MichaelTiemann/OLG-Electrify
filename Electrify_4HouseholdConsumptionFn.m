@@ -2,7 +2,7 @@ function c_pp=Electrify_4HouseholdConsumptionFn( ...
     labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e, ...
     pension,AccidentBeqS,AccidentBeqAH,w,P0,D, ...
     kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
-    ypp,agej,Jr,r,r_wedge,f_htc,rentprice,energy_cpi,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax)
+    ypp,agej,Jr,r,r_wedge,f_htc,rentprice,cpi_energy,pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax)
 
 % Implement depreciation model:
 %   Car services A(t) = (1-delta_a)*A(t-1) + I(a,t)
@@ -126,7 +126,7 @@ else
 end
 
 % Add energy cost of housing, less PV generation: 30kW (2 solar units) meets h==1 energy needs
-energy_cost_pp=Electrify_4HouseholdEnergyCosts(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e,w,ypp,energy_cpi,energy_pct_cost);
+energy_cost_pp=Electrify_4HouseholdEnergyCosts(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e,w,ypp,cpi_energy,energy_pct_cost);
 carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax*ypp/200;
 
 c_pp=c_pp-energy_cost_pp-carbon_tax_pp;
