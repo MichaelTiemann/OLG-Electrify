@@ -268,7 +268,7 @@ heteroagentoptions.constrainpositive=GEPriceParamNames;
 GeneralEqmEqns.sharemarket=@(S) S-1; % mass of all shares equals one
 GeneralEqmEqns.labormarket=@(L_h,L_f) (L_h-L_f)*max(2,Params.ypp); % labor supply of households equals labor demand of firms (scaled by ypp)
 GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue,BenefitSpending) PensionSpending-(PayrollTaxRevenue-BenefitSpending); % Retirement benefits equal Payroll tax revenue (pension*fractionretired-tau*w*H) less benefit
-GeneralEqmEqns.benefits=@(PensionSpending,PayrollTaxRevenue,BenefitSpending) BenefitSpending-(PayrollTaxRevenue-PensionSpending); % Welfare benefits equal Payroll tax revenue (benefit-tau*w*H) less pendsions
+GeneralEqmEqns.benefits=@(PensionSpending,PayrollTaxRevenue,BenefitSpending) BenefitSpending-(PayrollTaxRevenue-PensionSpending); % Welfare benefits equal Payroll tax revenue (benefit-tau*w*H) less pensions
 % GeneralEqmEqns.firmdiscounting=@(firmbeta,r,tau_cg) firmbeta-1/(1+r/(1-tau_cg)); % Firms discount rate is related to market return rate
 if Params.scenario<4
     GeneralEqmEqns.dividends=@(dividend,D) dividend-D; % That the dividend households receive equals that which firms give
