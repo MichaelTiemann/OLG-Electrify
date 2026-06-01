@@ -8,8 +8,8 @@
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
 
-solve_setup=true;
-solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
+solve_setup=false;
+solve_GE=2; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=false; % n_z=1; n_e=0
 small_model=true; % Minimal vs. maximal grid sizes
@@ -31,7 +31,7 @@ Params.scenario=4;
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolution).
 % Discounting parameters (beta and sj) defined in terms of ypp
-Params.ypp=2; % model period, in years (just used this to modify some parameters from annual to model period)
+Params.ypp=3; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
 max_age=80;
@@ -231,7 +231,7 @@ AgeWeightsParamNames=struct('household',{{'mewj'}}); % So VFI Toolkit knows whic
 % Some initial values/guesses for variables that will be determined in general eqm
 Params.w=1;
 Params.pension=0.4; % Initial guess (this will be determined in general eqm)
-Params.max_benefit=0.4; % Initial guess (this will be determined in general eqm)
+Params.max_benefit=0.05*Params.ypp; % Generous guess (this will be optimized in general eqm)
 % Params.G=0.1; % Government expenditure
 
 % And some initial values/guesses for AggVar values that will be calculated while calculating the general eqm
@@ -268,14 +268,14 @@ heteroagentoptions.constrainpositive=GEPriceParamNames;
 GeneralEqmEqns.sharemarket=@(S) S-1; % mass of all shares equals one
 GeneralEqmEqns.labormarket=@(L_h,L_f) (L_h-L_f)*max(2,Params.ypp); % labor supply of households equals labor demand of firms (scaled by ypp)
 GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue,BenefitSpending) PensionSpending-(PayrollTaxRevenue-BenefitSpending); % Retirement benefits equal Payroll tax revenue (pension*fractionretired-tau*w*H) less benefit
-GeneralEqmEqns.benefits=@(PensionSpending,PayrollTaxRevenue,BenefitSpending) BenefitSpending-(PayrollTaxRevenue-PensionSpending); % Welfare benefits equal Payroll tax revenue (benefit-tau*w*H) less pensions
+GeneralEqmEqns.benefits=@(UnmetBenefits) UnmetBenefits; % Do we have any unmet benefits? How can we squeeze max_benefits to zero where possible?
 % GeneralEqmEqns.firmdiscounting=@(firmbeta,r,tau_cg) firmbeta-1/(1+r/(1-tau_cg)); % Firms discount rate is related to market return rate
 if Params.scenario<4
     GeneralEqmEqns.dividends=@(dividend,D) dividend-D; % That the dividend households receive equals that which firms give
     GeneralEqmEqns.ShareIssuance=@(Sissued,P0,D,tau_cg,tau_d,r) ...
         P0-((((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
 end
-GeneralEqmEqns.CapitalOutputRatio=@(K,L_f,TargetKdivL) (K/L_f-TargetKdivL)/100; % Ratio not based on ypp
+% GeneralEqmEqns.CapitalOutputRatio=@(K,L_f,TargetKdivL) (K/L_f-TargetKdivL)/100; % Ratio not based on ypp
 
 Params_Lhscale=Params;
 Params_Lhscale.Lhscale=1;
@@ -468,9 +468,9 @@ end
 
 
 if Params.scenario==3
-    Electrify_CustomModelStats(V_init,Policy_init,StationaryDist_init,Params,FnsToEvaluate2,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,[],vfoptions,simoptions)
+    CustomStats=Electrify_CustomModelStats(V_init,Policy_init,StationaryDist_init,Params,FnsToEvaluate2,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,[],vfoptions,simoptions)
 elseif Params.scenario==4
-    Electrify_4CustomModelStats(V_init,Policy_init,StationaryDist_init,Params,FnsToEvaluate2,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,[],vfoptions,simoptions)
+    CustomStats=Electrify_4CustomModelStats(V_init,Policy_init,StationaryDist_init,Params,FnsToEvaluate2,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,[],vfoptions,simoptions)
 end
 
 solve_GE_temp=solve_GE; clear solve_GE
@@ -485,8 +485,22 @@ clear solve_GE_temp solve_TPath_temp
 
 %% Solve for the General Equilibrium
 if mod(solve_GE,2)==1
-    % heteroagentoptions.fminalgo=4 % CMA-ES algorithm 
-    
+    if isfield(heteroagentoptions,'constrainpositive')
+        heteroagentoptions=rmfield(heteroagentoptions,'constrainpositive');
+    end
+    heteroagentoptions.fminalgo=5  %4 % CMA-ES algorithm 
+    heteroagentoptions.fminalgo5.howtoupdate=...
+        {...
+        'labormarket','w',0,0.2;... % labormarket GE condition will be positive if w is too big, so subtract
+        'sharemarket','P0',1,0.4;... % sharemarket GE condition will be positive if P0 is too small, so add
+        ... % 'firmdiscounting','firmbeta',0,0.05;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
+        ... % 'ShareIssuance','P0',0,0.1;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
+        'pensions','pension',0,1.0;... % pensions GE condition will be positive if pension is too big, so subtract
+        'benefits','max_benefit',1,0.5;... % benefits GE condition will be positive if max_benefit is too small, so add
+        ... % 'govbudgetbalance','G',0,0.05;... % govbudget GE condition will be positive if G is too big, so subtract
+        ... % 'bequestsS','AccidentBeqS',1,0.05;... % bequests GE condition will be negative if BeqS is too big, so add
+        ... % 'bequestsAH','AccidentBeqAH',1,0.05;... % bequests GE condition will be negative if BeqAH is too big, so add
+        };
     heteroagentoptions.verbose=1;
     if Params.scenario<3
         heteroagentoptions.toleranceGEprices=10^(-4);
@@ -497,7 +511,7 @@ if mod(solve_GE,2)==1
     else
         heteroagentoptions.toleranceGEprices=10^(-3);
         heteroagentoptions.toleranceGEcondns=10^(-2); % This is the hard one
-        heteroagentoptions.maxiter=15*(1+logical(small_z_no_e)+logical(small_model));                % About 3 hours for 35 iterations
+        heteroagentoptions.maxiter=15*(1+logical(small_z_no_e)+2*logical(small_model));                % About 3 hours for 35 iterations
 
         if Params.scenario<4
             heteroagentoptions.CustomModelStats=@(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions) ...
@@ -717,6 +731,21 @@ Params.cpi_energy=ParamPath.cpi_energy(1);
 % Params.P0=2.05;
 
 if solve_GE>=2
+    if isfield(heteroagentoptions,'constrainpositive')
+        heteroagentoptions=rmfield(heteroagentoptions,'constrainpositive');
+    end
+    heteroagentoptions.fminalgo5.howtoupdate=...
+        {...
+        'labormarket','w',0,0.2;... % labormarket GE condition will be positive if w is too big, so subtract
+        'sharemarket','P0',1,0.4;... % sharemarket GE condition will be positive if P0 is too small, so add
+        ... % 'firmdiscounting','firmbeta',0,0.05;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
+        ... % 'ShareIssuance','P0',0,0.1;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
+        'pensions','pension',0,1.0;... % pensions GE condition will be positive if pension is too big, so subtract
+        'benefits','max_benefit',1,5.0;... % benefits GE condition will be positive if max_benefit is too small, so add
+        ... % 'govbudgetbalance','G',0,0.05;... % govbudget GE condition will be positive if G is too big, so subtract
+        ... % 'bequestsS','AccidentBeqS',1,0.05;... % bequests GE condition will be negative if BeqS is too big, so add
+        ... % 'bequestsAH','AccidentBeqAH',1,0.05;... % bequests GE condition will be negative if BeqAH is too big, so add
+        };
     % 40 years of changing demographics
     % 60 years in final demographic state (to allow time to converge to final stationary general eqm)
     % Conditional survival probabilities
@@ -764,11 +793,11 @@ if solve_GE>=2
     carbon_tax=Params.carbon_tax;
     v1=Electrify_4HouseholdReturnFn( ...
         labor,buyhouse,saprime,cprime+2,hprime,sa,car,h,solarpv,z,e, ...
-        Params.pension,Params.max_benefit,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
+        Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
         Params.ypp,agej,Params.Jr,Params.J,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,rentprice,Params.f_coll,houseservices,carservices_j(agej),cpi_energy,Params.pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax); % Level=0, Refine=0
     v2=Electrify_4HouseholdReturnFn( ...
         labor,buyhouse,saprime+0.45,cprime+1,hprime,sa,car,h,solarpv,z,e, ...
-        Params.pension,Params.max_benefit,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
+        Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
         Params.ypp,agej,Params.Jr,Params.J,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,rentprice,Params.f_coll,houseservices,carservices_j(agej),cpi_energy,Params.pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax); % Level=0, Refine=0
     fprintf("v1-v2: %.2f - %.2f = %.2f \n", v1, v2, v1-v2);
 
@@ -863,6 +892,7 @@ if solve_GE>=2
     end
 
     % And now, the GE for the final conditions!
+    Params.max_benefit=0.05*Params.ypp; % Generous guess (this will be optimized in general eqm)
     [p_eqm_final,GEcondns_final]=HeteroAgentStationaryEqm_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,[],pi_z,d_grid,a_grid,z_grid,jequaloneDist,ReturnFn,FnsToEvaluate,GeneralEqmEqns,Params,DiscountFactorParamNames,AgeWeightsParamNames,PTypeDistParamNames,GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
     % Done, the general eqm prices are in p_eqm
     % GEcondns tells us the values of the GeneralEqmEqns, should be near zero
@@ -1067,14 +1097,14 @@ if solve_TPath
     transpathoptions.GEnewprice=3;
     % Need to explain to transpathoptions how to use the GeneralEqmEqns to update the general eqm transition prices (in PricePath).
     transpathoptions.GEnewprice3.howtoupdate=... % a row is: GEcondn, price, add, factor
-        {'labormarket','w',0,0.03;... % labormarket GE condition will be positive if w is too big, so subtract
-        ... % 'firmdiscounting','firmbeta',0,0.03;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
-        'ShareIssuance','P0',0,0.03;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
-        'pensions','pension',0,0.03;... % pensions GE condition will be positive if pension is too big, so subtract
-        'benefits','max_benefit',0,0.03;... % benefits GE condition will be positive if pension is too big, so subtract
-        ... % 'govbudgetbalance','G',0,0.03;... % govbudget GE condition will be positive if G is too big, so subtract
-        ... % 'bequestsS','AccidentBeqS',1,0.03;... % bequests GE condition will be negative if BeqS is too big, so add
-        ... % 'bequestsAH','AccidentBeqAH',1,0.03;... % bequests GE condition will be negative if BeqAH is too big, so add
+        {'labormarket','w',0,0.05;... % labormarket GE condition will be positive if w is too big, so subtract
+        ... % 'firmdiscounting','firmbeta',0,0.05;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
+        'ShareIssuance','P0',0,0.05;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
+        'pensions','pension',0,0.05;... % pensions GE condition will be positive if pension is too big, so subtract
+        'benefits','max_benefit',1,0.05;... % pensions GE condition will be positive if max_benefit is too small, so add
+        ... % 'govbudgetbalance','G',0,0.05;... % govbudget GE condition will be positive if G is too big, so subtract
+        ... % 'bequestsS','AccidentBeqS',1,0.05;... % bequests GE condition will be negative if BeqS is too big, so add
+        ... % 'bequestsAH','AccidentBeqAH',1,0.05;... % bequests GE condition will be negative if BeqAH is too big, so add
         };
     % if Params.scenario<3
     %     mask=strcmp(transpathoptions.GEnewprice3.howtoupdate(:,1),'bequestsAH');

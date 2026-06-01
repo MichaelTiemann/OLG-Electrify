@@ -50,12 +50,12 @@ end
 if cprime==0
     carcost_pp=0;
     if car~=0
-        carcost_pp=carcost+0.02*w*ypp;
         if car==1 % Selling a car: get back <= 1/2 of what was paid for it
             carcost=-0.2*w;
         elseif car==2
             carcost=-0.4*w;
         end
+        carcost_pp=carcost+0.02*w*ypp;
     end
 else
     if car==0

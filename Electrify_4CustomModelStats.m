@@ -55,10 +55,9 @@ CustomStats.H3=sum(1000*AgeConditionalStats.H3.Mean.*Parameters.mewj);
 CustomStats.PV_h=sum(1000*AgeConditionalStats.PV_h.Mean.*Parameters.mewj);
 CustomStats.petrol_car=sum(1000*AgeConditionalStats.petrol_car.Mean.*Parameters.mewj);
 CustomStats.ev_car=sum(1000*AgeConditionalStats.ev_car.Mean.*Parameters.mewj);
-if max_benefit>0
+if max_benefit>Parameters.max_benefit
     CustomStats.max_benefit=max_benefit;
     CustomStats.max_benefit_J=max_benefit_J;
-    % x=zeros((-1/2)^(-1/2));
 end
 
 FnsToEvaluate2.pvnew_f=@(pvnew,kprime,k,pv,z,pvinstalled_firm,pvmax_firm) pvnew;
