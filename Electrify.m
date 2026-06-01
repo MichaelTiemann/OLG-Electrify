@@ -231,7 +231,7 @@ AgeWeightsParamNames=struct('household',{{'mewj'}}); % So VFI Toolkit knows whic
 % Some initial values/guesses for variables that will be determined in general eqm
 Params.w=1;
 Params.pension=0.4; % Initial guess (this will be determined in general eqm)
-Params.max_benefit=0.05*Params.ypp; % Generous guess (this will be optimized in general eqm)
+Params.max_benefit=0.5*Params.ypp; % Generous guess (this will be optimized in general eqm)
 % Params.G=0.1; % Government expenditure
 
 % And some initial values/guesses for AggVar values that will be calculated while calculating the general eqm
@@ -268,7 +268,7 @@ heteroagentoptions.constrainpositive=GEPriceParamNames;
 GeneralEqmEqns.sharemarket=@(S) S-1; % mass of all shares equals one
 GeneralEqmEqns.labormarket=@(L_h,L_f) (L_h-L_f)*max(2,Params.ypp); % labor supply of households equals labor demand of firms (scaled by ypp)
 GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue,BenefitSpending) PensionSpending-(PayrollTaxRevenue-BenefitSpending); % Retirement benefits equal Payroll tax revenue (pension*fractionretired-tau*w*H) less benefit
-GeneralEqmEqns.benefits=@(UnmetBenefits) UnmetBenefits; % Do we have any unmet benefits? How can we squeeze max_benefits to zero where possible?
+GeneralEqmEqns.benefits=@(BenefitNeeded,BenefitSpending,max_benefit) BenefitsEqm(BenefitNeeded,BenefitSpending,max_benefit);
 % GeneralEqmEqns.firmdiscounting=@(firmbeta,r,tau_cg) firmbeta-1/(1+r/(1-tau_cg)); % Firms discount rate is related to market return rate
 if Params.scenario<4
     GeneralEqmEqns.dividends=@(dividend,D) dividend-D; % That the dividend households receive equals that which firms give
@@ -491,12 +491,12 @@ if mod(solve_GE,2)==1
     heteroagentoptions.fminalgo=5  %4 % CMA-ES algorithm 
     heteroagentoptions.fminalgo5.howtoupdate=...
         {...
-        'labormarket','w',0,0.2;... % labormarket GE condition will be positive if w is too big, so subtract
-        'sharemarket','P0',1,0.4;... % sharemarket GE condition will be positive if P0 is too small, so add
+        'labormarket','w',0,0.14;... % labormarket GE condition will be positive if w is too big, so subtract
+        'sharemarket','P0',1,0.25;... % sharemarket GE condition will be positive if P0 is too small, so add
         ... % 'firmdiscounting','firmbeta',0,0.05;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
         ... % 'ShareIssuance','P0',0,0.1;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
-        'pensions','pension',0,1.0;... % pensions GE condition will be positive if pension is too big, so subtract
-        'benefits','max_benefit',1,0.5;... % benefits GE condition will be positive if max_benefit is too small, so add
+        'pensions','pension',0,1.5;... % pensions GE condition will be positive if pension is too big, so subtract
+        'benefits','max_benefit',0,1;... % benefits GE condition will be positive if max_benefit is too large, so subtract computed value
         ... % 'govbudgetbalance','G',0,0.05;... % govbudget GE condition will be positive if G is too big, so subtract
         ... % 'bequestsS','AccidentBeqS',1,0.05;... % bequests GE condition will be negative if BeqS is too big, so add
         ... % 'bequestsAH','AccidentBeqAH',1,0.05;... % bequests GE condition will be negative if BeqAH is too big, so add
@@ -731,21 +731,6 @@ Params.cpi_energy=ParamPath.cpi_energy(1);
 % Params.P0=2.05;
 
 if solve_GE>=2
-    if isfield(heteroagentoptions,'constrainpositive')
-        heteroagentoptions=rmfield(heteroagentoptions,'constrainpositive');
-    end
-    heteroagentoptions.fminalgo5.howtoupdate=...
-        {...
-        'labormarket','w',0,0.2;... % labormarket GE condition will be positive if w is too big, so subtract
-        'sharemarket','P0',1,0.4;... % sharemarket GE condition will be positive if P0 is too small, so add
-        ... % 'firmdiscounting','firmbeta',0,0.05;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
-        ... % 'ShareIssuance','P0',0,0.1;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
-        'pensions','pension',0,1.0;... % pensions GE condition will be positive if pension is too big, so subtract
-        'benefits','max_benefit',1,5.0;... % benefits GE condition will be positive if max_benefit is too small, so add
-        ... % 'govbudgetbalance','G',0,0.05;... % govbudget GE condition will be positive if G is too big, so subtract
-        ... % 'bequestsS','AccidentBeqS',1,0.05;... % bequests GE condition will be negative if BeqS is too big, so add
-        ... % 'bequestsAH','AccidentBeqAH',1,0.05;... % bequests GE condition will be negative if BeqAH is too big, so add
-        };
     % 40 years of changing demographics
     % 60 years in final demographic state (to allow time to converge to final stationary general eqm)
     % Conditional survival probabilities
@@ -892,7 +877,7 @@ if solve_GE>=2
     end
 
     % And now, the GE for the final conditions!
-    Params.max_benefit=0.05*Params.ypp; % Generous guess (this will be optimized in general eqm)
+    Params.max_benefit=0.5*Params.ypp; % Generous guess (this will be optimized in general eqm)
     [p_eqm_final,GEcondns_final]=HeteroAgentStationaryEqm_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,[],pi_z,d_grid,a_grid,z_grid,jequaloneDist,ReturnFn,FnsToEvaluate,GeneralEqmEqns,Params,DiscountFactorParamNames,AgeWeightsParamNames,PTypeDistParamNames,GEPriceParamNames,heteroagentoptions,simoptions,vfoptions);
     % Done, the general eqm prices are in p_eqm
     % GEcondns tells us the values of the GeneralEqmEqns, should be near zero
@@ -1232,6 +1217,24 @@ function S=sum_S_FHorz(AggVars_S, FHorz_names)
 S=0;
 for ii=1:length(FHorz_names)
     S=S+AggVars_S.(FHorz_names{ii}).Mean;
+end
+
+
+end
+
+function eqm_value=BenefitsEqm(BenefitNeeded,BenefitSpending,max_benefit)
+if BenefitNeeded==0
+    if BenefitSpending==0
+        eqm_value=max_benefit/2;
+    else
+        eqm_value=max_benefit/4;
+    end
+else
+    if BenefitNeeded*20 <= BenefitSpending
+        eqm_value=0;
+    else
+        eqm_value=-max_benefit/2;
+    end
 end
 
 
