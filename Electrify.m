@@ -8,11 +8,11 @@
 % A line some need for running on the Server
 addpath(genpath('./MatlabToolkits/'))
 
-solve_setup=false;
-solve_GE=2; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
+solve_setup=true;
+solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=false; % n_z=1; n_e=0
-small_model=true; % Minimal vs. maximal grid sizes
+small_model=false; % Minimal vs. maximal grid sizes
 small_T=2; % small_T==1 means just do T=1, T=2 (or smallest not-to-be-confused-with-dimension); small_T==2 means use jpT
 
 if solve_setup
@@ -31,7 +31,7 @@ Params.scenario=4;
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that ypp (years-per-period) must be at most 15 (for kappa_j labor productivity evolution).
 % Discounting parameters (beta and sj) defined in terms of ypp
-Params.ypp=3; % model period, in years (just used this to modify some parameters from annual to model period)
+Params.ypp=2; % model period, in years (just used this to modify some parameters from annual to model period)
 
 % Lets model agents from age 20 to age 100, so 81 periods (or 61 for scenario 3)
 max_age=80;
@@ -66,7 +66,7 @@ n=[0.02,0.02,0.01,0.01]; % percentage rate (expressed as fraction) of population
 % Labor productivity at start, peak, and end of working life
 k_j1 = [0.5, 0.5, 0.5, 0.5];
 k_j2 = [2, 2, 2, 2];
-k_j2_length = [0,0,5,5]; % years...that will be scaled by YPP if/when needed
+k_j2_length = [0,0,5,0]; % years...that will be scaled by YPP if/when needed
 k_j3 = [1, 1, 1, 1];
 
 % Note: These iid shocks will interact with the endogenous labor so the final labor
@@ -83,9 +83,9 @@ AccidentBeqAH=[0,0,0.02,0.02]; % Accidental bequests (this is the lump sum trans
 
 % Preferences
 % Relative importance of housing services (vs consumption) in utility
-sigma_h=[0,0,0.5,0.5];
+sigma_h=[0,0,0.5,0.4];
 % Relative importance of car services (vs consumption) in utility
-sigma_c=[0,0,0.5,0.3];
+sigma_c=[0,0,0.0,0.2];
 Params.eta=1.5; % Curvature of leisure (This will end up being 1/Frisch elasticity)
 psi = [2, 1, 1, 1]; % Weight on leisure
 
@@ -114,6 +114,17 @@ Params.tau_d=0.2; % Tax rate on dividends
 Params.tau_cg=0.2; % Tax rate on capital gains
 
 vfoptions=struct(); simoptions=struct();
+precision='single';
+for iistr = Names_i
+    vfoptions.precision.(iistr{1})='double';
+    vfoptions.indexT.(iistr{1})='double';
+end
+if strcmp(precision,'single')
+    vfoptions.precision.household='single';
+    vfoptions.indexT.household='int32';
+end
+simoptions.precision=vfoptions.precision;  simoptions.indexT=vfoptions.indexT;
+
 Params=Electrify_Scenario_YPP_Setup(Params,Params.scenario,Params.ypp,small_z_no_e,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,Params.tau_cg,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
 [ReturnFn,FnsToEvaluate,FnsToEvaluate2,FnsToEvaluate3,vfoptions,simoptions]=Electrify_Scenario_Fn_Setup(Params,vfoptions,simoptions);
 
@@ -268,7 +279,7 @@ heteroagentoptions.constrainpositive=GEPriceParamNames;
 GeneralEqmEqns.sharemarket=@(S) S-1; % mass of all shares equals one
 GeneralEqmEqns.labormarket=@(L_h,L_f) (L_h-L_f)*max(2,Params.ypp); % labor supply of households equals labor demand of firms (scaled by ypp)
 GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue,BenefitSpending) PensionSpending-(PayrollTaxRevenue-BenefitSpending); % Retirement benefits equal Payroll tax revenue (pension*fractionretired-tau*w*H) less benefit
-GeneralEqmEqns.benefits=@(BenefitNeeded,BenefitSpending,max_benefit) BenefitsEqm(BenefitNeeded,BenefitSpending,max_benefit);
+GeneralEqmEqns.benefits=@(UnmetBenefit,BenefitSpending,max_benefit) BenefitsEqm(UnmetBenefit,BenefitSpending,max_benefit);
 % GeneralEqmEqns.firmdiscounting=@(firmbeta,r,tau_cg) firmbeta-1/(1+r/(1-tau_cg)); % Firms discount rate is related to market return rate
 if Params.scenario<4
     GeneralEqmEqns.dividends=@(dividend,D) dividend-D; % That the dividend households receive equals that which firms give
@@ -470,7 +481,11 @@ end
 if Params.scenario==3
     CustomStats=Electrify_CustomModelStats(V_init,Policy_init,StationaryDist_init,Params,FnsToEvaluate2,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,[],vfoptions,simoptions)
 elseif Params.scenario==4
-    CustomStats=Electrify_4CustomModelStats(V_init,Policy_init,StationaryDist_init,Params,FnsToEvaluate2,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,[],vfoptions,simoptions)
+    if strcmp(vfoptions.precision.household,'single')
+        CustomStats=Electrify_4CustomModelStats_single(V_init,Policy_init,StationaryDist_init,Params,FnsToEvaluate2,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,[],vfoptions,simoptions)
+    else
+        CustomStats=Electrify_4CustomModelStats(V_init,Policy_init,StationaryDist_init,Params,FnsToEvaluate2,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,[],vfoptions,simoptions)
+    end
 end
 
 solve_GE_temp=solve_GE; clear solve_GE
@@ -495,7 +510,7 @@ if mod(solve_GE,2)==1
         'sharemarket','P0',1,0.25;... % sharemarket GE condition will be positive if P0 is too small, so add
         ... % 'firmdiscounting','firmbeta',0,0.05;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
         ... % 'ShareIssuance','P0',0,0.1;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
-        'pensions','pension',0,1.5;... % pensions GE condition will be positive if pension is too big, so subtract
+        'pensions','pension',0,1;... % pensions GE condition will be positive if pension is too big, so subtract
         'benefits','max_benefit',0,1;... % benefits GE condition will be positive if max_benefit is too large, so subtract computed value
         ... % 'govbudgetbalance','G',0,0.05;... % govbudget GE condition will be positive if G is too big, so subtract
         ... % 'bequestsS','AccidentBeqS',1,0.05;... % bequests GE condition will be negative if BeqS is too big, so add
@@ -511,14 +526,19 @@ if mod(solve_GE,2)==1
     else
         heteroagentoptions.toleranceGEprices=10^(-3);
         heteroagentoptions.toleranceGEcondns=10^(-2); % This is the hard one
-        heteroagentoptions.maxiter=15*(1+logical(small_z_no_e)+2*logical(small_model));                % About 3 hours for 35 iterations
+        heteroagentoptions.maxiter=50*(1+logical(small_z_no_e)+2*logical(small_model));                % About 3 hours for 35 iterations
 
         if Params.scenario<4
             heteroagentoptions.CustomModelStats=@(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions) ...
                 Electrify_CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions);
         else
-            heteroagentoptions.CustomModelStats=@(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions) ...
-                Electrify_4CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions);
+            if strcmp(vfoptions.precision.household,'single')
+                heteroagentoptions.CustomModelStats=@(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions) ...
+                    Electrify_4CustomModelStats_single(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions);
+            else
+                heteroagentoptions.CustomModelStats=@(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions) ...
+                    Electrify_4CustomModelStats(V,Policy,StationaryDist,Parameters,FnsToEvaluate,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,pi_z,caliboptions,vfoptions,simoptions);
+            end
         end
     end
 
@@ -552,8 +572,8 @@ if mod(solve_GE,2)==1
 
     % Calculate various stats
     AllStats_init=EvalFnOnAgentDist_AllStats_MixHorz_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
-    % Calculate the life-cycle profiles
-    AgeConditionalStats_init=LifeCycleProfiles_MixHorz_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+    % Calculate the life-cycle profiles -- we do it just below
+    % AgeConditionalStats_init=LifeCycleProfiles_MixHorz_PType(StationaryDist_init,Policy_init,FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
     
     if abs(1-AllStats_init.L_h.household.Mean/AllStats_init.L_f.firm.Mean)>0.05
         warning("L_h and L_f have diverged; check Params.Lhscale")
@@ -776,14 +796,25 @@ if solve_GE>=2
     energy_pct_cost=Params.energy_pct_cost;
     energy_pct_brown=Params.energy_pct_brown;
     carbon_tax=Params.carbon_tax;
-    v1=Electrify_4HouseholdReturnFn( ...
-        labor,buyhouse,saprime,cprime+2,hprime,sa,car,h,solarpv,z,e, ...
-        Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
-        Params.ypp,agej,Params.Jr,Params.J,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,rentprice,Params.f_coll,houseservices,carservices_j(agej),cpi_energy,Params.pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax); % Level=0, Refine=0
-    v2=Electrify_4HouseholdReturnFn( ...
-        labor,buyhouse,saprime+0.45,cprime+1,hprime,sa,car,h,solarpv,z,e, ...
-        Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
-        Params.ypp,agej,Params.Jr,Params.J,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,rentprice,Params.f_coll,houseservices,carservices_j(agej),cpi_energy,Params.pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax); % Level=0, Refine=0
+    if strcmp(vfoptions.precision.household,'single')
+        v1=Electrify_4HouseholdReturnFn_single( ...
+            labor,buyhouse,saprime,cprime+2,hprime,sa,car,h,solarpv,z,e, ...
+            Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
+            Params.ypp,agej,Params.Jr,Params.J,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,rentprice,Params.f_coll,houseservices,carservices_j(agej),cpi_energy,Params.pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax); % Level=0, Refine=0
+        v2=Electrify_4HouseholdReturnFn_single( ...
+            labor,buyhouse,saprime+0.45,cprime+1,hprime,sa,car,h,solarpv,z,e, ...
+            Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
+            Params.ypp,agej,Params.Jr,Params.J,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,rentprice,Params.f_coll,houseservices,carservices_j(agej),cpi_energy,Params.pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax); % Level=0, Refine=0
+    else
+        v1=Electrify_4HouseholdReturnFn( ...
+            labor,buyhouse,saprime,cprime+2,hprime,sa,car,h,solarpv,z,e, ...
+            Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
+            Params.ypp,agej,Params.Jr,Params.J,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,rentprice,Params.f_coll,houseservices,carservices_j(agej),cpi_energy,Params.pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax); % Level=0, Refine=0
+        v2=Electrify_4HouseholdReturnFn( ...
+            labor,buyhouse,saprime+0.45,cprime+1,hprime,sa,car,h,solarpv,z,e, ...
+            Params.pension,Params.AccidentBeqS,Params.AccidentBeqAH,Params.w,Params.P0,Params.D,Params.sigma,Params.psi,Params.eta,Params.sigma_h,Params.sigma_c,Params.kappa_j(agej),Params.warmglow1,Params.warmglow2,Params.tau_l,Params.tau_d,Params.tau_cg,Params.S_agej_first,Params.S_agej_peak_first,Params.S_agej_peak_last,Params.S_agej_last, ...
+            Params.ypp,agej,Params.Jr,Params.J,Params.r,Params.r_wedge,Params.f_htc,Params.minhouse,rentprice,Params.f_coll,houseservices,carservices_j(agej),cpi_energy,Params.pv_pct_cost,energy_pct_cost,energy_pct_brown,carbon_tax); % Level=0, Refine=0
+    end
     fprintf("v1-v2: %.2f - %.2f = %.2f \n", v1, v2, v1-v2);
 
     %% Let's take a quick look at what we have calculated, namely V and Policy
@@ -895,8 +926,8 @@ if solve_GE>=2
 
     % Calculate various stats
     AllStats_final=EvalFnOnAgentDist_AllStats_MixHorz_PType(StationaryDist_final, Policy_final, FnsToEvaluate2, Params, n_d, n_a, n_z, N_j, Names_i, d_grid, a_grid, z_grid,simoptions);
-    % Calculate the life-cycle profiles
-    AgeConditionalStats_final=LifeCycleProfiles_MixHorz_PType(StationaryDist_final,Policy_final, FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
+    % Calculate the life-cycle profiles -- we calculate it just below
+    % AgeConditionalStats_final=LifeCycleProfiles_MixHorz_PType(StationaryDist_final,Policy_final, FnsToEvaluate2,Params,n_d,n_a,n_z,N_j,Names_i,d_grid,a_grid,z_grid,simoptions);
 
     % Note: Only part of this final stationary general eqm we actually 'need'
     % is the value fn (although we likely want p_eqm_final for initial guess of PricePath0). 
@@ -1063,8 +1094,13 @@ if solve_TPath
     if Params.scenario<4
         GeneralEqmEqns_Transition.ShareIssuance=GeneralEqmEqns.ShareIssuance;
     else
-        GeneralEqmEqns_Transition.ShareIssuance=@(Sissued,P0,D,tau_cg,tau_d,r) ...
-            P0-((((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
+        if strcmp(vfoptions.precision.household,'single')
+            GeneralEqmEqns_Transition.ShareIssuance=@(Sissued,P0,D,tau_cg,tau_d,r) ...
+                P0-((((single(1)-tau_cg)*P0 + (single(1)-tau_d)*D)/(single(1)+r-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
+        else
+            GeneralEqmEqns_Transition.ShareIssuance=@(Sissued,P0,D,tau_cg,tau_d,r) ...
+                P0-((((1-tau_cg)*P0 + (1-tau_d)*D)/(1+r-tau_cg))-Sissued); % P0=P-S, but substitute for P (see derivation inside the return fn)
+        end
     end
     GeneralEqmEqns_Transition.pensions=GeneralEqmEqns.pensions;
     GeneralEqmEqns_Transition.benefits=GeneralEqmEqns.benefits;
@@ -1085,8 +1121,8 @@ if solve_TPath
         {'labormarket','w',0,0.05;... % labormarket GE condition will be positive if w is too big, so subtract
         ... % 'firmdiscounting','firmbeta',0,0.05;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
         'ShareIssuance','P0',0,0.05;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
-        'pensions','pension',0,0.05;... % pensions GE condition will be positive if pension is too big, so subtract
-        'benefits','max_benefit',1,0.05;... % pensions GE condition will be positive if max_benefit is too small, so add
+        'pensions','pension',0,1.5;... % pensions GE condition will be positive if pension is too big, so subtract
+        'benefits','max_benefit',0,1;... % benefits GE condition will be positive if max_benefit is too large, so subtract computed value
         ... % 'govbudgetbalance','G',0,0.05;... % govbudget GE condition will be positive if G is too big, so subtract
         ... % 'bequestsS','AccidentBeqS',1,0.05;... % bequests GE condition will be negative if BeqS is too big, so add
         ... % 'bequestsAH','AccidentBeqAH',1,0.05;... % bequests GE condition will be negative if BeqAH is too big, so add
@@ -1177,9 +1213,15 @@ title('Path of wage rate (w)')
 function [P0,D,V,Policy,StationaryDist]=Calibrate_P0(Params_S,AgeWeightsParamNames,PTypeDistParamNames,DiscountFactorParamNames,FnsToEvaluate,ReturnFn,Policy,jequaloneDist,StationaryDist,n_d,n_a,n_z,N_j,FHorz_names,Names_i,d_grid,a_grid,z_grid,pi_z,vfoptions,simoptions)
 AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate, Params_S, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
 S=sum_S_FHorz(AggVars.S, FHorz_names);
+if S>10
+    error("S is out of range");
+end
 D=AggVars.D.firm.Mean;
 while S>1.4
     Params_S.P0=Params_S.P0*1.2;
+    if Params_S.P0>10
+        error("P0 is out of range");
+    end
     [V, Policy]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_S, DiscountFactorParamNames,vfoptions);
     StationaryDist=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames, Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params_S,simoptions);
     AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate, Params_S, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
@@ -1216,25 +1258,35 @@ end
 function S=sum_S_FHorz(AggVars_S, FHorz_names)
 S=0;
 for ii=1:length(FHorz_names)
-    S=S+AggVars_S.(FHorz_names{ii}).Mean;
+    S=S+double(AggVars_S.(FHorz_names{ii}).Mean);
 end
 
 
 end
 
-function eqm_value=BenefitsEqm(BenefitNeeded,BenefitSpending,max_benefit)
-if BenefitNeeded==0
+function benefit_reduction=BenefitsEqm(UnmetBenefit,BenefitSpending,max_benefit)
+if UnmetBenefit==0
     if BenefitSpending==0
-        eqm_value=max_benefit/2;
+        if max_benefit<1e-4
+            % No slack to cut
+            benefit_reduction=0;
+        else
+            % Cut slack aggressively
+            benefit_reduction=max_benefit*0.5;
+        end
     else
-        eqm_value=max_benefit/4;
+        benefit_reduction=max_benefit*0.25;
+    end
+elseif UnmetBenefit*20<BenefitSpending
+    % Aim for more than 2% needs unmet, but less than 5% unmet
+    if UnmetBenefit*100<BenefitSpending
+        benefit_reduction=max_benefit*0.05;
+    else
+        benefit_reduction=0;
     end
 else
-    if BenefitNeeded*20 <= BenefitSpending
-        eqm_value=0;
-    else
-        eqm_value=-max_benefit/2;
-    end
+    % Increase benefit to meet more needs
+    benefit_reduction=-max_benefit*0.05;
 end
 
 

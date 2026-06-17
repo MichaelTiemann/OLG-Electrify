@@ -16,7 +16,7 @@ CFnsToEvaluate.H_u = @(labor,buyhouse,saprime,hprime,sa,h,solarpv,z,e) (h>0); % 
 CFnsToEvaluate.PV_u = @(labor,buyhouse,saprime,hprime,sa,h,solarpv,z,e) (solarpv>0); % Unit solarpv holdings
 
 [~,ii] = find(strcmp(Names_i, 'household'));
-AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist.household,Policy.household,CFnsToEvaluate,Parameters,[],n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,z_grid.household,PType_Options(simoptions,Names_i,ii));
+AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist.household,Policy.household,CFnsToEvaluate,Parameters,[],n_d.household,n_a.household,n_z.household,N_j.household,d_grid.household,a_grid.household,z_grid.household,PType_Options(simoptions,Names_i{ii}));
 
 mean_buyers=[AgeConditionalStats.H1buy.Mean; AgeConditionalStats.H2buy.Mean; AgeConditionalStats.H3buy.Mean; AgeConditionalStats.H4buy.Mean];
 mean_sellers=[AgeConditionalStats.H1sell.Mean; AgeConditionalStats.H2sell.Mean; AgeConditionalStats.H3sell.Mean; AgeConditionalStats.H4sell.Mean];

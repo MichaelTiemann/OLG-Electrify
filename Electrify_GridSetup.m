@@ -1,9 +1,14 @@
 function [d_grid,a_grid,z_grid,pi_z,jequaloneDist,share_asset_grid,house_grid,pv_grid_hh,k_grid,pvnew_grid_firm,pvnew_grid_energy,Params,vfoptions,simoptions]=Electrify_GridSetup(scenario, n_d, n_a, n_z, small_z_no_e, Params, vfoptions, simoptions)
 
 %% Grids for household
+if strcmp(vfoptions.precision.household,'single')
+    cast2precision=@(x) single(x);
+else
+    cast2precision=@(x) x;
+end
 
 % Grid for labour choice
-labor_grid=linspace(0,1,n_d.household(1))'; % Notice that it is imposing the 0<=h<=1 condition implicitly
+labor_grid=linspace(cast2precision(0),1,n_d.household(1))'; % Notice that it is imposing the 0<=h<=1 condition implicitly
 
 % Grid for share holdings, always > 0
 % For later scenarios, shrink the grid for more accuracy
@@ -16,8 +21,8 @@ if scenario<3
     % One decision variable: labor hours percentage
     d_grid.household=labor_grid;
     % Grid for share holdings, always > 0
-    s_grid_cubed=linspace(0,1,ceil(n_a.household(1)/3)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
-    s_grid_linear=linspace(1,16,floor(n_a.household(1)*2/3)+1);
+    s_grid_cubed=linspace(cast2precision(0),1,ceil(n_a.household(1)/3)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
+    s_grid_linear=linspace(cast2precision(1),16,floor(n_a.household(1)*2/3)+1);
     share_asset_grid=[s_grid_cubed, s_grid_linear(2:end)]';
     a_grid.household=share_asset_grid;
     Params.minhouse=1;
@@ -25,12 +30,12 @@ if scenario<3
 
     % This is a default, but we set explicitly to make this reentrant
     vfoptions.experienceasset.household=0;
-    house_grid=0;
-    pv_grid_hh=0;
+    house_grid=cast2precision(0);
+    pv_grid_hh=cast2precision(0);
 else
     % Joint grid for shares and bank account; a negative balance implies a mortgage
-    a_grid_cubed=linspace(-1,1,ceil(n_a.household(1)/4)+1).^3;
-    a_grid_linear=linspace(1,15,floor(3*n_a.household(1)/4));
+    a_grid_cubed=linspace(cast2precision(-1),1,ceil(n_a.household(1)/4)+1).^3;
+    a_grid_linear=linspace(cast2precision(1),15,floor(3*n_a.household(1)/4));
     share_asset_grid=[a_grid_cubed, a_grid_linear(2:end)]';
     
     % Make it so that there is a zero assets
@@ -40,13 +45,13 @@ else
 
     % PV grid is 5 kW per grid element (approx 20kWh/day)
     if scenario<4
-        car_grid=zeros(0);
-        house_grid=(0:1:n_a.household(2)-1)';
-        pv_grid_hh=(0:1:n_a.household(3)-1)';
+        car_grid=zeros(0,vfoptions.precision.household);
+        house_grid=(cast2precision(0):1:n_a.household(2)-1)';
+        pv_grid_hh=(cast2precision(0):1:n_a.household(3)-1)';
     else
-        car_grid=(0:1:n_a.household(2)-1)'; % car assets: no car; petrol car; EV car
-        house_grid=(0:1:n_a.household(3)-1)';
-        pv_grid_hh=(0:1:n_a.household(4)-1)';
+        car_grid=(cast2precision(0):1:n_a.household(2)-1)'; % car assets: no car; petrol car; EV car
+        house_grid=(cast2precision(0):1:n_a.household(3)-1)';
+        pv_grid_hh=(cast2precision(0):1:n_a.household(4)-1)';
     end
 
     Params.minhouse=house_grid(2); % first is zero (no house)
@@ -91,11 +96,13 @@ else
     % d_grid must be set up as d_grid=[d1_grid; d2_grid; d3_grid];
 end
 if n_z.household==1 && small_z_no_e
-    z_grid_J=zeros(n_z.household,Params.J);
-    pi_z_J=ones(n_z.household,n_z.household,Params.J);
+    z_grid_J=zeros(n_z.household,Params.J,vfoptions.precision.household);
+    pi_z_J=ones(n_z.household,n_z.household,Params.J,vfoptions.precision.household);
 else
     % First, z, the AR(1) with age-dependent parameters
     [z_grid_J, pi_z_J] = discretizeLifeCycleAR1_FellaGallipoliPan(Params.rho_z,Params.sigma_epsilon_z,n_z.household,Params.J);
+    z_grid_J=cast2precision(z_grid_J);
+    pi_z_J=cast2precision(pi_z_J);
     % z_grid_J is n_z-by-J, so z_grid_J(:,j) is the grid for age j
     % pi_z_J is n_z-by-n_z-by-J, so pi_z_J(:,:,j) is the transition matrix for age j
 
@@ -106,11 +113,11 @@ else
         pi_e_J=shiftdim(pi_e_J(1,:,:),1);
     
         % Any (iid) e variable always has to go into vfoptions and simoptions
-        vfoptions.e_grid.household=e_grid_J;
-        vfoptions.pi_e.household=pi_e_J;
+        vfoptions.e_grid.household=cast2precision(e_grid_J);
+        vfoptions.pi_e.household=cast2precision(pi_e_J);
         simoptions.n_e.household=vfoptions.n_e.household;
-        simoptions.e_grid.household=e_grid_J;
-        simoptions.pi_e.household=pi_e_J;
+        simoptions.e_grid.household=vfoptions.e_grid.household;
+        simoptions.pi_e.household=vfoptions.pi_e.household;
     end
 end
 
@@ -120,6 +127,12 @@ pi_z.household=pi_z_J;
 
 
 %% Grids for firm
+if strcmp(vfoptions.precision.firm,'single')
+    cast2precision=@(x) single(x);
+else
+    cast2precision=@(x) x;
+end
+
 % note we discard the 0 and the 1 from k_grid_cubed, and give ourselves and extra slot in the linear space
 k_max=12;
 if scenario<4
@@ -132,14 +145,14 @@ if scenario<4
     % This is a default, but we set explicitly to make this reentrant
     vfoptions.experienceasset.firm=0;
 else
-    d_grid.firm=(0:n_d.firm(1)-1)'; % Electrification investment
-    k_grid_cubed=linspace(0,1,ceil(n_a.firm(1)/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
-    k_grid_linear=linspace(1,k_max,ceil(n_a.firm(1)/2)+1);
+    d_grid.firm=(cast2precision(0):n_d.firm(1)-1)'; % Electrification investment
+    k_grid_cubed=linspace(cast2precision(0),1,ceil(n_a.firm(1)/2)).^3; % The ^3 means most points are near zero, which is where the derivative of the value fn changes most.
+    k_grid_linear=linspace(cast2precision(1),k_max,ceil(n_a.firm(1)/2)+1);
     k_grid=[k_grid_cubed(2:end-1), k_grid_linear];
     % 300 * 200GWh PV = 60 TWh solar generation of 69 TWh current fossil sources
     % While we allow firms to own up to 100 units of this capacity (as an experience asset),
     % we do this by adding the newly installed capacity to the parameter `pvinstalled_firm` 
-    pvnew_grid_firm=(0:n_a.firm(2)-1);
+    pvnew_grid_firm=(cast2precision(0):n_a.firm(2)-1);
     a_grid.firm=[k_grid'; pvnew_grid_firm'];
 
     vfoptions.experienceasset.firm=1;
@@ -157,15 +170,21 @@ else
 end
 
 if n_z.firm==1
-    z_grid.firm=zeros(n_z.firm,1);
-    pi_z.firm=ones(n_z.firm,n_z.firm);
+    z_grid.firm=zeros(n_z.firm,1,vfoptions.precision.firm);
+    pi_z.firm=ones(n_z.firm,n_z.firm,vfoptions.precision.firm);
 else
     [z_grid.firm,pi_z.firm] = discretizeAR1_FarmerToda(0,Params.rho_z_firm,Params.sigma_z_e_firm,n_z.firm);
 end
-z_grid.firm=exp(z_grid.firm);
+z_grid.firm=cast2precision(exp(z_grid.firm));
+pi_z.firm=cast2precision(pi_z.firm);
 
 
 %% Grids for energy
+if strcmp(vfoptions.precision.energy,'single')
+    cast2precision=@(x) single(x);
+else
+    cast2precision=@(x) x;
+end
 if scenario < 4
     d_grid.energy=0; % Notice that it is imposing the d>=0 condition implicitly
     a_grid.energy=linspace(0,1,n_a.energy)'; % Nothing in particular
@@ -173,10 +192,10 @@ if scenario < 4
     % This is a default, but we set explicitly to make this reentrant
     vfoptions.experienceasset.energy=0;
 else
-    d_grid.energy=(0:n_d.energy-1)'; % Notice that it is imposing the d>=0 condition implicitly
+    d_grid.energy=(cast2precision(0):n_d.energy-1)'; % Notice that it is imposing the d>=0 condition implicitly
     % 300 * 200GWh PV = 60 TWh solar generation of 69 TWh current fossil sources
     % We allow energy to own up to 200 units of this capacity (as an experience asset)
-    pvnew_grid_energy=(0:n_a.energy(2)-1);
+    pvnew_grid_energy=(cast2precision(0):n_a.energy(2)-1);
     a_grid.energy=[k_grid'; pvnew_grid_energy']; % Capital and new PV assets
     % This is a default, but we set explicitly to make this reentrant
     vfoptions.experienceasset.energy=1;
@@ -194,18 +213,19 @@ else
 end
 
 if n_z.energy==1
-    z_grid.energy=zeros(n_z.energy,1);
-    pi_z.energy=ones(n_z.energy,n_z.energy);
+    z_grid.energy=zeros(n_z.energy,1,vfoptions.precision.energy);
+    pi_z.energy=ones(n_z.energy,n_z.energy,vfoptions.precision.energy);
 else
     [z_grid.energy,pi_z.energy] = discretizeAR1_FarmerToda(0,Params.rho_z_firm,Params.sigma_z_e_energy,n_z.energy);
 end
-z_grid.energy=exp(z_grid.energy);
+z_grid.energy=cast2precision(exp(z_grid.energy));
+pi_z.energy=cast2precision(pi_z.energy);
 
 %% Initial distribution of agents at birth (j=1)
 % Before we plot the life-cycle profiles we have to define how agents are
 % at age j=1. We will give them all zero shares (and possibly zero assets, no house, no solarpv).
 if small_z_no_e
-    jequaloneDist.household=zeros([n_a.household,n_z.household],'gpuArray'); % Put no households anywhere on grid
+    jequaloneDist.household=zeros([n_a.household,n_z.household],vfoptions.precision.household,'gpuArray'); % Put no households anywhere on grid
     if scenario<3
         % All agents start with zero shares, and the median shocks
         jequaloneDist.household(1,floor((n_z.household+1)/2))=1;
@@ -217,7 +237,7 @@ if small_z_no_e
         jequaloneDist.household(zeroassetindex,1,1,1,floor((n_z.household+1)/2))=1;
     end
 else
-    jequaloneDist.household=zeros([n_a.household,n_z.household,vfoptions.n_e.household],'gpuArray'); % Put no households anywhere on grid
+    jequaloneDist.household=zeros([n_a.household,n_z.household,vfoptions.n_e.household],vfoptions.precision.household,'gpuArray'); % Put no households anywhere on grid
     if scenario<3
         % All agents start with zero shares, and the median shocks
         jequaloneDist.household(1,floor((n_z.household+1)/2),floor((simoptions.n_e.household+1)/2))=1;

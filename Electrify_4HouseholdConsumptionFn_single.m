@@ -1,4 +1,4 @@
-function c_pp=Electrify_4HouseholdConsumptionFn( ...
+function c_pp=Electrify_4HouseholdConsumptionFn_single( ...
     labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e, ...
     pension,AccidentBeqS,AccidentBeqAH,w,P0,D, ...
     kappa_j,tau_l,tau_d,tau_cg,S_agej_first,S_agej_peak_first,S_agej_peak_last,S_agej_last, ...
@@ -12,16 +12,18 @@ function c_pp=Electrify_4HouseholdConsumptionFn( ...
 % Note: experienceasset, so first inputs are (d,a,z,e,...)
 % vfoptions.refine_d: only decisions d1,d3 are input to ReturnFn
 
-[sprime,aprime,s,a]=decode_sa(saprime,sa);
+single_0=single(0); single_1=single(1);
 
-carcost=0;
+[sprime,aprime,s,a]=decode_sa_single(saprime,sa,single_0,single_1);
+
+carcost=single_0;
 if h==0
     rentalcosts_pp=rentprice*w*ypp;
 else
-    rentalcosts_pp=0;
+    rentalcosts_pp=single_0;
 end
-htc=0; % house transaction cost
-pvinstallcost=0;
+htc=single_0; % house transaction cost
+pvinstallcost=single_0;
 
 % Houses start at 4x annual wage
 hcost=6*h*w;
@@ -35,7 +37,7 @@ end
 if buyhouse==3 || buyhouse==4
     if (h+hprime)==0
         % No house -> no solar
-        pvinstallcost=Inf;
+        pvinstallcost=single(Inf);
     elseif h==hprime
         % Pay the retrofit penalty
         pvinstallcost=1.1*pv_pct_cost*hcost;
@@ -48,7 +50,7 @@ end
 %% Car matters
 % Car costs 50% annual wage, or can trade at 25% annual wage
 if cprime==0
-    carcost_pp=0;
+    carcost_pp=single_0;
     if car~=0
         if car==1 % Selling a car: get back <= 1/2 of what was paid for it
             carcost=-0.3*w;
@@ -74,43 +76,43 @@ else
 end
 
 if sprime>=s
-    cg=0; % We are holding or buying, so no capital gains
+    cg=single_0; % We are holding or buying, so no capital gains
 else
     if agej<=S_agej_peak_first
-        Plag=P0*(1-2*r)^ypp; % Dispose of shares presumably acquired recently
+        Plag=P0*(single_1-2*r)^ypp; % Dispose of shares presumably acquired recently
     elseif agej<S_agej_peak_last
         % We have been holding since peak acquisition
         agej_bought=S_agej_peak_first;
-        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+        Plag=P0*(single_1-2*r)^(ypp*(agej-agej_bought));
     elseif S_agej_peak_last==S_agej_last % Bulk liquidation
         % Sell all remaining shares from first acquisition to buy-point (using geometric mean to average acquisition cost)
         agej_bought=S_agej_peak_first-sqrt(S_agej_peak_first-S_agej_first);
-        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+        Plag=P0*(single_1-2*r)^(ypp*(agej-agej_bought));
     else
         % Estimate where we are past peak accumulation and mirror around to
         % proportional acquisition point
         agej_selling_pct=(agej-S_agej_peak_last)/(S_agej_last-S_agej_peak_last);
         agej_bought=S_agej_peak_first-agej_selling_pct*(S_agej_peak_first-S_agej_first);
-        Plag=P0*(1-2*r)^(ypp*(agej-agej_bought));
+        Plag=P0*(single_1-2*r)^(ypp*(agej-agej_bought));
     end
     cg=tau_cg*(P0-Plag)*(s+AccidentBeqS-sprime);
 end
 
 if agej<Jr % If working age
     %consumption = labor income + "other income" below
-    c_pp=(1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
+    c_pp=(single_1-tau_l)*labor*w*kappa_j*exp(z+e)*ypp; 
 else % Retirement
     c_pp=pension*ypp;
 end
 
 % Other income: accidental share bequest + share holdings (including dividend) - dividend tax + accidental asset+house bequest + net housing assets
-c_pp=c_pp+((1-tau_d)*D*ypp+P0)*(s+AccidentBeqS)+AccidentBeqAH+(hcost-hprimecost);
+c_pp=c_pp+((single_1-tau_d)*D*ypp+P0)*(s+AccidentBeqS)+AccidentBeqAH+(hcost-hprimecost);
 if a<0 % In both cases, resulting `a` is added to consumption, then `aprime` subtracted
     % Subtract loan interest by adding diminishing assets
-    c_pp=c_pp+(1+r+r_wedge)^ypp*a;
+    c_pp=c_pp+(single_1+r+r_wedge)^ypp*a;
 else
     % Deposit interest included in augmented assets
-    c_pp=c_pp+(1+r)^ypp*a;
+    c_pp=c_pp+(single_1+r)^ypp*a;
 end
 % ...subtract capital gains, next period share, asset holdings
 c_pp=c_pp-cg-P0*sprime-aprime;
@@ -126,31 +128,10 @@ else
 end
 
 % Add energy cost of housing, less PV generation: 30kW (2 solar units) meets h==1 energy needs
-energy_cost_pp=Electrify_4HouseholdEnergyCosts(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e,w,ypp,cpi_energy,energy_pct_cost);
+energy_cost_pp=Electrify_4HouseholdEnergyCosts_single(labor,buyhouse,saprime,cprime,hprime,sa,car,h,solarpv,z,e,w,ypp,cpi_energy,energy_pct_cost);
 carbon_tax_pp=energy_cost_pp*energy_pct_brown*carbon_tax*ypp/200;
 
 c_pp=c_pp-energy_cost_pp-carbon_tax_pp;
-
-
-end
-
-function [sprime,aprime,s,a]=decode_sa(saprime,sa)
-
-if saprime<1
-    sprime=0;
-    aprime=saprime;
-else
-    sprime=floor(saprime);
-    aprime=rem(saprime,1);
-end
-
-if sa<1
-    s=0;
-    a=sa;
-else
-    s=floor(sa);
-    a=rem(sa,1);
-end
 
 
 end

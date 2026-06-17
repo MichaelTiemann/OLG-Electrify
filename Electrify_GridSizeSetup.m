@@ -28,15 +28,25 @@ else
             vfoptions.lowmemory.household=2;
         end
     else
-        % Endogenous shares, assets (>=6), car (3), housing (>=2), and solarpv (>=2) x5kW PV
+        % Endogenous shares+assets (>=6), car (3), housing (>=2), and solarpv (>=2) x5kW PV
         if small_model
             n_d.household=[21,5]; % Decisions: labor, buyhouse (3 w/o PV; 5 w/PV)
-            n_a.household=[48,3,2,3];
-            vfoptions.lowmemory.household=1;
+            n_a.household=[48,3,3,2];
+            if strcmp(vfoptions.precision.household,'single')
+                vfoptions.lowmemory.household=0;
+            else
+                vfoptions.lowmemory.household=1;
+            end
         else
-            n_d.household=[21,5]; % Decisions: labor, buyhouse (3 w/o PV; 5 w/PV)
+            n_d.household=[51,5]; % Decisions: labor, buyhouse (3 w/o PV; 5 w/PV)
             n_a.household=[95,3,4,5]; % 95 is smaller than 151
-            vfoptions.lowmemory.household=2;
+            if n_a.household(1)>95
+                vfoptions.lowmemory.household=3;
+            elseif strcmp(vfoptions.precision.household,'single') && n_a.household(1)<77
+                vfoptions.lowmemory.household=1;
+            else
+                vfoptions.lowmemory.household=2;
+            end
         end
     end
     n_z.household=1+2*floor(1.2*log(min(J,60))); % AR(1) with age-dependent params = 7 with 60 periods
