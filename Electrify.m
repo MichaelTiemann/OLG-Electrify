@@ -12,14 +12,14 @@ solve_setup=true;
 solve_GE=3; % 0: skip GE; 1: solve initial, 2: solve final, 3: solve both
 solve_TPath=true;
 small_z_no_e=false; % n_z=1; n_e=0
-small_model=false; % Minimal vs. maximal grid sizes
+small_model=true; % Minimal vs. maximal grid sizes
 small_T=2; % small_T==1 means just do T=1, T=2 (or smallest not-to-be-confused-with-dimension); small_T==2 means use jpT
 
 if solve_setup
 
 Names_i={'firm','household','energy'};
 PTypeDistParamNames={'ptypemass'};
-Params.ptypemass=[0.5,0.4,0.1]; % Mass of households, firms, and energy sum to one
+Params.ptypemass=[0.5,0.4,0.1]; % Mass of households, firms, and energy sum to one (after taking ConditionalOnPType into account).
 
 %% Parameters for household (4 scenarios)
 % Scenario 1: no housing, no assets, no inflation
@@ -117,13 +117,11 @@ vfoptions=struct(); simoptions=struct();
 precision='single';
 for iistr = Names_i
     vfoptions.precision.(iistr{1})='double';
-    vfoptions.indexT.(iistr{1})='double';
 end
 if strcmp(precision,'single')
     vfoptions.precision.household='single';
-    vfoptions.indexT.household='int32';
 end
-simoptions.precision=vfoptions.precision;  simoptions.indexT=vfoptions.indexT;
+simoptions.precision=vfoptions.precision;
 
 Params=Electrify_Scenario_YPP_Setup(Params,Params.scenario,Params.ypp,small_z_no_e,max_age,agejshifter,r,r_wedge,beta,n,k_j1,k_j2,k_j2_length,k_j3,sigma_h,sigma_c,psi,Params.tau_cg,energy_pct_cost,G,D,AccidentBeqS,AccidentBeqAH);
 [ReturnFn,FnsToEvaluate,FnsToEvaluate2,FnsToEvaluate3,vfoptions,simoptions]=Electrify_Scenario_Fn_Setup(Params,vfoptions,simoptions);
@@ -197,7 +195,7 @@ DiscountFactorParamNames.energy={'energybeta'};
 % vfoptions.howardsgreedy=0;
 % vfoptions.howards=80;
 % vfoptions.maxhowards=200;
-if Params.scenario<3 && small_model==false
+if Params.scenario<3 && small_model==false && ~strcat(vfoptions.precision.household,'single')
     vfoptions.tolerance=10^(-9);
 else
     vfoptions.tolerance=10^(-6);
@@ -276,9 +274,9 @@ heteroagentoptions.constrainpositive=GEPriceParamNames;
 % Note also we must differentiate based on Scenarios...
 
 % General Equilibrium conditions (these should evaluate to zero in general equilibrium)
-GeneralEqmEqns.sharemarket=@(S) S-1; % mass of all shares equals one
+GeneralEqmEqns.sharemarket=@(S) sign(S-1)*(abs(S-1))^1.2; % mass of all shares equals one
 GeneralEqmEqns.labormarket=@(L_h,L_f) (L_h-L_f)*max(2,Params.ypp); % labor supply of households equals labor demand of firms (scaled by ypp)
-GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue,BenefitSpending) PensionSpending-(PayrollTaxRevenue-BenefitSpending); % Retirement benefits equal Payroll tax revenue (pension*fractionretired-tau*w*H) less benefit
+GeneralEqmEqns.pensions=@(PensionSpending,PayrollTaxRevenue,BenefitSpending) PensionSpending+BenefitSpending-PayrollTaxRevenue; % Retirement benefits equal Payroll tax revenue (pension*fractionretired-tau*w*H) less benefit
 GeneralEqmEqns.benefits=@(UnmetBenefit,BenefitSpending,max_benefit) BenefitsEqm(UnmetBenefit,BenefitSpending,max_benefit);
 % GeneralEqmEqns.firmdiscounting=@(firmbeta,r,tau_cg) firmbeta-1/(1+r/(1-tau_cg)); % Firms discount rate is related to market return rate
 if Params.scenario<4
@@ -291,12 +289,14 @@ end
 Params_Lhscale=Params;
 Params_Lhscale.Lhscale=1;
 [V_Lhscale, Policy_Lhscale]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_Lhscale, DiscountFactorParamNames, vfoptions);
+FnsToEvaluate_final.L_h=FnsToEvaluate.L_h;
+FnsToEvaluate_final.L_f=FnsToEvaluate.L_f;
+FnsToEvaluate_final.S=FnsToEvaluate.S;
+simoptions.FnsToEvaluate=FnsToEvaluate_final;
 StationaryDist_Lhscale=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames, Policy_Lhscale,n_d,n_a,n_z,N_j,Names_i,pi_z,Params_Lhscale,simoptions);
 
 %% Test
 % Note: Because we used simoptions we must include this as an input
-FnsToEvaluate_final.L_h=FnsToEvaluate.L_h;
-FnsToEvaluate_final.L_f=FnsToEvaluate.L_f;
 AggVars_final=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist_Lhscale,Policy_Lhscale, FnsToEvaluate_final, Params_Lhscale, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
 Params.Lhscale=Params_Lhscale.Lhscale*AggVars_final.L_f.Mean/AggVars_final.L_h.Mean;
 fprintf("Setting Lhscale to %.2f (with Lhscale==%.2f, L_h was %.2f, L_f was %.2f) \n", Params.Lhscale, Params_Lhscale.Lhscale, AggVars_final.L_h.Mean, AggVars_final.L_f.Mean);
@@ -507,10 +507,10 @@ if mod(solve_GE,2)==1
     heteroagentoptions.fminalgo5.howtoupdate=...
         {...
         'labormarket','w',0,0.14;... % labormarket GE condition will be positive if w is too big, so subtract
-        'sharemarket','P0',1,0.25;... % sharemarket GE condition will be positive if P0 is too small, so add
+        'sharemarket','P0',1,0.7;... % sharemarket GE condition will be positive if P0 is too small, so add
         ... % 'firmdiscounting','firmbeta',0,0.05;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
         ... % 'ShareIssuance','P0',0,0.1;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
-        'pensions','pension',0,1;... % pensions GE condition will be positive if pension is too big, so subtract
+        'pensions','pension',0,4;... % pensions GE condition will be positive if pension is too big, so subtract
         'benefits','max_benefit',0,1;... % benefits GE condition will be positive if max_benefit is too large, so subtract computed value
         ... % 'govbudgetbalance','G',0,0.05;... % govbudget GE condition will be positive if G is too big, so subtract
         ... % 'bequestsS','AccidentBeqS',1,0.05;... % bequests GE condition will be negative if BeqS is too big, so add
@@ -524,7 +524,7 @@ if mod(solve_GE,2)==1
             % heteroagentoptions.maxiter=200;
         end
     else
-        heteroagentoptions.toleranceGEprices=10^(-3);
+        heteroagentoptions.toleranceGEprices=10^(-2);
         heteroagentoptions.toleranceGEcondns=10^(-2); % This is the hard one
         heteroagentoptions.maxiter=50*(1+logical(small_z_no_e)+2*logical(small_model));                % About 3 hours for 35 iterations
 
@@ -1116,12 +1116,13 @@ if solve_TPath
     
     % Set up the shooting algorithm
     transpathoptions.GEnewprice=3;
+
     % Need to explain to transpathoptions how to use the GeneralEqmEqns to update the general eqm transition prices (in PricePath).
     transpathoptions.GEnewprice3.howtoupdate=... % a row is: GEcondn, price, add, factor
-        {'labormarket','w',0,0.05;... % labormarket GE condition will be positive if w is too big, so subtract
+        {'labormarket','w',0,0.14;... % labormarket GE condition will be positive if w is too big, so subtract
         ... % 'firmdiscounting','firmbeta',0,0.05;... % firmdiscounting GE condition will be positive if firmbeta is too big, so subtract
-        'ShareIssuance','P0',0,0.05;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
-        'pensions','pension',0,1.5;... % pensions GE condition will be positive if pension is too big, so subtract
+        'ShareIssuance','P0',0,0.7;... % ShareIssuance GE condition will be positive if P0 is too big, so subtract
+        'pensions','pension',0,4;... % pensions GE condition will be positive if pension is too big, so subtract
         'benefits','max_benefit',0,1;... % benefits GE condition will be positive if max_benefit is too large, so subtract computed value
         ... % 'govbudgetbalance','G',0,0.05;... % govbudget GE condition will be positive if G is too big, so subtract
         ... % 'bequestsS','AccidentBeqS',1,0.05;... % bequests GE condition will be negative if BeqS is too big, so add
@@ -1149,7 +1150,11 @@ if solve_TPath
     % Setup the options relating to the transition path
     transpathoptions.verbose=1;
     transpathoptions.maxiter=2; % default is 1000
-    transpathoptions.fastOLG=0; % PTypes will force this on `simoptions`; must we match that energy?
+    if Params.J <=31 && (small_model || n_a.household(1)==31)
+        transpathoptions.fastOLG=1; % PTypes will force this on `simoptions`; must we match that energy?
+    else
+        transpathoptions.fastOLG=0; % PTypes will force this on `simoptions`; must we match that energy?
+    end
     transpathoptions.graphpricepath=1; % plots of the ParamPath that get updated every interation
     transpathoptions.graphaggvarspath=1; % plots of the AggVarsPath that get updated every iteration
     
@@ -1217,8 +1222,8 @@ if S>10
     error("S is out of range");
 end
 D=AggVars.D.firm.Mean;
-while S>1.4
-    Params_S.P0=Params_S.P0*1.2;
+while S>1.1
+    Params_S.P0=Params_S.P0*(S^(1/3));
     if Params_S.P0>10
         error("P0 is out of range");
     end
@@ -1226,29 +1231,22 @@ while S>1.4
     StationaryDist=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames, Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params_S,simoptions);
     AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate, Params_S, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
     S=sum_S_FHorz(AggVars.S, FHorz_names);
-    D=AggVars.D.firm.Mean;
+    Params_S.D=AggVars.D.firm.Mean;
 end
-while S<0.5
-    Params_S.P0=Params_S.P0*0.90;
+while S<0.9
+    Params_S.P0=Params_S.P0*(S^(1/3));
     [V, Policy]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_S, DiscountFactorParamNames,vfoptions);
     StationaryDist=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames, Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params_S,simoptions);
     AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate, Params_S, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
     S=sum_S_FHorz(AggVars.S, FHorz_names);
-    D=AggVars.D.firm.Mean;
+    Params_S.D=AggVars.D.firm.Mean;
 end
-if S>1.1
-    P0=Params_S.P0*1.05;
-elseif S<0.9
-    P0=Params_S.P0*0.98;
-else
-    P0=Params_S.P0;
-end
-Params_S.P0=P0;
-Params_S.D=D;
+P0=Params_S.P0;
+D=Params_S.D;
 fprintf("Setting P0 to %.2f, D to %.2f \n", P0, D);
 
-[V, Policy]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_S, DiscountFactorParamNames,vfoptions);
-StationaryDist=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames, Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params_S,simoptions);
+% [V, Policy]=ValueFnIter_MixHorz_PType(n_d,n_a,n_z,N_j,Names_i,d_grid, a_grid, z_grid, pi_z,ReturnFn, Params_S, DiscountFactorParamNames,vfoptions);
+% StationaryDist=StationaryDist_MixHorz_PType(jequaloneDist,AgeWeightsParamNames,PTypeDistParamNames, Policy,n_d,n_a,n_z,N_j,Names_i,pi_z,Params_S,simoptions);
 % AggVars=EvalFnOnAgentDist_AggVars_MixHorz_Case1_PType(StationaryDist,Policy, FnsToEvaluate, Params_S, n_d, n_a, n_z,N_j,Names_i,d_grid, a_grid, z_grid,simoptions);
 % S=sum_S_FHorz(AggVars.S, FHorz_names);
 % D=AggVars.D.firm.Mean;
@@ -1278,15 +1276,15 @@ if UnmetBenefit==0
         benefit_reduction=max_benefit*0.25;
     end
 elseif UnmetBenefit*20<BenefitSpending
-    % Aim for more than 2% needs unmet, but less than 5% unmet
+    % Allow for more than 1% needs unmet, but certainly less than 5% unmet
     if UnmetBenefit*100<BenefitSpending
         benefit_reduction=max_benefit*0.05;
     else
         benefit_reduction=0;
     end
 else
-    % Increase benefit to meet more needs
-    benefit_reduction=-max_benefit*0.05;
+    % Increase benefit to meet more needs.  Must be less than half our increase, lest we ping-pong in some cases
+    benefit_reduction=-0.02*max_benefit;
 end
 
 

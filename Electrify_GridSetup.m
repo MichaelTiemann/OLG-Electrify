@@ -35,7 +35,7 @@ if scenario<3
 else
     % Joint grid for shares and bank account; a negative balance implies a mortgage
     a_grid_cubed=linspace(cast2precision(-1),1,ceil(n_a.household(1)/4)+1).^3;
-    a_grid_linear=linspace(cast2precision(1),15,floor(3*n_a.household(1)/4));
+    a_grid_linear=linspace(cast2precision(1),12,floor(3*n_a.household(1)/4));
     share_asset_grid=[a_grid_cubed, a_grid_linear(2:end)]';
     
     % Make it so that there is a zero assets
