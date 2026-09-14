@@ -86,7 +86,7 @@ vfoptions.refine_d=[0,1,1]; % tell the code how many d1, d2, d3 and d4 there are
 % It is possible to solve models without any d1, as is the case here.
 simoptions.refine_d=vfoptions.refine_d;
 
-vfoptions.gridinterplayer=[1,0,0];
+vfoptions.gridinterplayer=[0,0,0];
 vfoptions.ngridinterp=5;
 simoptions.gridinterplayer=vfoptions.gridinterplayer;
 simoptions.ngridinterp=vfoptions.ngridinterp;
@@ -247,7 +247,7 @@ simoptions.experienceasset=1;
 % vfoptions.refine_d: the decision variables input to aprimeFn are d2,d3
 
 % Experience assets must be listed first in aprime
-a2primeFn=@(installpv, solarpv) ElectrifyHousingV_a2primeFn(installpv, solarpv); % Will return the value of aprime
+a2primeFn=@(installpv, solarpv) ElectrifyHousing_a2primeFn(installpv, solarpv); % Will return the value of aprime
 % Note that u is risky asset excess return and effectively includes both the (excess) mean and standard deviation of risky assets
 
 %% Put the risky asset/experienceasset into vfoptions and simoptions
@@ -297,7 +297,7 @@ ReturnFn=@(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
     ElectrifyHousingsemizV_ReturnFn(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
         pbefore,pafter,yearsowned,olddownpayment, z, ...
         w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost);
-% vfoptions.refine_d, with semiz: only (d1,d3,d4,..) are input to ReturnFn [this model has no d1, so here just d3,d4]
+% vfoptions.refine_d, with semiz: only (d1,d3,..) are input to ReturnFn [this model has no d1, so here just d3]
 
 %% Now solve the value function iteration problem, just to check that things are working before we go to General Equilbrium
 disp('Solve ValueFnIter')
