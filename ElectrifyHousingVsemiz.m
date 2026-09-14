@@ -247,7 +247,7 @@ simoptions.experienceasset=1;
 % vfoptions.refine_d: the decision variables input to aprimeFn are d2,d3
 
 % Experience assets must be listed first in aprime
-a2primeFn=@(installpv, solarpv) ElectrifyHousing_a2primeFn(installpv, solarpv); % Will return the value of aprime
+a2primeFn=@(installpv, solarpv, pbefore, pafter, yearsowned, olddownpayment) ElectrifyHousing_a2primeFn(installpv, solarpv); % Will return the value of aprime
 % Note that u is risky asset excess return and effectively includes both the (excess) mean and standard deviation of risky assets
 
 %% Put the risky asset/experienceasset into vfoptions and simoptions
