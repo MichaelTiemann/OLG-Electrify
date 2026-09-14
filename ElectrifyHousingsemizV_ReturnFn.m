@@ -1,17 +1,29 @@
-function F = ElectrifyHousingsemizV_ReturnFn(installpv, buyhouse, aprime, hprime, h, a, solarpv, ...
-    pbefore, pafter, yearsowned, olddownpayment, ...
-    z, ...
+function F = ElectrifyHousingsemizV_ReturnFn(installpv, buyhouse, aprime, hprime, a, h, solarpv, ...
+    pbefore, pafter, yearsowned, olddownpayment, z, ...
     w, r, sigma, agej, Jr, pension, kappa_j, sigma_h, f_htc, minhouse, rentprice, houseservices, mortgageduration, pv_pct_cost, energy_pct_cost)
 
-% Note: experience asset and semi-exo asset, so first inputs are (d,a,z,...)
-% vfoptions.refine_d: only decisions d1,d3,d4 are input to ReturnFn (and this model has no d1)
-
 % --- 0. Master Tensor Setup ---
-% Add all inputs together to force MATLAB to broadcast them to the max dimension size
+% 1. Add all inputs together to force MATLAB to find the max broadcast size
 master_tensor = a + h + hprime + aprime + solarpv + z + buyhouse + installpv + pbefore + pafter + yearsowned + olddownpayment;
 
+% 2. EXPLICITLY BROADCAST ALL VARIABLES TO FULL TENSOR SIZE
+% This guarantees that all logical masks will perfectly align with pre-allocated full-size arrays.
+zero_tensor = zeros(size(master_tensor), 'like', master_tensor);
+installpv      = installpv + zero_tensor;
+buyhouse       = buyhouse + zero_tensor;
+aprime         = aprime + zero_tensor;
+hprime         = hprime + zero_tensor;
+a              = a + zero_tensor;
+h              = h + zero_tensor;
+solarpv        = solarpv + zero_tensor;
+pbefore        = pbefore + zero_tensor;
+pafter         = pafter + zero_tensor;
+yearsowned     = yearsowned + zero_tensor;
+olddownpayment = olddownpayment + zero_tensor;
+z              = z + zero_tensor;
+
 % --- 1. House and Mortgage Setup ---
-relevantdownpayment = 0.2 * buyhouse; 
+relevantdownpayment = 0.2 * buyhouse;
 relevantdownpayment(buyhouse == 4) = olddownpayment(buyhouse == 4);
 
 housevalueatpurchase = zeros(size(master_tensor), 'like', master_tensor);
@@ -31,7 +43,7 @@ originalmortgage(own_mask) = (1 - relevantdownpayment(own_mask)) .* housevalueat
 
 % Apply fixed exponential compounding (.^ instead of .*)
 paying_mask = own_mask & (yearsowned < 20);
-rate_factor = (1+r).^mortgageduration; 
+rate_factor = (1+r).^mortgageduration;
 pmt_factor = (r .* rate_factor) ./ (rate_factor - 1);
 
 mortgagepayment(paying_mask) = originalmortgage(paying_mask) .* pmt_factor;
@@ -66,7 +78,7 @@ rentalcosts(h_zero) = rentprice;
 
 % --- 3. Budget Constraint (Consumption) ---
 if agej < Jr
-    c = w * kappa_j * z + (1+r)*a - aprime - costofnewhouse - htc - rentalcosts - mortgagepayment - pvinstallcost - (energy_pct_cost * (1 - solarpv/30)); 
+    c = w * kappa_j * z + (1+r)*a - aprime - costofnewhouse - htc - rentalcosts - mortgagepayment - pvinstallcost - (energy_pct_cost * (1 - solarpv/30));
 else
     c = pension + (1+r)*a - aprime - costofnewhouse - htc - rentalcosts - mortgagepayment - pvinstallcost - (energy_pct_cost * (1 - solarpv/30));
 end
