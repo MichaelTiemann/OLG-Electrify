@@ -1,22 +1,22 @@
 function solarpv_prime = ElectrifyHousingV_a2primeFn_single(installpv, solarpv)
 
-% Because we use vfoptions.refine_d, the decision variables for aprimeFn must follow the ordering d2,d3
-% Also, experience assets must be listed first in aprimeFn
+% 1. Wrap constants in single() to prevent phantom double promotion
+single_0_99 = single(0.99);
 
-% 1. Create a master sizing tensor to ensure implicit expansion works safely
-master_tensor = installpv + solarpv;
-solarpv_prime = -inf(size(master_tensor), 'like', master_tensor);
+% We replace the random generator with a deterministic install size (e.g., 30kW)
+% so the backward induction can mathematically converge.
+single_install_size = single(30);
 
-% 2. Condition: If installing solar for the first time
-install_mask = (installpv == 1) & (solarpv == 0);
-
-% (Safely generate a GPU-compatible matrix of random values)
-rand_sizes = cast(10 * randi([1, 4], size(master_tensor)), 'like', master_tensor);
-solarpv_prime(install_mask) = rand_sizes(install_mask);
-
-% 3. Condition: The slow degradation of installed solar capacity
+% 2. Pure Arithmetic Masking (No pre-allocations!)
+install_mask    = (installpv == 1) & (solarpv == 0);
 no_install_mask = (installpv == 0);
-solarpv_prime(no_install_mask) = solarpv(no_install_mask) * 0.99;
+
+% The JIT compiler implicitly expands this natively inside the GPU registers
+solarpv_prime = install_mask .* single_install_size + ...
+    no_install_mask .* (solarpv .* single_0_99);
+
+% (Note: The ReturnFn already bans states where installpv == 1 & solarpv > 0 with -Inf,
+% so we don't need to explicitly handle their transitions here; they will naturally drop out).
 
 
 end
