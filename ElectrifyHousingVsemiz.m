@@ -66,13 +66,6 @@ N_j = Params.J;
 % simoptions.riskyasset=1;
 % When there is more than one endogenous state, the riskyasset is the last one
 
-
-% % Specify Epstein-Zin preferences
-% vfoptions.exoticpreferences='EpsteinZin';
-% vfoptions.EZpositiveutility=0; % Epstein-Zin preferences in utility-units have to be handled differently depending on whether the utility funciton is positive or negative valued (this is all done internally, you just need to use vfoptions to specify which)
-% vfoptions.EZriskaversion='phi'; % additional risk-aversion
-% % Params.phi is set below
-
 %% 'refine_d' requires us to set the decision variables in a specific order
 vfoptions.refine_d=[0,1,1]; % tell the code how many d1, d2, d3 and d4 there are
 % Idea is to distinguish three categories of decision variable:
@@ -102,10 +95,32 @@ Params.energy_pct_cost=0.07; % Electricity: 3%; Gas: 2%; Petrol: 2%
 
 % Discount rate
 Params.beta = 0.96^p5;
+Params.beta0 = 0.80^p5; % <-- NEW: Quasi-Hyperbolic present-bias parameter
+
+% Preferences (Core)
+Params.sigma = 2.0; 
+Params.eta   = 0.5;  
+Params.phi   = 10;   % HOW DOES THIS GET INTO EZ?  Or is it Params.psi?  Or what?
+
+% Preferences (Epstein-Zin)
+Params.ez_risk_aversion = 4.0; % High Risk Aversion 
+Params.ez_eis           = 0.5; % Elasticity of Intertemporal Substitution
+
+%% Exotic Preferences: Quasi-Hyperbolic Epstein-Zin (QH-EZ)
+vfoptions.exoticpreferences    = 'QHEpsteinZin';
+vfoptions.quasi_hyperbolic     = 'Sophisticated'; 
+vfoptions.QHadditionaldiscount = 'beta0';         
+
+% Epstein-Zin Aggregation Settings
+vfoptions.EZriskaversion    = 'ez_risk_aversion'; % <-- Pass the string name!
+vfoptions.EZeis             = 'ez_eis';           % <-- Pass the string name!
+vfoptions.EZpositiveutility = 0;   
+vfoptions.EZutils           = 1;
+
 % Preferences
 Params.sigma=10; % Coeff of relative risk aversion (curvature of consumption)
-Params.phi=10; % Additional risk aversion (from Epstein-Zin preferences)
 Params.sigma_h=0.5; % Relative importance of housing services (vs consumption) in utility
+
 
 % Prices
 Params.w=1; % Wage
