@@ -272,9 +272,9 @@ simoptions.experienceasset=1;
 
 % Experience assets must be listed first in aprime
 if strcmp(vfoptions.precision, 'single')
-    a2primeFn=@(installpv, solarpv, pbefore, pafter, yearsowned, olddownpayment) ElectrifyHousingV_a2primeFn_single(installpv, solarpv); % Will return the value of aprime
+    a2primeFn=@(installpv, solarpv) ElectrifyHousingV_a2primeFn_single(installpv, solarpv); % Will return the value of aprime
 else
-    a2primeFn=@(installpv, solarpv, pbefore, pafter, yearsowned, olddownpayment) ElectrifyHousingV_a2primeFn(installpv, solarpv); % Will return the value of aprime
+    a2primeFn=@(installpv, solarpv) ElectrifyHousingV_a2primeFn(installpv, solarpv); % Will return the value of aprime
 end
 % Note that u is risky asset excess return and effectively includes both the (excess) mean and standard deviation of risky assets
 
