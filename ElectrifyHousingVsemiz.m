@@ -35,7 +35,7 @@
 % To be able to solve such a big problem, I switched to 5 year model period.
 % Note that p5 must be at least 3 (for Farmer-Toda) so years-owned >= 2.
 % p5 must be at most 15 (for kappa_j labor productivity evolutions).
-p5=6; % model period, in years (just used this to modify some parameters from annual to model period)
+p5=1; % model period, in years (just used this to modify some parameters from annual to model period)
 
 %% How does VFI Toolkit think about this?
 %
@@ -54,12 +54,12 @@ Params.agejshifter=19; % Age 20 minus one. Makes keeping track of actual age eas
 Params.J=ceil((79-Params.agejshifter)/p5); % =60/p5, Number of period in life-cycle
 
 % Grid sizes to use
-n_d=[2,5]; % Decisions: installpv, buyhouse (note, SemiExoStateFn hardcodes that buyhouse is 5 points, and it must be last)
-n_a=[13,3,5]; % Endogenous asset, housing, and solarpv (0-40kW generation) 
-n_semiz=[5,5,ceil(30/p5),3]; % Semi-exog: house prices before/after purchase, years since purchase (one minus this is the 30y duration of mortgages in model periods), and downpayment
-n_z=7; % Exogenous labor productivity units shock (maybe later also solarpv productivity shock?)
-% n_u=p5; % Between period i.i.d. shock (is this really p5 or is it 5 to match with SemiExoStateFn buyhouse?)
-N_j=Params.J; % Number of periods in finite horizon
+% --- The 9.2 Million State Grid ---
+n_d = [2, 5];             % Decisions: PV (2), BuyHouse (5)
+n_a = [15, 4, 5];         % Endogenous: Assets (15), Housing (4 sizes), SolarPV (5 sizes)
+n_semiz = [7, 7, 30, 3];  % Semi-exog: PBefore (7), PAfter (7), Mortgage Years (30), Downpayment (3)
+n_z = 7;                  % Exogenous: Labor productivity (7)
+N_j = Params.J;
 
 % LifeCycleModel35 had risky assets, but we delete that in this example
 % vfoptions.riskyasset=1; % riskyasset aprime(d,u)
@@ -126,15 +126,15 @@ Params.Jr=round((65-Params.agejshifter)/p5); % Age 65 (period 10 is ages 65-69 i
 % Pensions
 Params.pension=0.4; % Increased to be greater than rental costs
 
-% Age-dependent labor productivity units
-if Params.Jr>5
-    Params.kappa_j=[linspace(0.5,2,Params.Jr-3),linspace(2,1,2),zeros(1,Params.J-Params.Jr+1)];
-else
-    Params.kappa_j=[linspace(0.5,2,Params.Jr-2),ones(1,1),zeros(1,Params.J-Params.Jr+1)];
-end
-% Exogenous shock process: AR1 on labor productivity units
-Params.rho_z=0.9;
-Params.sigma_epsilon_z=0.03;
+% Age-dependent labor productivity units (Smoothed for annual 60-period life)
+working_years = Params.Jr - 1; 
+Params.kappa_j = [linspace(0.5, 2.0, working_years - 10), ...
+                  linspace(2.0, 1.0, 10), ...
+                  zeros(1, Params.J - working_years)];
+
+% Annualized Exogenous shock process: AR1 on labor productivity units
+Params.rho_z = 0.97;              % Increased persistence for annual wage shocks
+Params.sigma_epsilon_z = 0.015;   % Lower annual variance
 
 % Conditional survival probabilities: sj is the probability of surviving to be age j+1, given alive at age j
 % Most countries have calculations of these (as they are used by the government departments that oversee pensions)
@@ -161,9 +161,10 @@ Params.sj(end)=0; % In the present model the last period (j=J) value of sj is ac
 Params.mortgageduration=n_semiz(3)-1;
 
 
-%% House prices
-Params.probhousepricerise=0.3; % increase one grid point
-Params.probhousepricefall=0.2; % decrease one grid point
+%% House prices (Annualized Drift)
+Params.probhousepricerise = 0.08; % 8% chance house prices rise a tier this year
+Params.probhousepricefall = 0.08; % 8% chance house prices fall a tier this year
+% remaining 84% probability that house price is unchanged from last year
 % remaining 1-probhousepricerise-probhousepricefall probability that house
 % price is unchanged from previous period
 
@@ -211,15 +212,39 @@ d_grid=[installpv_grid; buyhouse_grid];
 
 a_grid=[asset_grid; house_grid; solarpv_grid];
 
-% Now the semi-exogenous states, we define SemiExoStateFn later, for now just some grids
-pbefore_grid=cast([0.8,1,1.2,1.4,1.6],vfoptions.precision)'; % 1 represents price when agent is 'born'
-pafter_grid=cast([0.8,1,1.2,1.4,1.6],vfoptions.precision)'; % 1 represents price when house is purchased
-% Note: is purely coincidence that pbefore and pafter use same grids (both
-% must be equally spaced, but no need to be same values, nor same number of points)
-yearsowned_grid=[(zero:1:(n_semiz(3)-2))';100]; % note: 100 is an absorbing state representing 30+ years (so mortgage is fully repaid)
-downpayment_grid=cast([0.2,0.4,0.6],vfoptions.precision)'; % downpayment for new house must be 20%, 40%, 60%.
-% Should the fact of solar PV installation affect pafter_grid?
-semiz_grid=[pbefore_grid; pafter_grid; yearsowned_grid; downpayment_grid];
+% Expanded 7-point House Price Market (evenly spaced by 0.15)
+% [0.70, 0.85, 1.00, 1.15, 1.30, 1.45, 1.60]
+pbefore_grid = cast(0.70 : 0.15 : 1.60, vfoptions.precision)'; 
+pafter_grid  = cast(0.70 : 0.15 : 1.60, vfoptions.precision)'; 
+
+yearsowned_grid = [(zero : 1 : (n_semiz(3) - 2))'; 100]; 
+downpayment_grid = cast([0.2, 0.4, 0.6], vfoptions.precision)'; 
+
+semiz_grid = [pbefore_grid; pafter_grid; yearsowned_grid; downpayment_grid];
+
+%% Build Time-Invariant pi_semiz (Bypassing the 5.8B element allocation limit)
+disp('Initializing lightweight Semi-Exogenous transition tensor (N_j=1 trick)...');
+
+% Unlock the setup temporarily
+vfoptions.alreadygridvals_semiexo = 0;
+
+% Call setup natively but lie about lifespan (N_j=1 instead of 60)
+% We use AgeDependence=1 to pass the internal gridpiboth validation checks
+vfoptions_temp = SemiExogShockSetup_FHorz(n_d, 1, d_grid, Params, vfoptions, 1);
+
+% Extract the cleanly generated grids and transition matrix
+vfoptions.semiz_gridvals_J = vfoptions_temp.semiz_gridvals_J;
+vfoptions.pi_semiz_J = vfoptions_temp.pi_semiz_J;
+
+% Lock it down so ValueFnIter doesn't try to rebuild the massive 60-period version!
+vfoptions.alreadygridvals_semiexo = 1; 
+
+% Provide the same arrays to simoptions for forward simulation
+simoptions.semiz_gridvals_J = vfoptions.semiz_gridvals_J;
+simoptions.pi_semiz_J = vfoptions.pi_semiz_J;
+simoptions.alreadygridvals_semiexo = 1;
+
+% (Keep the spacing checks that follow here...)
 % Note, SemiExoStateFn hardcodes that the grid spacing for pbefore_grid
 % must be evenly spaced, and same for pafter_grid.
 Params.pbeforespacing=pbefore_grid(2)-pbefore_grid(1);
@@ -236,9 +261,9 @@ Params.maxpbefore=max(pbefore_grid);
 Params.minpbefore=min(pbefore_grid);
 Params.maxpafter=max(pafter_grid);
 Params.minpafter=min(pafter_grid);
-% for initial agent distribution, which elements in pbefore and pafter_grid are the initial prices
-Params.pbefore1=2; % second element is 1, which is where we want to start
-Params.pafter1=2; % second element is 1, which is where we want to start
+% For initial agent distribution: 1.00 is the 3rd element in our new 0.70:0.15:1.60 grid
+Params.pbefore1 = 3; 
+Params.pafter1 = 3;
 
 %% Solar PV is an experienceasset
 vfoptions.experienceasset=1;
@@ -276,18 +301,22 @@ simoptions.d_grid=d_grid;
 
 % Note: with riskyasset, the decision variables for the semi-exo states are determined by d4 in vftopions.refine_d
 % Set up the semi-exogneous states
-vfoptions.n_semiz=n_semiz;
-vfoptions.semiz_grid=semiz_grid;
-% Define the transition probabilities of the semi-exogenous states; do it all in double precision
-vfoptions.SemiExoStateFn=@(pbefore,pafter,yearsowned,downpayment,pbeforeprime,pafterprime,yearsownedprime,downpaymentprime,buyhouse, ...
-        probhousepricerise,probhousepricefall, pbeforespacing,pafterspacing, maxpbefore,minpbefore,maxpafter,minpafter, mortgageduration)...
+%% Setup for how the semi-exogenous states evolve
+vfoptions.l_dsemiz = 1; % or 2 depending on how many decision variables control semiz
+vfoptions.n_semiz = n_semiz;
+vfoptions.semiz_grid = semiz_grid;
+
+% Define the transition probabilities function handle
+vfoptions.SemiExoStateFn = @(pbefore,pafter,yearsowned,downpayment,pbeforeprime,pafterprime,yearsownedprime,downpaymentprime,buyhouse, ...
+    probhousepricerise,probhousepricefall,pbeforespacing,pafterspacing,maxpbefore,minpbefore,maxpafter,minpafter,mortgageduration)...
     ElectrifyHousing_SemiExoStateFn(pbefore,pafter,yearsowned,downpayment,pbeforeprime,pafterprime,yearsownedprime,downpaymentprime,buyhouse, ...
-        probhousepricerise,probhousepricefall, pbeforespacing,pafterspacing, maxpbefore,minpbefore,maxpafter,minpafter, mortgageduration);
+    probhousepricerise,probhousepricefall,pbeforespacing,pafterspacing,maxpbefore,minpbefore,maxpafter,minpafter,mortgageduration);
 
 % We also need to tell simoptions about the semi-exogenous states
-simoptions.SemiExoStateFn=vfoptions.SemiExoStateFn;
-simoptions.n_semiz=vfoptions.n_semiz;
-simoptions.semiz_grid=vfoptions.semiz_grid;
+simoptions.SemiExoStateFn = vfoptions.SemiExoStateFn;
+simoptions.n_semiz = vfoptions.n_semiz;
+simoptions.semiz_grid = vfoptions.semiz_grid;
+simoptions.l_dsemiz = vfoptions.l_dsemiz;
 
 %% Now, create the return function 
 % % There is not much agreement on how to handle mortality risk with Epstein-Zin preferences
@@ -382,7 +411,8 @@ FnsToEvaluate.yearsowned=@(installpv,buyhouse,aprime,hprime,a,h,solarpv,pbefore,
 % notice that we have called these earnings and assets
 
 %% Calculate the life-cycle profiles
-AgeConditionalStats=LifeCycleProfiles_FHorz_Case1(StationaryDist,Policy,FnsToEvaluate,Params,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
+%% Calculate the life-cycle profiles
+AgeConditionalStats = LifeCycleProfiles_VFHorz_ExpAssetsemiz(StationaryDist,Policy,FnsToEvaluate,Params,[],n_d,n_a,n_z,N_j,d_grid,a_grid,z_grid,simoptions);
 
 % For example
 % AgeConditionalStats.earnings.Mean
