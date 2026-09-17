@@ -286,22 +286,22 @@ vfoptions.SemiExoStateFn = @(pbefore,pafter,yearsowned,downpayment,pbeforeprime,
     ElectrifyHousing_SemiExoStateFn(pbefore,pafter,yearsowned,downpayment,pbeforeprime,pafterprime,yearsownedprime,downpaymentprime,buyhouse, ...
     probhousepricerise,probhousepricefall,pbeforespacing,pafterspacing,maxpbefore,minpbefore,maxpafter,minpafter,mortgageduration);
 
-%% Build Time-Invariant pi_semiz (Bypassing the 5.8B element allocation limit)
-disp('Initializing lightweight Semi-Exogenous transition tensor (N_j=1 trick)...');
+%% Initialize time-invariant Semi-Exogenous transition tensor
+disp('Initializing memory-optimized Semi-Exogenous transition tensor...');
 
 % Unlock the setup temporarily
 vfoptions.alreadygridvals_semiexo = 0;
 
-% Call setup natively but lie about lifespan (N_j=1 instead of 60)
-% We use AgeDependence=1 to pass the internal gridpiboth validation checks
+% Restrict generation to 2 periods to allocate a single time-invariant transition 
+% tensor, bypassing dense time-varying allocation limits for static housing grids.
 vfoptions_temp = SemiExogShockSetup_FHorz(n_d, 2, d_grid, Params, vfoptions, 3);
 
-% Extract the cleanly generated grids and transition matrix
+% Extract the efficiently generated grids and transition matrix
 vfoptions.semiz_gridvals_J = vfoptions_temp.semiz_gridvals_J;
 vfoptions.pi_semiz_J = vfoptions_temp.pi_semiz_J;
 
-% Lock it down so ValueFnIter doesn't try to rebuild the massive 60-period version!
-vfoptions.alreadygridvals_semiexo = 1; 
+% Lock grids to prevent time-varying expansion during ValueFnIter
+vfoptions.alreadygridvals_semiexo = 1;
 
 % We also need to tell simoptions about the semi-exogenous states
 simoptions.SemiExoStateFn = vfoptions.SemiExoStateFn;

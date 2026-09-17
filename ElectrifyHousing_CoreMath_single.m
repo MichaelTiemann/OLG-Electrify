@@ -28,66 +28,101 @@ if (installpv == 1) && (buyhouse == 0)
     F = single_minf; return;
 end
 
-% --- 2. House and Mortgage Setup ---
-if buyhouse == 4
-    relevantdownpayment = olddownpayment;
-    housevalueatpurchase = h * pbefore;
-elseif buyhouse > 0 && buyhouse < 4
-    relevantdownpayment = single_02 * buyhouse;
-    housevalueatpurchase = h * pbefore * pafter;
+% --- 2. Old House & Equity Cashed Out ---
+if h == single_0
+    old_house_purchase_value = single_0;
+    old_house_current_value  = single_0;
+    outstandingdebt          = single_0;
+    equity_from_old          = single_0;
 else
+    old_house_purchase_value = h * pbefore;
+    old_house_current_value  = h * pbefore * pafter;
+
+    old_originalmortgage = (single_1 - olddownpayment) * old_house_purchase_value;
+    rate_factor = (single_1 + r)^mortgageduration;
+    pmt_factor  = (r * rate_factor) / (rate_factor - single_1);
+
+    if yearsowned < mortgageduration
+        outstandingdebt = old_originalmortgage * (rate_factor - (single_1 + r)^(yearsowned + single_1)) / (rate_factor - single_1);
+    else
+        outstandingdebt = single_0;
+    end
+
+    % If moving, liquidate the old house
+    if hprime ~= h
+        equity_from_old = old_house_current_value - outstandingdebt;
+    else
+        equity_from_old = single_0;
+    end
+end
+
+% --- 3. New House & Current Mortgage ---
+if buyhouse == 4 % Holding current house
+    relevantdownpayment = olddownpayment;
+    current_house_purchase_value = old_house_purchase_value;
+    current_yearsowned = yearsowned;
+elseif buyhouse > 0 % Buying a new house (buyhouse = 1, 2, or 3)
+    relevantdownpayment = single_02 * buyhouse;
+    current_house_purchase_value = hprime * pbefore * pafter;
+    current_yearsowned = single_0; % Reset years owned
+else % Renting
     relevantdownpayment = single_0;
-    housevalueatpurchase = single_0;
+    current_house_purchase_value = single_0;
+    current_yearsowned = single_0;
 end
 
 if buyhouse > 0
-    originalmortgage = (single_1 - relevantdownpayment) * housevalueatpurchase;
-else
-    originalmortgage = single_0;
-end
-
-if (buyhouse > 0) && (yearsowned < 20)
-    rate_factor = (single_1 + r)^mortgageduration;
-    pmt_factor  = (r * rate_factor) / (rate_factor - single_1);
-    mortgagepayment = originalmortgage * pmt_factor;
-
-    debt_factor = (rate_factor - (single_1 + r)^(yearsowned + single_1)) / (rate_factor - single_1);
-    outstandingdebt = originalmortgage * debt_factor;
+    current_originalmortgage = (single_1 - relevantdownpayment) * current_house_purchase_value;
+    if current_yearsowned < mortgageduration
+        % Recalculate pmt_factor in case we bypassed it above
+        rate_factor = (single_1 + r)^mortgageduration;
+        pmt_factor  = (r * rate_factor) / (rate_factor - single_1);
+        mortgagepayment = current_originalmortgage * pmt_factor;
+    else
+        mortgagepayment = single_0;
+    end
 else
     mortgagepayment = single_0;
-    outstandingdebt = single_0;
 end
 
-% --- 3. Transactions and Costs ---
+% --- 4. Transactions, PV, and Housing Services ---
+if hprime ~= h && buyhouse > 0 && buyhouse < 4
+    cash_for_new_downpayment = relevantdownpayment * hprime * pbefore * pafter;
+else
+    cash_for_new_downpayment = single_0;
+end
+
+costofnewhouse = cash_for_new_downpayment - equity_from_old;
+
 if hprime ~= h
-    costofnewhouse = relevantdownpayment * pbefore * pafter * hprime - outstandingdebt;
     htc = f_htc * pafter * hprime;
 else
-    costofnewhouse = single_0;
     htc = single_0;
 end
 
 if installpv == 1
     if buyhouse > 0 && buyhouse < 4
-        pvinstallcost = pv_pct_cost * h * pbefore;
+        % PV cost scales with the NEW house
+        pvinstallcost = pv_pct_cost * hprime * pbefore * pafter;
     elseif buyhouse == 4
         pvinstallcost = single(1.1) * pv_pct_cost * h * max(pbefore, pafter);
     else
-        pvinstallcost = single(Inf); % Catch-all (though mostly blocked by rules above)
+        pvinstallcost = single(Inf); 
     end
 else
     pvinstallcost = single_0;
 end
 
-if h == 0
+% Housing services and rent based strictly on the house you live in THIS period
+if hprime == single_0
     s = single(0.5) * houseservices * minhouse;
     rentalcosts = rentprice;
 else
-    s = houseservices * h;
+    s = houseservices * hprime;
     rentalcosts = single_0;
 end
 
-% --- 4. Budget Constraint (Consumption) ---
+% --- 5. Budget Constraint (Consumption) ---
 energy_cost = energy_pct_cost * (single_1 - solarpv / single(30));
 
 if agej < Jr
@@ -96,7 +131,7 @@ else
     c = pension + (single_1 + r)*a - aprime - costofnewhouse - htc - rentalcosts - mortgagepayment - pvinstallcost - energy_cost;
 end
 
-% --- 5. Utility Assembly ---
+% --- 6. Utility Assembly ---
 if c <= 0
     F = single_minf;
 else
