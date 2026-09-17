@@ -182,14 +182,14 @@ asset_grid=10*(linspace(zero,1,n_a(1)))'; % Note, I use equal spacing (normally 
 
 % age20avgincome=Params.w*Params.kappa_j(1);
 % house_grid=[0; logspace(2*age20avgincome, 12*age20avgincome, 5)'];
-house_grid=(0:1:n_a(2)-1)';
+house_grid=(zero:1:n_a(2)-1)';
 % Note, we can see from w*kappa_j*z and the values of these, that average
 % income is going to be around one, so will just use this simpler house grid
 % [We can think about the values of the house_grid as being relative the average income (or specifically average at a given age)]
 Params.minhouse=house_grid(2); % first is zero (no house)
 
 % kWh of solar generation installed, 10kW per grid element
-solarpv_grid=10*(0:1:n_a(3)-1)';
+solarpv_grid=10*(zero:1:n_a(3)-1)';
 
 % First, the AR(1) process z
 [z_grid,pi_z]=discretizeAR1_FarmerToda(0,Params.rho_z,Params.sigma_epsilon_z,n_z);
@@ -201,10 +201,10 @@ z_grid=z_grid./mean_z; % Normalise the grid on z (so that the mean of z is exact
 % riskyshare_grid=linspace(0,1,n_d(x))'; % Share of assets, from 0 to 1
 
 % buyhouse
-buyhouse_grid=(0:1:n_d(2)-1)';
+buyhouse_grid=(zero:1:n_d(2)-1)';
 
 % installpv is a binary choice
-installpv_grid=[0; 1];
+installpv_grid=cast([0; 1], vfoptions.precision);
 
 % Set up d for VFI Toolkit (is the two decision variables)
 d_grid=[buyhouse_grid; installpv_grid];
@@ -212,22 +212,22 @@ d_grid=[buyhouse_grid; installpv_grid];
 a_grid=[asset_grid; house_grid; solarpv_grid];
 
 % Now the semi-exogenous states, we define SemiExoStateFn later, for now just some grids
-pbefore_grid=[0.8,1,1.2,1.4,1.6]'; % 1 represents price when agent is 'born'
-pafter_grid=[0.8,1,1.2,1.4,1.6]'; % 1 represents price when house is purchased
+pbefore_grid=cast([0.8,1,1.2,1.4,1.6],vfoptions.precision)'; % 1 represents price when agent is 'born'
+pafter_grid=cast([0.8,1,1.2,1.4,1.6],vfoptions.precision)'; % 1 represents price when house is purchased
 % Note: is purely coincidence that pbefore and pafter use same grids (both
 % must be equally spaced, but no need to be same values, nor same number of points)
-yearsowned_grid=[(0:1:(n_semiz(3)-2))';100]; % note: 100 is an absorbing state representing 30+ years (so mortgage is fully repaid)
-downpayment_grid=[0.2,0.4,0.6]'; % downpayment for new house must be 20%, 40%, 60%.
+yearsowned_grid=[(zero:1:(n_semiz(3)-2))';100]; % note: 100 is an absorbing state representing 30+ years (so mortgage is fully repaid)
+downpayment_grid=cast([0.2,0.4,0.6],vfoptions.precision)'; % downpayment for new house must be 20%, 40%, 60%.
 % Should the fact of solar PV installation affect pafter_grid?
 semiz_grid=[pbefore_grid; pafter_grid; yearsowned_grid; downpayment_grid];
 % Note, SemiExoStateFn hardcodes that the grid spacing for pbefore_grid
 % must be evenly spaced, and same for pafter_grid.
 Params.pbeforespacing=pbefore_grid(2)-pbefore_grid(1);
-if any(abs(pbefore_grid(2:end)-pbefore_grid(1:end-1)-Params.pbeforespacing) > 1e-14)
+if any(abs(pbefore_grid(2:end)-pbefore_grid(1:end-1)-Params.pbeforespacing) > 1e-7)
     error('pbefore_grid must be evenly spaced (is hardcoded in SemiExoStateFn)')
 end
 Params.pafterspacing=pafter_grid(2)-pafter_grid(1);
-if any(abs(pafter_grid(2:end)-pafter_grid(1:end-1)-Params.pafterspacing) > 1e-14)
+if any(abs(pafter_grid(2:end)-pafter_grid(1:end-1)-Params.pafterspacing) > 1e-7)
     error('pafter_grid must be evenly spaced (is hardcoded in SemiExoStateFn)')
 end
 % need to store max/min of pbefore and pafter grids, so we can use them in
