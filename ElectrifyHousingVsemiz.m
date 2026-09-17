@@ -207,7 +207,7 @@ buyhouse_grid=(zero:1:n_d(2)-1)';
 installpv_grid=cast([0; 1], vfoptions.precision);
 
 % Set up d for VFI Toolkit (is the two decision variables)
-d_grid=[buyhouse_grid; installpv_grid];
+d_grid=[installpv_grid; buyhouse_grid];
 
 a_grid=[asset_grid; house_grid; solarpv_grid];
 
@@ -278,7 +278,7 @@ simoptions.d_grid=d_grid;
 % Set up the semi-exogneous states
 vfoptions.n_semiz=n_semiz;
 vfoptions.semiz_grid=semiz_grid;
-% Define the transition probabilities of the semi-exogenous states
+% Define the transition probabilities of the semi-exogenous states; do it all in double precision
 vfoptions.SemiExoStateFn=@(pbefore,pafter,yearsowned,downpayment,pbeforeprime,pafterprime,yearsownedprime,downpaymentprime,buyhouse, ...
         probhousepricerise,probhousepricefall, pbeforespacing,pafterspacing, maxpbefore,minpbefore,maxpafter,minpafter, mortgageduration)...
     ElectrifyHousing_SemiExoStateFn(pbefore,pafter,yearsowned,downpayment,pbeforeprime,pafterprime,yearsownedprime,downpaymentprime,buyhouse, ...
