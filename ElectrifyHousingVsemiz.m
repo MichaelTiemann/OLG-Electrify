@@ -222,28 +222,6 @@ downpayment_grid = cast([0.2, 0.4, 0.6], vfoptions.precision)';
 
 semiz_grid = [pbefore_grid; pafter_grid; yearsowned_grid; downpayment_grid];
 
-%% Build Time-Invariant pi_semiz (Bypassing the 5.8B element allocation limit)
-disp('Initializing lightweight Semi-Exogenous transition tensor (N_j=1 trick)...');
-
-% Unlock the setup temporarily
-vfoptions.alreadygridvals_semiexo = 0;
-
-% Call setup natively but lie about lifespan (N_j=1 instead of 60)
-% We use AgeDependence=1 to pass the internal gridpiboth validation checks
-vfoptions_temp = SemiExogShockSetup_FHorz(n_d, 1, d_grid, Params, vfoptions, 1);
-
-% Extract the cleanly generated grids and transition matrix
-vfoptions.semiz_gridvals_J = vfoptions_temp.semiz_gridvals_J;
-vfoptions.pi_semiz_J = vfoptions_temp.pi_semiz_J;
-
-% Lock it down so ValueFnIter doesn't try to rebuild the massive 60-period version!
-vfoptions.alreadygridvals_semiexo = 1; 
-
-% Provide the same arrays to simoptions for forward simulation
-simoptions.semiz_gridvals_J = vfoptions.semiz_gridvals_J;
-simoptions.pi_semiz_J = vfoptions.pi_semiz_J;
-simoptions.alreadygridvals_semiexo = 1;
-
 % (Keep the spacing checks that follow here...)
 % Note, SemiExoStateFn hardcodes that the grid spacing for pbefore_grid
 % must be evenly spaced, and same for pafter_grid.
@@ -297,10 +275,6 @@ simoptions.aprimeFn=vfoptions.aprimeFn;
 simoptions.a_grid=a_grid;
 simoptions.d_grid=d_grid;
 
-%% Setup for how the semi-exogneous states evolve
-
-% Note: with riskyasset, the decision variables for the semi-exo states are determined by d4 in vftopions.refine_d
-% Set up the semi-exogneous states
 %% Setup for how the semi-exogenous states evolve
 vfoptions.l_dsemiz = 1; % or 2 depending on how many decision variables control semiz
 vfoptions.n_semiz = n_semiz;
@@ -312,11 +286,31 @@ vfoptions.SemiExoStateFn = @(pbefore,pafter,yearsowned,downpayment,pbeforeprime,
     ElectrifyHousing_SemiExoStateFn(pbefore,pafter,yearsowned,downpayment,pbeforeprime,pafterprime,yearsownedprime,downpaymentprime,buyhouse, ...
     probhousepricerise,probhousepricefall,pbeforespacing,pafterspacing,maxpbefore,minpbefore,maxpafter,minpafter,mortgageduration);
 
+%% Build Time-Invariant pi_semiz (Bypassing the 5.8B element allocation limit)
+disp('Initializing lightweight Semi-Exogenous transition tensor (N_j=1 trick)...');
+
+% Unlock the setup temporarily
+vfoptions.alreadygridvals_semiexo = 0;
+
+% Call setup natively but lie about lifespan (N_j=1 instead of 60)
+% We use AgeDependence=1 to pass the internal gridpiboth validation checks
+vfoptions_temp = SemiExogShockSetup_FHorz(n_d, 1, d_grid, Params, vfoptions, 1);
+
+% Extract the cleanly generated grids and transition matrix
+vfoptions.semiz_gridvals_J = vfoptions_temp.semiz_gridvals_J;
+vfoptions.pi_semiz_J = vfoptions_temp.pi_semiz_J;
+
+% Lock it down so ValueFnIter doesn't try to rebuild the massive 60-period version!
+vfoptions.alreadygridvals_semiexo = 1; 
+
 % We also need to tell simoptions about the semi-exogenous states
 simoptions.SemiExoStateFn = vfoptions.SemiExoStateFn;
 simoptions.n_semiz = vfoptions.n_semiz;
 simoptions.semiz_grid = vfoptions.semiz_grid;
 simoptions.l_dsemiz = vfoptions.l_dsemiz;
+simoptions.semiz_gridvals_J = vfoptions.semiz_gridvals_J;
+simoptions.pi_semiz_J = vfoptions.pi_semiz_J;
+simoptions.alreadygridvals_semiexo = 1;
 
 %% Now, create the return function 
 % % There is not much agreement on how to handle mortality risk with Epstein-Zin preferences
