@@ -12,8 +12,7 @@ install_mask    = (installpv == 1) & (solarpv == 0);
 no_install_mask = (installpv == 0);
 
 % The JIT compiler implicitly expands this natively inside the GPU registers
-solarpv_prime = install_mask .* single_install_size + ...
-    no_install_mask .* (solarpv .* single_0_99);
+solarpv_prime = install_mask * single_install_size + no_install_mask * (solarpv * single_0_99);
 
 % (Note: The ReturnFn already bans states where installpv == 1 & solarpv > 0 with -Inf,
 % so we don't need to explicitly handle their transitions here; they will naturally drop out).
