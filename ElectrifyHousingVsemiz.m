@@ -98,9 +98,10 @@ Params.beta = 0.96^p5;
 Params.beta0 = 0.80^p5; % <-- NEW: Quasi-Hyperbolic present-bias parameter
 
 % Preferences (Core)
-Params.sigma = 2.0; 
-Params.eta   = 0.5;  
-Params.phi   = 10;   % HOW DOES THIS GET INTO EZ?  Or is it Params.psi?  Or what?
+Params.sigma = 2.0; % An appropriate value for EZ
+Params.eta   = 0.5;
+% If we wanted to pass a weight on housing, Frisch elasticity of labor, or a bequest motive, we can pass to ReturnFn
+% Params.phi   = 10; Change ReturnFn signature to capture this parameter
 
 % Preferences (Epstein-Zin)
 Params.ez_risk_aversion = 4.0; % High Risk Aversion 
@@ -118,7 +119,9 @@ vfoptions.EZpositiveutility = 0;
 vfoptions.EZutils           = 1;
 
 % Preferences
-Params.sigma=10; % Coeff of relative risk aversion (curvature of consumption)
+if ~isfield(vfoptions, 'EZriskaversion')
+    Params.sigma = 10.0; % High risk aversion in non-EZ model; overriden by EZ
+end
 Params.sigma_h=0.5; % Relative importance of housing services (vs consumption) in utility
 
 
@@ -342,14 +345,14 @@ if strcmp(vfoptions.precision,'single')
     ReturnFn=@(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
         pbefore,pafter,yearsowned,olddownpayment, z, ...
         w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost) ...
-        ElectrifyHousingsemizV_ReturnFn_single(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
+        ElectrifyHousingsemizV_EZReturnFn_single(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
         pbefore,pafter,yearsowned,olddownpayment, z, ...
         w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost);
 else
     ReturnFn=@(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
             pbefore,pafter,yearsowned,olddownpayment, z, ...
             w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost) ...
-        ElectrifyHousingsemizV_ReturnFn(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
+        ElectrifyHousingsemizV_EZReturnFn(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
             pbefore,pafter,yearsowned,olddownpayment, z, ...
             w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost);
 end
