@@ -97,7 +97,7 @@ Params.f_htc=0.1; % transaction cost of buying/selling house (is a percent of h+
 % Params.minhouse % set below, is the minimum value of house that can be purchased
 Params.rentprice=0.3; % I figured setting rent a decent fraction of income is sensible
 Params.houseservices=0.3; % housing services as a fraction of house value
-Params.pv_pct_cost=0.05; % modeling a $30K install for a $600K house
+Params.pv_pct_cost=0.03; % modeling a $20K install for a $600K house
 Params.energy_pct_cost=0.07; % Electricity: 3%; Gas: 2%; Petrol: 2%
 
 % Discount rate
@@ -270,10 +270,12 @@ simoptions.aprimeFn=vfoptions.aprimeFn;
 % simoptions.u_grid=u_grid;
 % simoptions.pi_u=pi_u;
 % Because a_grid and d_grid are involved in risky assets and experienceassets, but are not
-% normally needed for agent distriubiton simulation, we have to also
+% normally needed for agent distribution simulation, we have to also
 % include these in simoptions
+% And we need to include z_grid to support later semiz bypass logic
 simoptions.a_grid=a_grid;
 simoptions.d_grid=d_grid;
+simoptions.z_grid=z_grid;
 
 %% Setup for how the semi-exogenous states evolve
 vfoptions.l_dsemiz = 1; % or 2 depending on how many decision variables control semiz

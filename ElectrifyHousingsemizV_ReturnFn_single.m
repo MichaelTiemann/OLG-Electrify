@@ -8,7 +8,7 @@ single_minf = single(-Inf);
 single_0 = single(0);
 single_02 = single(0.2);
 
-% --- 1. Invalid State Bans (Short-Circuit to save GPU compute!) ---
+% --- 1. State Space Pruning (Computational Short-Circuits) ---
 if (installpv == 1) && (solarpv > 0)
     F = single_minf; return;
 end
@@ -28,7 +28,7 @@ if (installpv == 1) && (buyhouse == 0)
     F = single_minf; return;
 end
 
-% --- 2. Old House & Equity Cashed Out ---
+% --- 2. Old Asset Liquidation & Equity Extraction ---
 if h == single_0
     old_house_purchase_value = single_0;
     old_house_current_value  = single_0;
@@ -56,7 +56,7 @@ else
     end
 end
 
-% --- 3. New House & Current Mortgage ---
+% --- 3. New Asset Origination & Mortgage Mechanics ---
 if buyhouse == 4 % Holding current house
     relevantdownpayment = olddownpayment;
     current_house_purchase_value = old_house_purchase_value;
@@ -74,7 +74,7 @@ end
 if buyhouse > 0
     current_originalmortgage = (single_1 - relevantdownpayment) * current_house_purchase_value;
     if current_yearsowned < mortgageduration
-        % Recalculate pmt_factor in case we bypassed it above
+        % Recalculate pmt_factor (required if previous state bypassed calculation)
         rate_factor = (single_1 + r)^mortgageduration;
         pmt_factor  = (r * rate_factor) / (rate_factor - single_1);
         mortgagepayment = current_originalmortgage * pmt_factor;
