@@ -294,7 +294,7 @@ vfoptions.alreadygridvals_semiexo = 0;
 
 % Call setup natively but lie about lifespan (N_j=1 instead of 60)
 % We use AgeDependence=1 to pass the internal gridpiboth validation checks
-vfoptions_temp = SemiExogShockSetup_FHorz(n_d, 1, d_grid, Params, vfoptions, 1);
+vfoptions_temp = SemiExogShockSetup_FHorz(n_d, 2, d_grid, Params, vfoptions, 3);
 
 % Extract the cleanly generated grids and transition matrix
 vfoptions.semiz_gridvals_J = vfoptions_temp.semiz_gridvals_J;
