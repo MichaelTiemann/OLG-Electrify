@@ -170,10 +170,13 @@ Params.probhousepricefall=0.2; % decrease one grid point
 % The grids on house prices (pbefore_grid and pafter_grid are below).
 
 %% Grids
+vfoptions.precision='single'; simoptions.precision=vfoptions.precision;
+zero=cast(0,vfoptions.precision);
+
 % The ^3 means that there are more points near 0 than near 1. We know from
 % theory that the value function will be more 'curved' near zero assets,
 % and putting more points near curvature (where the derivative changes the most) increases accuracy of results.
-asset_grid=10*(linspace(0,1,n_a(1)))'; % Note, I use equal spacing (normally would put most points near zero)
+asset_grid=10*(linspace(zero,1,n_a(1)))'; % Note, I use equal spacing (normally would put most points near zero)
 % note: will go from 0 to 10
 % assetprime_grid=10*(linspace(0,1,n_d(2)))'; % Want to let n_d(2) have different number of grid points from n_a(1).
 
@@ -247,7 +250,11 @@ simoptions.experienceasset=1;
 % vfoptions.refine_d: the decision variables input to aprimeFn are d2,d3
 
 % Experience assets must be listed first in aprime
-a2primeFn=@(installpv, solarpv, pbefore, pafter, yearsowned, olddownpayment) ElectrifyHousingV_a2primeFn(installpv, solarpv); % Will return the value of aprime
+if strcmp(vfoptions.precision, 'single')
+    a2primeFn=@(installpv, solarpv, pbefore, pafter, yearsowned, olddownpayment) ElectrifyHousingV_a2primeFn_single(installpv, solarpv); % Will return the value of aprime
+else
+    a2primeFn=@(installpv, solarpv, pbefore, pafter, yearsowned, olddownpayment) ElectrifyHousingV_a2primeFn(installpv, solarpv); % Will return the value of aprime
+end
 % Note that u is risky asset excess return and effectively includes both the (excess) mean and standard deviation of risky assets
 
 %% Put the risky asset/experienceasset into vfoptions and simoptions
@@ -255,7 +262,7 @@ vfoptions.aprimeFn=a2primeFn;
 % vfoptions.n_u=n_u;
 % vfoptions.u_grid=u_grid;
 % vfoptions.pi_u=pi_u;
-simoptions.aprimeFn=a2primeFn;
+simoptions.aprimeFn=vfoptions.aprimeFn;
 % simoptions.n_u=n_u;
 % simoptions.u_grid=u_grid;
 % simoptions.pi_u=pi_u;
@@ -291,12 +298,21 @@ simoptions.semiz_grid=vfoptions.semiz_grid;
 DiscountFactorParamNames={'beta','sj'};
 
 % Use 'ElectrifyHousing_ReturnFn'
-ReturnFn=@(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
+if strcmp(vfoptions.precision,'single')
+    ReturnFn=@(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
         pbefore,pafter,yearsowned,olddownpayment, z, ...
         w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost) ...
-    ElectrifyHousingsemizV_ReturnFn(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
+        ElectrifyHousingsemizV_ReturnFn_single(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
         pbefore,pafter,yearsowned,olddownpayment, z, ...
         w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost);
+else
+    ReturnFn=@(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
+            pbefore,pafter,yearsowned,olddownpayment, z, ...
+            w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost) ...
+        ElectrifyHousingsemizV_ReturnFn(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
+            pbefore,pafter,yearsowned,olddownpayment, z, ...
+            w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost);
+end
 % vfoptions.refine_d, with semiz: only (d1,d3,..) are input to ReturnFn [this model has no d1, so here just d3]
 
 %% Now solve the value function iteration problem, just to check that things are working before we go to General Equilbrium
@@ -326,7 +342,7 @@ size(Policy)
 %% Initial distribution of agents at birth (j=1)
 % Before we plot the life-cycle profiles we have to define how agents are
 % at age j=1. We will give them all zero assets.
-jequaloneDist=zeros([n_a,n_semiz,n_z],'gpuArray'); % Put no households anywhere on grid
+jequaloneDist=zeros([n_a,n_semiz,n_z],vfoptions.precision,'gpuArray'); % Put no households anywhere on grid
 jequaloneDist(1,1,1,Params.pbefore1,Params.pafter1,1,1,ceil(n_z/2))=1; 
 % All agents start with zero assets, no house, zero solarpv
 % note: yearsowned=0 and downpayment=0.2 initial values are anyway irrelevant
