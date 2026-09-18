@@ -60,7 +60,7 @@ n_a = [15, 4, 5];         % Endogenous: Assets (15), Housing (4 sizes), SolarPV 
 n_semiz = [7, 7, 30, 3];  % Semi-exog: PBefore (7), PAfter (7), Mortgage Years (30), Downpayment (3)
 n_z_labor = 7;                  % Exogenous: Labor productivity
 n_z_energy = 3;                 % Exogenous: Energy Price Shock
-n_z = n_z_labor * n_z_energy;   % Combined exogenous space
+n_z = [n_z_labor, n_z_energy];   % Combined exogenous space
 N_j = Params.J;
 
 % LifeCycleModel35 had risky assets, but we delete that in this example
