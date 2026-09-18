@@ -58,7 +58,9 @@ Params.J=ceil((79-Params.agejshifter)/p5); % =60/p5, Number of period in life-cy
 n_d = [2, 5];             % Decisions: PV (2), BuyHouse (5)
 n_a = [15, 4, 5];         % Endogenous: Assets (15), Housing (4 sizes), SolarPV (5 sizes)
 n_semiz = [7, 7, 30, 3];  % Semi-exog: PBefore (7), PAfter (7), Mortgage Years (30), Downpayment (3)
-n_z = 7;                  % Exogenous: Labor productivity (7)
+n_z_labor = 7;                  % Exogenous: Labor productivity
+n_z_energy = 3;                 % Exogenous: Energy Price Shock
+n_z = n_z_labor * n_z_energy;   % Combined exogenous space
 N_j = Params.J;
 
 % LifeCycleModel35 had risky assets, but we delete that in this example
@@ -151,8 +153,10 @@ Params.kappa_j = [linspace(0.5, 2.0, working_years - 10), ...
                   zeros(1, Params.J - working_years)];
 
 % Annualized Exogenous shock process: AR1 on labor productivity units
-Params.rho_z = 0.97;              % Increased persistence for annual wage shocks
-Params.sigma_epsilon_z = 0.015;   % Lower annual variance
+Params.rho_z_labor = 0.97;               % Increased persistence for annual wage shocks
+Params.rho_z_energy = 0.8;               % Increased persistence for energy shocks
+Params.sigma_epsilon_z_labor = 0.015;    % Lower annual variance
+Params.sigma_epsilon_z_energy = 0.150;   % Higher annual variance
 
 % Conditional survival probabilities: sj is the probability of surviving to be age j+1, given alive at age j
 % Most countries have calculations of these (as they are used by the government departments that oversee pensions)
@@ -210,11 +214,21 @@ Params.minhouse=house_grid(2); % first is zero (no house)
 % kWh of solar generation installed, 10kW per grid element
 solarpv_grid=10*(zero:1:n_a(3)-1)';
 
-% First, the AR(1) process z
-[z_grid,pi_z]=discretizeAR1_FarmerToda(0,Params.rho_z,Params.sigma_epsilon_z,n_z);
-z_grid=exp(z_grid); % Take exponential of the grid
-[mean_z,~,~,~]=MarkovChainMoments(z_grid,pi_z); % Calculate the mean of the grid so as can normalise it
-z_grid=z_grid./mean_z; % Normalise the grid on z (so that the mean of z is exactly 1)
+% 1. Labor AR(1) process
+[z_labor_grid, pi_z_labor] = discretizeAR1_FarmerToda(0, Params.rho_z_labor, Params.sigma_epsilon_z_labor, n_z_labor);
+z_labor_grid = exp(z_labor_grid);
+[mean_z_labor, ~, ~, ~] = MarkovChainMoments(z_labor_grid, pi_z_labor);
+z_labor_grid = z_labor_grid ./ mean_z_labor;
+
+% 2. Energy AR(1) process
+[z_energy_grid, pi_z_energy] = discretizeAR1_FarmerToda(0, Params.rho_z_energy, Params.sigma_epsilon_z_energy, n_z_energy);
+z_energy_grid = exp(z_energy_grid);
+[mean_z_energy, ~, ~, ~] = MarkovChainMoments(z_energy_grid, pi_z_energy);
+z_energy_grid = z_energy_grid ./ mean_z_energy;
+
+% 3. Combine via Kronecker Product
+pi_z = kron(pi_z_labor, pi_z_energy);
+z_grid = [kron(z_labor_grid, ones(n_z_energy, 1)), kron(ones(n_z_labor, 1), z_energy_grid)];
 
 % Share of assets invested in the risky asset
 % riskyshare_grid=linspace(0,1,n_d(x))'; % Share of assets, from 0 to 1
@@ -343,17 +357,17 @@ DiscountFactorParamNames={'beta','sj'};
 % Use 'ElectrifyHousing_ReturnFn'
 if strcmp(vfoptions.precision,'single')
     ReturnFn=@(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
-        pbefore,pafter,yearsowned,olddownpayment, z, ...
+        pbefore,pafter,yearsowned,olddownpayment, z_labor, z_energy, ...
         w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost) ...
         ElectrifyHousingsemizV_EZReturnFn_single(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
-        pbefore,pafter,yearsowned,olddownpayment, z, ...
+        pbefore,pafter,yearsowned,olddownpayment, z_labor, z_energy, ...
         w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost);
 else
     ReturnFn=@(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
-            pbefore,pafter,yearsowned,olddownpayment, z, ...
+            pbefore,pafter,yearsowned,olddownpayment, z_labor, z_energy, ...
             w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost) ...
         ElectrifyHousingsemizV_EZReturnFn(installpv,buyhouse,aprime,hprime,a,h,solarpv, ...
-            pbefore,pafter,yearsowned,olddownpayment, z, ...
+            pbefore,pafter,yearsowned,olddownpayment, z_labor, z_energy, ...
             w,r,sigma,agej,Jr,pension,kappa_j,sigma_h,f_htc,minhouse,rentprice,houseservices,mortgageduration,pv_pct_cost,energy_pct_cost);
 end
 % vfoptions.refine_d, with semiz: only (d1,d3,..) are input to ReturnFn [this model has no d1, so here just d3]

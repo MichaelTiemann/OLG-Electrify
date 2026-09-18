@@ -1,5 +1,5 @@
 function F = ElectrifyHousingsemizV_EZReturnFn_single(installpv, buyhouse, aprime, hprime, a, h, solarpv, ...
-    pbefore, pafter, yearsowned, olddownpayment, z, ...
+    pbefore, pafter, yearsowned, olddownpayment, z_labor, z_energy, ...
     w, r, sigma, agej, Jr, pension, kappa_j, sigma_h, f_htc, minhouse, rentprice, houseservices, mortgageduration, pv_pct_cost, energy_pct_cost)
 
 % --- 0. Strictly Typed Constants ---
@@ -123,10 +123,10 @@ else
 end
 
 % --- 5. Budget Constraint (Consumption) ---
-energy_cost = energy_pct_cost * (single_1 - solarpv / single(30));
+energy_cost = z_energy * energy_pct_cost * (single_1 - solarpv / single(30));
 
 if agej < Jr
-    c = w * kappa_j * z + (single_1 + r)*a - aprime - costofnewhouse - htc - rentalcosts - mortgagepayment - pvinstallcost - energy_cost;
+    c = w * kappa_j * z_labor + (single_1 + r)*a - aprime - costofnewhouse - htc - rentalcosts - mortgagepayment - pvinstallcost - energy_cost;
 else
     c = pension + (single_1 + r)*a - aprime - costofnewhouse - htc - rentalcosts - mortgagepayment - pvinstallcost - energy_cost;
 end
